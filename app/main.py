@@ -2,14 +2,18 @@ import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.db import init_db
-from app.repositories import blindtest_repository, song_repository
+from app.repositories import (
+    blindtest_repository,
+    song_repository,
+)
 from app.services.library_scan_service import ScanCancelled, scan_library
 
 
@@ -21,22 +25,84 @@ async def lifespan(_: FastAPI):
 
 settings.storage_dir.mkdir(parents=True, exist_ok=True)
 app = FastAPI(title=settings.project_name, lifespan=lifespan)
+templates = Jinja2Templates(directory=settings.templates_dir)
 app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")
 app.mount("/media", StaticFiles(directory=settings.storage_dir), name="media")
 
 
 @app.get("/", include_in_schema=False)
 async def root() -> RedirectResponse:
-    return RedirectResponse(url="/static/index.html")
+    return RedirectResponse(url="/home")
+
+
+@app.get("/home", include_in_schema=False)
+async def home_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "home.html",
+        {
+            "page_id": "home",
+            "page_title": "Home",
+        },
+    )
+
+
+@app.get("/scan", include_in_schema=False)
+async def scan_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "scan.html",
+        {
+            "page_id": "scan",
+            "page_title": "Library scan",
+            "scan_root_path": str(settings.library_root_path),
+        },
+    )
+
+
+@app.get("/editor/new", include_in_schema=False)
+async def editor_new_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "editor.html",
+        {
+            "page_id": "editor",
+            "page_title": "Blindtest editor",
+            "editor_mode": "new",
+            "blindtest_id": None,
+        },
+    )
+
+
+@app.get("/editor/{blindtest_id}", include_in_schema=False)
+async def editor_page(request: Request, blindtest_id: int):
+    return templates.TemplateResponse(
+        request,
+        "editor.html",
+        {
+            "page_id": "editor",
+            "page_title": "Blindtest editor",
+            "editor_mode": "existing",
+            "blindtest_id": blindtest_id,
+        },
+    )
+
+
+@app.get("/player", include_in_schema=False)
+async def player_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "player.html",
+        {
+            "page_id": "player",
+            "page_title": "Blindtest player",
+        },
+    )
 
 
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
-
-
-class LibraryScanRequest(BaseModel):
-    root_path: str
 
 
 class BlindtestSongPayload(BaseModel):
@@ -155,9 +221,9 @@ library_scan_controller = LibraryScanController()
 
 
 @app.post("/api/library/scan/start")
-async def library_scan_start(payload: LibraryScanRequest) -> dict[str, object]:
+async def library_scan_start() -> dict[str, object]:
     try:
-        return library_scan_controller.start(payload.root_path)
+        return library_scan_controller.start(str(settings.library_root_path))
     except RuntimeError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 

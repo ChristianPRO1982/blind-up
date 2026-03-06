@@ -27,11 +27,21 @@ Run the server:
 uv run uvicorn app.main:app --reload
 ```
 
+Optional environment:
+
+```bash
+BLINDUP_LIBRARY_ROOT_PATH=/path/to/music
+```
+
 Open:
 
 - `http://127.0.0.1:8000/`
+- `http://127.0.0.1:8000/home`
+- `http://127.0.0.1:8000/scan`
+- `http://127.0.0.1:8000/editor/new`
+- `http://127.0.0.1:8000/player`
 - `http://127.0.0.1:8000/health`
-- `http://127.0.0.1:8000/static/index.html`
+- `http://127.0.0.1:8000/static/index.html` (redirects to `/home`)
 
 Run checks:
 
@@ -51,8 +61,15 @@ docker compose up --build
 With Docker Compose, the application is exposed on host port `8500`:
 
 - `http://127.0.0.1:8500/`
+- `http://127.0.0.1:8500/home`
+- `http://127.0.0.1:8500/scan`
+- `http://127.0.0.1:8500/editor/new`
+- `http://127.0.0.1:8500/player`
 - `http://127.0.0.1:8500/health`
-- `http://127.0.0.1:8500/static/index.html`
+- `http://127.0.0.1:8500/static/index.html` (redirects to `/home`)
+
+The compose setup mounts `/home/christianpro1982/Musique/blind-up` inside the container
+at `/music-library`, and the scan uses that fixed path.
 
 ## Project layout
 
@@ -65,10 +82,16 @@ blindup/
 │  ├─ config.py
 │  ├─ db.py
 │  ├─ main.py
-│  └─ static/
+│  ├─ static/
 │     ├─ app.js
 │     ├─ index.html
 │     └─ styles.css
+│  └─ templates/
+│     ├─ base.html
+│     ├─ home.html
+│     ├─ scan.html
+│     ├─ editor.html
+│     └─ player.html
 ├─ docs/
 ├─ tests/
 │  └─ test_app.py

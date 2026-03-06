@@ -74,6 +74,10 @@ h2 {
 .home-layout {
   display: grid;
   gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "actions"
+    "list";
 }
 
 .scan-layout {
@@ -81,11 +85,44 @@ h2 {
   gap: 1rem;
 }
 
-.home-hero {
+.scan-path-panel {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.scan-path-field {
+  min-width: 0;
+}
+
+.scan-actions {
+  justify-content: flex-start;
+}
+
+.home-actions-panel {
+  grid-area: actions;
+  padding: 0.9rem 1.1rem;
+}
+
+.home-list-panel {
+  grid-area: list;
+  min-height: 32rem;
   display: flex;
-  gap: 1rem;
-  align-items: end;
-  justify-content: space-between;
+  flex-direction: column;
+}
+
+.home-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.home-action-buttons button {
+  min-width: 14rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.95rem;
+  background: rgba(255, 255, 255, 0.82);
+  text-align: left;
 }
 
 .home-subtitle {
@@ -95,6 +132,8 @@ h2 {
 .home-blindtest-list {
   display: grid;
   gap: 0.8rem;
+  align-content: start;
+  flex: 1;
 }
 
 .home-blindtest-card {
@@ -760,6 +799,13 @@ input:not(:disabled):focus-visible,
 }
 
 @media (max-width: 1100px) {
+  .home-layout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "actions"
+      "list";
+  }
+
   .editor-layout {
     grid-template-columns: 1fr;
     grid-template-areas:
@@ -790,10 +836,18 @@ input:not(:disabled):focus-visible,
     flex-direction: column;
   }
 
-  .home-hero,
   .home-blindtest-card {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .home-action-buttons {
+    display: grid;
+  }
+
+  .home-action-buttons button {
+    min-width: 0;
+    width: 100%;
   }
 
   .scan-summary-grid {

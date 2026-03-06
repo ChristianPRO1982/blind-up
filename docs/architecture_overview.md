@@ -253,7 +253,7 @@ The application should not rely on automatically loading the first blindtest in 
 
 The Library scan panel is responsible for:
 
-* collecting the root path from the host
+* showing the configured library root path
 * starting a scan for that path
 * stopping a running scan
 * displaying the latest scan summary without leaving the panel

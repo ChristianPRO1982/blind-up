@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section id="player-layout" class="player-layout" aria-label="Blindtest player">
+    <div class="player-shell panel">
+      <div id="player-background" class="player-background"></div>
+      <div class="player-overlay">
+        <header class="player-toolbar">
+          <div class="player-status">
+            <p id="player-round-label" class="eyebrow">Blindtest player</p>
+            <p id="player-position" class="player-position"></p>
+          </div>
+          <div class="player-toolbar-actions">
+            <button id="player-back-button" type="button">Back</button>
+            <button id="player-auto-button" type="button">Auto: off</button>
+            <button id="player-hints-button" type="button">Hints: hidden</button>
+          </div>
+        </header>
+
+        <section class="player-stage" aria-live="polite">
+          <p id="player-panel-label" class="player-panel-label"></p>
+          <h2 id="player-main-title" class="player-main-title">BLINDUP</h2>
+          <p id="player-subtitle" class="player-subtitle"></p>
+          <p id="player-countdown" class="player-countdown" hidden></p>
+          <p id="player-error" class="player-error" hidden>Schrouunntch</p>
+          <div id="player-hints" class="player-hints" hidden></div>
+          <div id="player-answer" class="player-answer" hidden>
+            <div id="player-cover" class="player-cover"></div>
+            <dl class="player-answer-grid">
+              <div>
+                <dt>Title</dt>
+                <dd id="player-answer-title"></dd>
+              </div>
+              <div>
+                <dt>Artist</dt>
+                <dd id="player-answer-artist"></dd>
+              </div>
+              <div>
+                <dt>Album</dt>
+                <dd id="player-answer-album"></dd>
+              </div>
+              <div>
+                <dt>Year</dt>
+                <dd id="player-answer-year"></dd>
+              </div>
+              <div>
+                <dt>Genre</dt>
+                <dd id="player-answer-genre"></dd>
+              </div>
+            </dl>
+          </div>
+        </section>
+
+        <footer class="player-controls">
+          <button id="player-prev-button" type="button">Previous</button>
+          <button id="player-next-button" type="button">Next</button>
+          <button id="player-step-button" type="button" hidden>Next step</button>
+        </footer>
+      </div>
+    </div>
+  </section>
+{% endblock %}

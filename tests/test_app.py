@@ -45,6 +45,14 @@ def test_config_defaults(monkeypatch) -> None:
         reloaded_config.settings.static_dir
         == reloaded_config.BASE_DIR / "app" / "static"
     )
+    assert (
+        reloaded_config.settings.templates_dir
+        == reloaded_config.BASE_DIR / "app" / "templates"
+    )
+    assert (
+        reloaded_config.settings.library_root_path
+        == reloaded_config.BASE_DIR / "library"
+    )
     assert reloaded_config.settings.storage_dir == reloaded_config.BASE_DIR / "storage"
     assert (
         reloaded_config.settings.covers_dir
@@ -56,19 +64,23 @@ def test_config_uses_environment_override(monkeypatch, tmp_path) -> None:
     custom_database_path = tmp_path / "data" / "blindup.db"
     custom_storage_dir = tmp_path / "data" / "storage"
     custom_covers_dir = custom_storage_dir / "custom-covers"
+    custom_library_root_path = tmp_path / "music"
     monkeypatch.setenv("BLINDUP_DB_PATH", str(custom_database_path))
     monkeypatch.setenv("BLINDUP_STORAGE_DIR", str(custom_storage_dir))
     monkeypatch.setenv("BLINDUP_COVERS_DIR", str(custom_covers_dir))
+    monkeypatch.setenv("BLINDUP_LIBRARY_ROOT_PATH", str(custom_library_root_path))
 
     reloaded_config = importlib.reload(config_module)
 
     assert reloaded_config.settings.database_path == custom_database_path
     assert reloaded_config.settings.storage_dir == custom_storage_dir
     assert reloaded_config.settings.covers_dir == custom_covers_dir
+    assert reloaded_config.settings.library_root_path == custom_library_root_path
 
     monkeypatch.delenv("BLINDUP_DB_PATH", raising=False)
     monkeypatch.delenv("BLINDUP_STORAGE_DIR", raising=False)
     monkeypatch.delenv("BLINDUP_COVERS_DIR", raising=False)
+    monkeypatch.delenv("BLINDUP_LIBRARY_ROOT_PATH", raising=False)
     importlib.reload(config_module)
 
 
@@ -438,16 +450,53 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         ) as client:
             return await client.get("/health")
 
+    async def get_home_page_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.get("/home")
+
+    async def get_scan_page_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.get("/scan")
+
+    async def get_editor_new_page_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.get("/editor/new")
+
+    async def get_editor_page_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.get("/editor/1")
+
+    async def get_player_page_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.get("/player")
+
     async def post_scan_start_response() -> httpx.Response:
         transport = httpx.ASGITransport(app=main_module.app)
         async with httpx.AsyncClient(
             transport=transport,
             base_url="http://testserver",
         ) as client:
-            return await client.post(
-                "/api/library/scan/start",
-                json={"root_path": "/music"},
-            )
+            return await client.post("/api/library/scan/start")
 
     async def post_scan_stop_response() -> httpx.Response:
         transport = httpx.ASGITransport(app=main_module.app)
@@ -539,6 +588,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
     original_scan_start = main_module.library_scan_controller.start
     original_scan_stop = main_module.library_scan_controller.stop
     original_scan_snapshot = main_module.library_scan_controller.snapshot
+    original_settings = main_module.settings
     original_list_blindtests = main_module.blindtest_repository.list_blindtests
     original_get_blindtest = main_module.blindtest_repository.get_blindtest
     original_normalize_blindtest_media = (
@@ -548,7 +598,19 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         main_module.blindtest_repository.validate_blindtest_links
     )
     original_save_blindtest = main_module.blindtest_repository.save_blindtest
-    main_module.library_scan_controller.start = lambda _: {"status": "running"}
+    scan_start_calls: list[str] = []
+    configured_scan_root_path = "/music/library"
+    main_module.settings = config_module.Settings(
+        database_path=main_module.settings.database_path,
+        static_dir=main_module.settings.static_dir,
+        templates_dir=main_module.settings.templates_dir,
+        library_root_path=Path(configured_scan_root_path),
+        storage_dir=main_module.settings.storage_dir,
+        covers_dir=main_module.settings.covers_dir,
+    )
+    main_module.library_scan_controller.start = (
+        lambda root_path: scan_start_calls.append(root_path) or {"status": "running"}
+    )
     main_module.library_scan_controller.stop = lambda: {"status": "stopping"}
     main_module.library_scan_controller.snapshot = lambda: {
         "status": "idle",
@@ -647,6 +709,11 @@ def test_fastapi_routes_serve_expected_responses() -> None:
     root_response = asyncio.run(main_module.root())
     health_payload = asyncio.run(main_module.health())
     health_response = asyncio.run(get_health_response())
+    home_page_response = asyncio.run(get_home_page_response())
+    scan_page_response = asyncio.run(get_scan_page_response())
+    editor_new_page_response = asyncio.run(get_editor_new_page_response())
+    editor_page_response = asyncio.run(get_editor_page_response())
+    player_page_response = asyncio.run(get_player_page_response())
     scan_start_response = asyncio.run(post_scan_start_response())
     scan_stop_response = asyncio.run(post_scan_stop_response())
     scan_status_response = asyncio.run(get_scan_status_response())
@@ -657,11 +724,20 @@ def test_fastapi_routes_serve_expected_responses() -> None:
     static_index = main_module.settings.static_dir / "index.html"
     static_styles = main_module.settings.static_dir / "styles.css"
     static_script = main_module.settings.static_dir / "app.js"
+    templates_dir = main_module.settings.templates_dir
 
     try:
         assert main_module.app.title == main_module.settings.project_name
         assert any(route.name == "static" for route in main_module.app.routes)
         assert any(route.name == "media" for route in main_module.app.routes)
+        assert any(route.path == "/home" for route in main_module.app.routes)
+        assert any(route.path == "/scan" for route in main_module.app.routes)
+        assert any(route.path == "/editor/new" for route in main_module.app.routes)
+        assert any(
+            route.path == "/editor/{blindtest_id}"
+            for route in main_module.app.routes
+        )
+        assert any(route.path == "/player" for route in main_module.app.routes)
         assert any(
             route.path == "/api/library/scan/start" for route in main_module.app.routes
         )
@@ -677,12 +753,36 @@ def test_fastapi_routes_serve_expected_responses() -> None:
             for route in main_module.app.routes
         )
         assert root_response.status_code == 307
-        assert root_response.headers["location"] == "/static/index.html"
+        assert root_response.headers["location"] == "/home"
         assert health_payload == {"status": "ok"}
         assert health_response.status_code == 200
         assert health_response.json() == {"status": "ok"}
+        assert home_page_response.status_code == 200
+        assert 'data-page="home"' in home_page_response.text
+        assert "Home panel" in home_page_response.text
+        assert scan_page_response.status_code == 200
+        assert 'data-page="scan"' in scan_page_response.text
+        assert "Library scan panel" in scan_page_response.text
+        assert 'placeholder="/users/moi/music/"' not in scan_page_response.text
+        assert f'value="{configured_scan_root_path}"' in scan_page_response.text
+        assert "readonly" in scan_page_response.text
+        assert scan_page_response.text.index(
+            "Library root path"
+        ) < scan_page_response.text.index(
+            "Scan info"
+        )
+        assert editor_new_page_response.status_code == 200
+        assert 'data-page="editor"' in editor_new_page_response.text
+        assert 'data-editor-mode="new"' in editor_new_page_response.text
+        assert editor_page_response.status_code == 200
+        assert 'data-blindtest-id="1"' in editor_page_response.text
+        assert "Blindtest editor" in editor_page_response.text
+        assert player_page_response.status_code == 200
+        assert 'data-page="player"' in player_page_response.text
+        assert "Blindtest player" in player_page_response.text
         assert scan_start_response.status_code == 200
         assert scan_start_response.json() == {"status": "running"}
+        assert scan_start_calls == [configured_scan_root_path]
         assert scan_stop_response.status_code == 200
         assert scan_stop_response.json() == {"status": "stopping"}
         assert scan_status_response.status_code == 200
@@ -789,13 +889,14 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         assert static_index.exists()
         index_text = static_index.read_text(encoding="utf-8")
         assert "BlindUp" in index_text
-        assert "Home panel" in index_text
-        assert "Library scan panel" in index_text
-        assert "New blindtest" in index_text
-        assert "Blindtest editor" in index_text
-        assert "Blindtest player" in index_text
-        assert "Reset selection" in index_text
-        assert "Library" in index_text
+        assert "/home" in index_text
+        assert "window.location.replace" in index_text
+        assert templates_dir.exists()
+        assert (templates_dir / "base.html").exists()
+        assert (templates_dir / "home.html").exists()
+        assert (templates_dir / "scan.html").exists()
+        assert (templates_dir / "editor.html").exists()
+        assert (templates_dir / "player.html").exists()
         assert static_styles.exists()
         styles_text = static_styles.read_text(encoding="utf-8")
         assert "background" in styles_text
@@ -807,6 +908,8 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         assert static_script.exists()
         script_text = static_script.read_text(encoding="utf-8")
         assert "blindUpReady" in script_text
+        assert "window.location.assign(\"/player\")" in script_text
+        assert "window.sessionStorage" in script_text
         assert "handleScanToggle" in script_text
         assert "showScanView" in script_text
         assert "openBlindtest" in script_text
@@ -818,6 +921,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         assert "Round 3 — Escalation" in script_text
         assert "Schrouunntch" in script_text
     finally:
+        main_module.settings = original_settings
         main_module.song_repository.list_songs = original_list_songs
         main_module.song_repository.normalize_song_media_paths = (
             original_normalize_song_media_paths

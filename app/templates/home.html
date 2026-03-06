@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section id="home-layout" class="home-layout" aria-label="Home panel">
+    <aside class="home-actions-panel panel" aria-labelledby="home-actions-title">
+      <div class="panel-heading">
+        <h2 id="home-actions-title">Actions</h2>
+      </div>
+      <div class="home-action-buttons">
+        <button id="open-scan-button" type="button">Library scan</button>
+        <button id="new-blindtest-button" type="button">New blindtest</button>
+      </div>
+    </aside>
+
+    <section class="home-list-panel panel" aria-labelledby="home-list-title">
+      <div class="panel-heading">
+        <h2 id="home-list-title">Local blindtests</h2>
+      </div>
+      <div id="home-empty" class="empty-state" hidden>
+        No blindtest yet. Create one to start editing.
+      </div>
+      <div id="home-blindtest-list" class="home-blindtest-list"></div>
+    </section>
+  </section>
+{% endblock %}

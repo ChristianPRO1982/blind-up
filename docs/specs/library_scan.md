@@ -34,7 +34,7 @@ The scan must be safe, deterministic, and simple.
 
 # Root Folder
 
-The music library root folder is configured by the user.
+The music library root folder is configured by the application host.
 
 Example:
 
@@ -44,11 +44,9 @@ Example:
 
 The scan starts from this root folder and explores all subfolders recursively.
 
-In the UI, the host enters this path directly in the **Library scan panel**.
+In the UI, the path is displayed in the **Library scan panel** as a fixed local path.
 
-The scan always starts from the exact path currently shown in that input.
-
-No separate remembered path or hidden configured path is required for MVP.
+The scan always starts from that configured path.
 
 ---
 
@@ -69,7 +67,7 @@ Library Scan Panel
 
 The panel must include:
 
-* a text input for `root_path`
+* a visible field showing the configured `root_path`
 * a `Start scan` action
 * a `Stop scan` action while a scan is running
 

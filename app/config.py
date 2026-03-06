@@ -16,6 +16,14 @@ class Settings:
     static_dir: Path = field(
         default_factory=lambda: Path(__file__).resolve().parent / "static"
     )
+    templates_dir: Path = field(
+        default_factory=lambda: Path(__file__).resolve().parent / "templates"
+    )
+    library_root_path: Path = field(
+        default_factory=lambda: Path(
+            os.getenv("BLINDUP_LIBRARY_ROOT_PATH", BASE_DIR / "library")
+        )
+    )
     storage_dir: Path = field(
         default_factory=lambda: Path(
             os.getenv("BLINDUP_STORAGE_DIR", BASE_DIR / "storage")

@@ -7,6 +7,9 @@
     2: "Round 2 — Reverse",
     3: "Round 3 — Escalation",
   };
+  const PLAYER_DRAFT_STORAGE_KEY = "blindup-player-draft";
+  const PLAYER_RETURN_URL_STORAGE_KEY = "blindup-player-return-url";
+  const RESTORE_EDITOR_DRAFT_STORAGE_KEY = "blindup-restore-editor-draft";
 
   function clamp(value, minimum, maximum) {
     return Math.min(Math.max(value, minimum), maximum);
@@ -42,6 +45,20 @@
 
   function normalizeText(value) {
     return `${value || ""}`.trim();
+  }
+
+  function blindtestUpdatedAtValue(blindtest) {
+    const parsed = Date.parse(normalizeText(blindtest && blindtest.updated_at));
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
+
+  function readSessionJson(key) {
+    try {
+      const rawValue = window.sessionStorage.getItem(key);
+      return rawValue ? JSON.parse(rawValue) : null;
+    } catch (error) {
+      return null;
+    }
   }
 
   function numberOrNull(value) {
@@ -570,7 +587,10 @@
         answerYear: document.getElementById("player-answer-year"),
         answerGenre: document.getElementById("player-answer-genre"),
       };
-      this.currentView = "home";
+      this.page = document.body.dataset.page || "home";
+      this.pageBlindtestId = numberOrNull(document.body.dataset.blindtestId);
+      this.editorMode = document.body.dataset.editorMode || "";
+      this.currentView = this.page;
       this.homeBlindtests = [];
       this.scanState = { status: "idle", summary: null, error: null };
       this.scanPollInterval = null;
@@ -605,10 +625,11 @@
       this.bindHome();
       this.bindForm();
       this.bindPlayerControls();
-      this.showEditorEmpty();
-      this.showHomeView();
-      this.setWaveformControlsDisabled(true);
-      this.showPlaceholder("Select a song card");
+      if (this.page === "editor") {
+        this.showEditorEmpty();
+        this.setWaveformControlsDisabled(true);
+        this.showPlaceholder("Select a song card");
+      }
     }
 
     createDefaultBlindtest() {
@@ -630,22 +651,34 @@
     }
 
     bindHome() {
-      this.elements.openScanButton.addEventListener("click", () => {
-        this.showScanView();
-      });
-      this.elements.newBlindtestButton.addEventListener("click", () => {
-        this.startNewBlindtest();
-      });
-      this.elements.scanToggleButton.addEventListener("click", () => {
-        this.handleScanToggle().catch(() => {});
-      });
-      this.elements.scanBackButton.addEventListener("click", () => {
-        this.stopScanPolling();
-        this.showHomeView();
-      });
+      if (this.elements.openScanButton !== null) {
+        this.elements.openScanButton.addEventListener("click", () => {
+          this.showScanView();
+        });
+      }
+      if (this.elements.newBlindtestButton !== null) {
+        this.elements.newBlindtestButton.addEventListener("click", () => {
+          this.startNewBlindtest();
+        });
+      }
+      if (this.elements.scanToggleButton !== null) {
+        this.elements.scanToggleButton.addEventListener("click", () => {
+          this.handleScanToggle().catch(() => {});
+        });
+      }
+      if (this.elements.scanBackButton !== null) {
+        this.elements.scanBackButton.addEventListener("click", () => {
+          this.stopScanPolling();
+          this.showHomeView();
+        });
+      }
     }
 
     bindForm() {
+      if (this.elements.title === null) {
+        return;
+      }
+
       this.elements.title.addEventListener("input", () => {
         this.blindtest.title = this.elements.title.value;
       });
@@ -710,27 +743,114 @@
     }
 
     bindPlayerControls() {
-      this.playerElements.backButton.addEventListener("click", () => this.showEditorView());
-      this.playerElements.autoButton.addEventListener("click", () => this.togglePlayerAuto());
-      this.playerElements.hintsButton.addEventListener("click", () => this.togglePlayerHints());
-      this.playerElements.prevButton.addEventListener("click", () => this.handlePlayerPrevious());
-      this.playerElements.nextButton.addEventListener("click", () => this.handlePlayerNext());
-      this.playerElements.stepButton.addEventListener("click", () => this.advanceRound3Step());
+      if (this.playerElements.backButton !== null) {
+        this.playerElements.backButton.addEventListener("click", () => this.showEditorView());
+      }
+      if (this.playerElements.autoButton !== null) {
+        this.playerElements.autoButton.addEventListener("click", () => this.togglePlayerAuto());
+      }
+      if (this.playerElements.hintsButton !== null) {
+        this.playerElements.hintsButton.addEventListener("click", () => this.togglePlayerHints());
+      }
+      if (this.playerElements.prevButton !== null) {
+        this.playerElements.prevButton.addEventListener("click", () => this.handlePlayerPrevious());
+      }
+      if (this.playerElements.nextButton !== null) {
+        this.playerElements.nextButton.addEventListener("click", () => this.handlePlayerNext());
+      }
+      if (this.playerElements.stepButton !== null) {
+        this.playerElements.stepButton.addEventListener("click", () => this.advanceRound3Step());
+      }
       document.addEventListener("keydown", (event) => this.handlePlayerKeydown(event));
     }
 
     async init() {
-      const [songsResponse, blindtestsResponse] = await Promise.all([
-        fetch("/api/songs"),
-        fetch("/api/blindtests"),
-      ]);
-      const songsPayload = await songsResponse.json();
-      const blindtestsPayload = await blindtestsResponse.json();
-      this.librarySongs = songsPayload.songs || [];
+      if (this.page === "home") {
+        await this.refreshBlindtests();
+        return;
+      }
+
+      if (this.page === "scan") {
+        await this.refreshScanStatus();
+        if (this.scanState.status === "running" || this.scanState.status === "stopping") {
+          this.startScanPolling();
+        }
+        return;
+      }
+
+      if (this.page === "editor") {
+        await this.loadSongs();
+        await this.loadEditorBlindtest();
+        this.renderEditorPage();
+        return;
+      }
+
+      if (this.page === "player") {
+        await this.loadSongs();
+        this.initPlayerFromStorage();
+      }
+    }
+
+    async loadSongs() {
+      const response = await fetch("/api/songs");
+      const payload = await response.json();
+      this.librarySongs = payload.songs || [];
       this.librarySongMap = new Map(this.librarySongs.map((song) => [song.id, song]));
-      this.homeBlindtests = blindtestsPayload.blindtests || [];
-      await this.refreshScanStatus();
-      this.renderAll();
+    }
+
+    async loadEditorBlindtest() {
+      const restoredDraft = this.consumeEditorDraftRestore();
+      if (restoredDraft !== null) {
+        this.hydrateBlindtest(restoredDraft);
+        return;
+      }
+
+      if (Number.isFinite(this.pageBlindtestId)) {
+        const response = await fetch(`/api/blindtest/${this.pageBlindtestId}`);
+        const payload = await response.json();
+        this.hydrateBlindtest(payload.blindtest);
+        return;
+      }
+
+      this.hydrateBlindtest(null);
+    }
+
+    initPlayerFromStorage() {
+      const playerDraft = readSessionJson(PLAYER_DRAFT_STORAGE_KEY);
+      if (playerDraft === null) {
+        this.renderPlayerDraftMissing();
+        return;
+      }
+
+      this.hydrateBlindtest(playerDraft);
+      this.playerSongs = this.buildPlayerSongs();
+      this.playerOrders = {
+        1: this.playerSongs.slice(),
+        2: shuffleList(this.playerSongs),
+        3: shuffleList(this.playerSongs),
+      };
+      this.playerHistory = [];
+      this.playerHintDefinitions = [];
+      this.playerHintRevealCount = 0;
+      this.playerState = {
+        blindtest_id: this.blindtest.id,
+        mode: this.blindtest.game_mode,
+        current_round: 1,
+        current_song_index: 0,
+        panel: "waiting",
+        auto_enabled: this.blindtest.auto_enabled_default,
+        hints_visible: this.blindtest.hints_enabled_default,
+        round3_step_index: 0,
+      };
+      this.showPlayerView();
+      this.enterCurrentPlayerPanel();
+    }
+
+    renderEditorPage() {
+      this.renderSettings();
+      this.renderSongList();
+      this.renderLibrary();
+      this.renderEditor();
     }
 
     hydrateBlindtest(data) {
@@ -831,12 +951,15 @@
     renderHome() {
       const list = this.elements.homeBlindtestList;
       list.innerHTML = "";
-      this.elements.homeEmpty.hidden = this.homeBlindtests.length > 0;
-      if (this.homeBlindtests.length === 0) {
+      const blindtests = this.homeBlindtests
+        .slice()
+        .sort((left, right) => blindtestUpdatedAtValue(right) - blindtestUpdatedAtValue(left));
+      this.elements.homeEmpty.hidden = blindtests.length > 0;
+      if (blindtests.length === 0) {
         return;
       }
 
-      for (const blindtest of this.homeBlindtests) {
+      for (const blindtest of blindtests) {
         const item = document.createElement("article");
         item.className = "home-blindtest-card";
         item.innerHTML = `
@@ -1504,6 +1627,45 @@
       return `Updated ${parsed.toLocaleString()}`;
     }
 
+    getEditorPath() {
+      if (Number.isFinite(this.blindtest.id)) {
+        return `/editor/${this.blindtest.id}`;
+      }
+      return "/editor/new";
+    }
+
+    clearPendingPlayerDraft() {
+      window.sessionStorage.removeItem(PLAYER_DRAFT_STORAGE_KEY);
+      window.sessionStorage.removeItem(PLAYER_RETURN_URL_STORAGE_KEY);
+      window.sessionStorage.removeItem(RESTORE_EDITOR_DRAFT_STORAGE_KEY);
+    }
+
+    consumeEditorDraftRestore() {
+      const shouldRestore =
+        window.sessionStorage.getItem(RESTORE_EDITOR_DRAFT_STORAGE_KEY) === "1";
+      const returnUrl = window.sessionStorage.getItem(PLAYER_RETURN_URL_STORAGE_KEY);
+      const draft = readSessionJson(PLAYER_DRAFT_STORAGE_KEY);
+      if (!shouldRestore || !returnUrl || returnUrl !== window.location.pathname || draft === null) {
+        return null;
+      }
+
+      window.sessionStorage.removeItem(RESTORE_EDITOR_DRAFT_STORAGE_KEY);
+      return draft;
+    }
+
+    renderPlayerDraftMissing() {
+      this.currentView = "player";
+      this.playerElements.panelLabel.textContent = "Unavailable";
+      this.playerElements.mainTitle.textContent = "BLINDUP";
+      this.playerElements.subtitle.textContent = "Open the player from the editor.";
+      this.playerElements.position.textContent = "";
+      this.playerElements.hints.hidden = true;
+      this.playerElements.answer.hidden = true;
+      this.playerElements.countdown.hidden = true;
+      this.playerElements.error.hidden = true;
+      this.playerElements.stepButton.hidden = true;
+    }
+
     async refreshBlindtests() {
       const response = await fetch("/api/blindtests");
       const payload = await response.json();
@@ -1512,11 +1674,10 @@
     }
 
     async refreshSongs() {
-      const response = await fetch("/api/songs");
-      const payload = await response.json();
-      this.librarySongs = payload.songs || [];
-      this.librarySongMap = new Map(this.librarySongs.map((song) => [song.id, song]));
-      this.renderLibrary();
+      await this.loadSongs();
+      if (this.elements.libraryList !== null) {
+        this.renderLibrary();
+      }
     }
 
     async handleScanToggle() {
@@ -1532,12 +1693,6 @@
 
       await fetch("/api/library/scan/start", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          root_path: this.elements.scanRootPath.value,
-        }),
       });
       await this.refreshScanStatus();
       this.startScanPolling();
@@ -1589,17 +1744,13 @@
     }
 
     async openBlindtest(blindtestId) {
-      const response = await fetch(`/api/blindtest/${blindtestId}`);
-      const payload = await response.json();
-      this.hydrateBlindtest(payload.blindtest);
-      this.renderAll();
-      this.showEditorView();
+      this.clearPendingPlayerDraft();
+      window.location.assign(`/editor/${blindtestId}`);
     }
 
     startNewBlindtest() {
-      this.hydrateBlindtest(null);
-      this.renderAll();
-      this.showEditorView();
+      this.clearPendingPlayerDraft();
+      window.location.assign("/editor/new");
     }
 
     async saveBlindtest() {
@@ -1645,90 +1796,48 @@
       });
       const payload = await response.json();
       this.hydrateBlindtest(payload.blindtest);
-      await this.refreshBlindtests();
-      this.renderAll();
+      window.history.replaceState({}, "", this.getEditorPath());
+      document.body.dataset.editorMode = "existing";
+      document.body.dataset.blindtestId = String(this.blindtest.id);
+      this.pageBlindtestId = this.blindtest.id;
+      this.renderEditorPage();
     }
 
     showHomeView() {
-      this.currentView = "home";
-      this.playerState = null;
-      this.playerHistory = [];
-      this.stopPlayerPlayback();
-      this.destroyWaveform();
-      this.stopScanPolling();
-      this.currentLoadedSongId = null;
-      this.elements.pageTitle.textContent = "Home";
-      this.elements.homeLayout.hidden = false;
-      this.elements.scanLayout.hidden = true;
-      this.elements.editorLayout.hidden = true;
-      this.playerElements.layout.hidden = true;
+      this.clearPendingPlayerDraft();
+      window.location.assign("/home");
     }
 
     showScanView() {
-      this.currentView = "scan";
-      this.playerState = null;
-      this.playerHistory = [];
-      this.stopPlayerPlayback();
-      this.destroyWaveform();
-      this.currentLoadedSongId = null;
-      this.elements.pageTitle.textContent = "Library scan";
-      this.elements.homeLayout.hidden = true;
-      this.elements.scanLayout.hidden = false;
-      this.elements.editorLayout.hidden = true;
-      this.playerElements.layout.hidden = true;
-      this.renderScan();
-      if (
-        this.scanState.status === "running" ||
-        this.scanState.status === "stopping"
-      ) {
-        this.startScanPolling();
-      }
+      this.clearPendingPlayerDraft();
+      window.location.assign("/scan");
     }
 
     showEditorView() {
-      this.currentView = "editor";
-      this.playerState = null;
-      this.playerHistory = [];
-      this.stopPlayerPlayback();
-      this.stopScanPolling();
-      this.elements.pageTitle.textContent = "Blindtest editor";
-      this.elements.homeLayout.hidden = true;
-      this.elements.scanLayout.hidden = true;
-      this.elements.editorLayout.hidden = false;
-      this.playerElements.layout.hidden = true;
+      if (this.page === "player") {
+        window.sessionStorage.setItem(RESTORE_EDITOR_DRAFT_STORAGE_KEY, "1");
+        const returnUrl =
+          window.sessionStorage.getItem(PLAYER_RETURN_URL_STORAGE_KEY) || "/editor/new";
+        window.location.assign(returnUrl);
+        return;
+      }
+
+      window.location.assign(this.getEditorPath());
     }
 
     showPlayerView() {
       this.currentView = "player";
       this.elements.pageTitle.textContent = "Blindtest player";
-      this.elements.homeLayout.hidden = true;
-      this.elements.scanLayout.hidden = true;
-      this.elements.editorLayout.hidden = true;
-      this.playerElements.layout.hidden = false;
     }
 
     launchPlayer() {
-      this.playerSongs = this.buildPlayerSongs();
-      this.playerOrders = {
-        1: this.playerSongs.slice(),
-        2: shuffleList(this.playerSongs),
-        3: shuffleList(this.playerSongs),
-      };
-      this.playerHistory = [];
-      this.playerHintDefinitions = [];
-      this.playerHintRevealCount = 0;
-      this.playerState = {
-        blindtest_id: this.blindtest.id,
-        mode: this.blindtest.game_mode,
-        current_round: 1,
-        current_song_index: 0,
-        panel: "waiting",
-        auto_enabled: this.blindtest.auto_enabled_default,
-        hints_visible: this.blindtest.hints_enabled_default,
-        round3_step_index: 0,
-      };
-      this.showPlayerView();
-      this.enterCurrentPlayerPanel();
+      window.sessionStorage.setItem(
+        PLAYER_DRAFT_STORAGE_KEY,
+        JSON.stringify(this.blindtest)
+      );
+      window.sessionStorage.setItem(PLAYER_RETURN_URL_STORAGE_KEY, this.getEditorPath());
+      window.sessionStorage.setItem(RESTORE_EDITOR_DRAFT_STORAGE_KEY, "1");
+      window.location.assign("/player");
     }
 
     buildPlayerSongs() {
@@ -2563,7 +2672,11 @@
     try {
       await app.init();
     } catch (error) {
-      app.showAudioError();
+      if (app.page === "editor" && app.elements.error !== null) {
+        app.showAudioError();
+      } else {
+        console.error(error);
+      }
     }
     window.blindUpReady = true;
   });
