@@ -9,6 +9,7 @@ import pytest
 import app.config as config_module
 import app.db as db_module
 import app.main as main_module
+from app.services.library_scan_service import ScanSummary
 
 
 def _table_columns(connection: sqlite3.Connection, table_name: str) -> list[str]:
@@ -18,6 +19,8 @@ def _table_columns(connection: sqlite3.Connection, table_name: str) -> list[str]
 
 def test_config_defaults(monkeypatch) -> None:
     monkeypatch.delenv("BLINDUP_DB_PATH", raising=False)
+    monkeypatch.delenv("BLINDUP_STORAGE_DIR", raising=False)
+    monkeypatch.delenv("BLINDUP_COVERS_DIR", raising=False)
 
     reloaded_config = importlib.reload(config_module)
 
@@ -31,17 +34,30 @@ def test_config_defaults(monkeypatch) -> None:
         reloaded_config.settings.static_dir
         == reloaded_config.BASE_DIR / "app" / "static"
     )
+    assert reloaded_config.settings.storage_dir == reloaded_config.BASE_DIR / "storage"
+    assert (
+        reloaded_config.settings.covers_dir
+        == reloaded_config.BASE_DIR / "storage" / "covers"
+    )
 
 
 def test_config_uses_environment_override(monkeypatch, tmp_path) -> None:
     custom_database_path = tmp_path / "data" / "blindup.db"
+    custom_storage_dir = tmp_path / "data" / "storage"
+    custom_covers_dir = custom_storage_dir / "custom-covers"
     monkeypatch.setenv("BLINDUP_DB_PATH", str(custom_database_path))
+    monkeypatch.setenv("BLINDUP_STORAGE_DIR", str(custom_storage_dir))
+    monkeypatch.setenv("BLINDUP_COVERS_DIR", str(custom_covers_dir))
 
     reloaded_config = importlib.reload(config_module)
 
     assert reloaded_config.settings.database_path == custom_database_path
+    assert reloaded_config.settings.storage_dir == custom_storage_dir
+    assert reloaded_config.settings.covers_dir == custom_covers_dir
 
     monkeypatch.delenv("BLINDUP_DB_PATH", raising=False)
+    monkeypatch.delenv("BLINDUP_STORAGE_DIR", raising=False)
+    monkeypatch.delenv("BLINDUP_COVERS_DIR", raising=False)
     importlib.reload(config_module)
 
 
@@ -262,28 +278,92 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         ) as client:
             return await client.get("/health")
 
+    async def post_scan_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.post(
+                "/api/library/scan",
+                json={"root_path": "/music"},
+            )
+
     async def run_startup() -> None:
         async with main_module.lifespan(main_module.app):
             return None
 
     asyncio.run(run_startup())
+    original_scan_library = main_module.scan_library
+    main_module.scan_library = lambda _: ScanSummary(
+        root_path="/music",
+        scanned_files=1,
+        added=1,
+        updated=0,
+        removed=0,
+        skipped=0,
+        errors=0,
+    )
     root_response = asyncio.run(main_module.root())
     health_payload = asyncio.run(main_module.health())
     health_response = asyncio.run(get_health_response())
+    scan_response = asyncio.run(post_scan_response())
     static_index = main_module.settings.static_dir / "index.html"
     static_styles = main_module.settings.static_dir / "styles.css"
     static_script = main_module.settings.static_dir / "app.js"
 
-    assert main_module.app.title == main_module.settings.project_name
-    assert any(route.name == "static" for route in main_module.app.routes)
-    assert root_response.status_code == 307
-    assert root_response.headers["location"] == "/static/index.html"
-    assert health_payload == {"status": "ok"}
-    assert health_response.status_code == 200
-    assert health_response.json() == {"status": "ok"}
-    assert static_index.exists()
-    assert "BlindUp" in static_index.read_text(encoding="utf-8")
-    assert static_styles.exists()
-    assert "background" in static_styles.read_text(encoding="utf-8")
-    assert static_script.exists()
-    assert "blindUpReady" in static_script.read_text(encoding="utf-8")
+    try:
+        assert main_module.app.title == main_module.settings.project_name
+        assert any(route.name == "static" for route in main_module.app.routes)
+        assert any(
+            route.path == "/api/library/scan" for route in main_module.app.routes
+        )
+        assert root_response.status_code == 307
+        assert root_response.headers["location"] == "/static/index.html"
+        assert health_payload == {"status": "ok"}
+        assert health_response.status_code == 200
+        assert health_response.json() == {"status": "ok"}
+        assert scan_response.status_code == 200
+        assert scan_response.json() == {
+            "status": "ok",
+            "summary": {
+                "root_path": "/music",
+                "scanned_files": 1,
+                "added": 1,
+                "updated": 0,
+                "removed": 0,
+                "skipped": 0,
+                "errors": 0,
+            },
+        }
+        assert static_index.exists()
+        assert "BlindUp" in static_index.read_text(encoding="utf-8")
+        assert static_styles.exists()
+        assert "background" in static_styles.read_text(encoding="utf-8")
+        assert static_script.exists()
+        assert "blindUpReady" in static_script.read_text(encoding="utf-8")
+    finally:
+        main_module.scan_library = original_scan_library
+
+
+def test_library_scan_route_returns_400_for_invalid_root(monkeypatch) -> None:
+    async def post_scan_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.post(
+                "/api/library/scan",
+                json={"root_path": "/missing"},
+            )
+
+    def raise_missing(_: str) -> ScanSummary:
+        raise FileNotFoundError("/missing")
+
+    monkeypatch.setattr(main_module, "scan_library", raise_missing)
+
+    response = asyncio.run(post_scan_response())
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Invalid root path: /missing"}
