@@ -120,6 +120,12 @@ CREATE TABLE blindtests (
 | round3_step_gap_sec     | delay between steps       |
 | round3_progression_mode | fixed_start or continuous |
 
+### Blindtest Ordering
+
+The Home panel uses `blindtests.updated_at` to sort blindtests by most recent modification first.
+
+No additional ordering column is required for MVP.
+
 ---
 
 # Table: blindtest_tags

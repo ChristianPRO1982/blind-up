@@ -280,6 +280,28 @@ Main panels include:
 
 Each panel focuses on a single task.
 
+## Home Panel
+
+The application opens on the **Home panel**.
+
+The Home panel is the default entry point for normal usage.
+
+It allows the host to:
+
+* browse the full list of blindtests stored locally
+* create a new blindtest
+* open an existing blindtest in the editor
+
+The blindtest list must:
+
+* include all blindtests stored in the local database
+* be ordered by `updated_at` descending
+* show the most recently modified blindtest first
+
+Opening a blindtest from the Home panel loads that specific blindtest in the editor.
+
+The application must not automatically open the first blindtest on startup.
+
 ---
 
 # Library

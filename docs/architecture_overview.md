@@ -233,6 +233,22 @@ The frontend is composed of several panels:
 
 Panels are displayed dynamically in the SPA.
 
+The default startup panel is the **Home panel**.
+
+The Home panel is responsible for:
+
+* listing all blindtests stored locally
+* sorting them by `blindtests.updated_at` descending
+* opening a specific blindtest in the editor
+* starting the creation of a new blindtest
+
+The backend therefore exposes:
+
+* a list endpoint for blindtest summaries
+* a read endpoint for a specific blindtest
+
+The application should not rely on automatically loading the first blindtest in storage as the primary navigation flow.
+
 ---
 
 # Game Engine

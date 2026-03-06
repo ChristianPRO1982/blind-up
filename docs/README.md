@@ -84,6 +84,7 @@ Example files:
 
 * `blindtest_editor.md`
 * `blindtest_player.md`
+* `home_panel.md`
 * `library_scan.md`
 * `song_waveform_editor.md`
 * `db_schema.md`

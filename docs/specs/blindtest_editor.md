@@ -54,6 +54,18 @@ Example:
 [ Title input ]        [Save] [Launch] [Back]
 ```
 
+### Back Button Behavior
+
+The `Back` button returns to the **Home panel**.
+
+Expected behavior:
+
+* it does not launch gameplay
+* it does not change the current blindtest automatically
+* it leaves the editor and shows the previous navigation level, which is the Home panel
+
+For MVP, no intermediate screen exists between Home and Editor.
+
 ---
 
 # 2 Blindtest Settings
