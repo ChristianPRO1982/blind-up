@@ -1,50 +1,67 @@
+# BlindUp
 
-# Blind Up 🎵
+BlindUp is a local-first music quiz application. This repository currently contains the minimal project foundation described in `docs/`, without gameplay features yet.
 
-## English
+## Stack
 
-**Can you guess the song? Three rounds, increasing madness! 🎭**
-
-Blind Up is a hilarious mix between a classic Blind Test and Times Up. Think you know your music? Think again!
-
-### How it works
-
-- **Round 1: Classic Blind Test** - Guess the song from the audio
-- **Round 2: Backwards Chaos** - Same song, shuffled and played in reverse. Good luck! 🔄
-- **Round 3: The Snippet Challenge** - Tiny audio extracts that grow longer with each attempt. Can you crack it before the full song plays?
-
-Each round gets progressively harder. Will you rise to the challenge?
-
-### Requirements
-
+- Python 3.11
+- FastAPI
+- SQLite
+- HTML, CSS, and vanilla JavaScript
+- uv
+- pytest
+- ruff
 - Docker
-- Python (Linux/Windows)
+
+## Local development
+
+Install dependencies:
 
 ```bash
-docker run -it blind-up
+uv sync --dev
 ```
 
----
-
-## Français
-
-**Tu reconnais la chanson? Trois manches, chaos garanti! 🎭**
-
-Blind Up est un mélange hilarant entre un Blind Test classique et le Times Up. Tu penses bien connaître ta musique? Pense encore!
-
-### Comment ça marche
-
-- **Manche 1 : Blind Test Classique** - Reconnais la chanson en l'écoutant
-- **Manche 2 : Chaos à l'Envers** - Même morceau, mélangé et joué à l'envers. Bonne chance! 🔄
-- **Manche 3 : Défi des Extraits** - Des micro-extraits qui s'allongent à chaque tentative. Peux-tu deviner avant que la chanson entière ne joue?
-
-Chaque manche devient progressivement plus difficile. Relèveras-tu le défi?
-
-### Prérequis
-
-- Docker
-- Python (Linux/Windows)
+Run the server:
 
 ```bash
-docker run -it blind-up
+uv run uvicorn app.main:app --reload
+```
+
+Open:
+
+- `http://127.0.0.1:8000/health`
+- `http://127.0.0.1:8000/static/index.html`
+
+Run checks:
+
+```bash
+uv run pytest -q
+uv run ruff check .
+```
+
+## Docker
+
+Build and start the app:
+
+```bash
+docker compose up --build
+```
+
+The application is exposed on port `8000`.
+
+## Project layout
+
+```text
+blindup/
+├─ app/
+│  ├─ config.py
+│  ├─ db.py
+│  ├─ main.py
+│  └─ static/
+├─ docs/
+├─ tests/
+├─ Dockerfile
+├─ docker-compose.yml
+├─ pyproject.toml
+└─ README.md
 ```
