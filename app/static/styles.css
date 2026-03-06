@@ -297,20 +297,24 @@ h2 {
 
 .settings-panel {
   grid-area: settings;
+  min-width: 0;
 }
 
 .song-list-panel {
   grid-area: songs;
+  min-width: 0;
 }
 
 .song-editor-panel {
   grid-area: editor;
+  min-width: 0;
 }
 
 .library-panel {
   grid-area: library;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .library-panel[hidden] {
@@ -524,6 +528,7 @@ h2 {
 
 .waveform-frame {
   margin-top: 1rem;
+  min-width: 0;
   padding: 1rem;
   border: 1px solid var(--line);
   border-radius: 1rem;
@@ -538,8 +543,14 @@ h2 {
     );
 }
 
+.wave-wrap {
+  min-width: 0;
+  overflow: hidden;
+}
+
 #waveform {
   position: relative;
+  min-width: 0;
   min-height: 140px;
 }
 

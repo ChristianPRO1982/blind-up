@@ -1,7 +1,8 @@
 (function () {
   const DEFAULT_ZOOM = 40;
-  const ZOOM_STEP = 30;
+  const ZOOM_STEP = 1.25;
   const MIN_ZOOM = 10;
+  const MAX_ZOOM = 1200;
   const MIN_REGION_SPAN = 0.1;
   const ROUND_TRANSITION_TITLES = {
     2: "Round 2 — Reverse",
@@ -554,6 +555,7 @@
         libraryList: document.getElementById("library-list"),
         error: document.getElementById("audio-error"),
         waveform: document.getElementById("waveform"),
+        waveWrap: document.querySelector(".wave-wrap"),
         playPause: document.getElementById("play-pause-button"),
         zoomOut: document.getElementById("zoom-out-button"),
         zoomIn: document.getElementById("zoom-in-button"),
@@ -746,9 +748,9 @@
           this.wavesurfer.playPause();
         }
       });
-      this.elements.zoomOut.addEventListener("click", () => this.setZoom(this.currentZoom - ZOOM_STEP));
-      this.elements.zoomIn.addEventListener("click", () => this.setZoom(this.currentZoom + ZOOM_STEP));
-      this.elements.zoomReset.addEventListener("click", () => this.setZoom(DEFAULT_ZOOM));
+      this.elements.zoomOut.addEventListener("click", () => this.setZoom(this.currentZoom / ZOOM_STEP));
+      this.elements.zoomIn.addEventListener("click", () => this.setZoom(this.currentZoom * ZOOM_STEP));
+      this.elements.zoomReset.addEventListener("click", () => this.resetZoom());
       this.elements.mark.addEventListener("click", () => this.handleMark());
       this.elements.reset.addEventListener("click", () => this.resetSelection());
     }
@@ -879,6 +881,9 @@
         this.elements.toggleLibraryButton.textContent = this.isLibraryVisible
           ? "Hide library"
           : "Show library";
+      }
+      if (this.wavesurfer !== null) {
+        window.requestAnimationFrame(() => this.resetZoom());
       }
     }
 
@@ -1284,7 +1289,7 @@
       });
       this.wavesurfer.on("ready", () => {
         this.hideError();
-        this.setZoom(DEFAULT_ZOOM);
+        this.resetZoom();
         this.setWaveformControlsDisabled(false);
         this.renderCurrentSelection();
         this.updateDisplays();
@@ -1342,10 +1347,32 @@
     }
 
     setZoom(value) {
-      this.currentZoom = Math.max(MIN_ZOOM, value);
+      const minimumZoom = this.getFitZoom();
+      this.currentZoom = clamp(value, minimumZoom, MAX_ZOOM);
       if (this.wavesurfer !== null) {
         this.wavesurfer.zoom(this.currentZoom);
       }
+    }
+
+    getFitZoom() {
+      if (this.wavesurfer === null) {
+        return MIN_ZOOM;
+      }
+
+      const duration = this.wavesurfer.getDuration();
+      const containerWidth =
+        (this.elements.waveWrap && this.elements.waveWrap.clientWidth) ||
+        (this.elements.waveform && this.elements.waveform.clientWidth) ||
+        0;
+      if (!duration || !containerWidth) {
+        return DEFAULT_ZOOM;
+      }
+
+      return Math.max(MIN_ZOOM, containerWidth / duration);
+    }
+
+    resetZoom() {
+      this.setZoom(this.getFitZoom());
     }
 
     getActiveSlot() {
