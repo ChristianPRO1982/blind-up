@@ -297,6 +297,51 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         ) as client:
             return await client.get("/api/songs")
 
+    async def get_blindtest_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.get("/api/blindtest")
+
+    async def post_blindtest_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.post(
+                "/api/blindtest",
+                json={
+                    "title": "Friday night",
+                    "game_mode": "blindup",
+                    "pre_play_delay_sec": 1.5,
+                    "auto_enabled_default": True,
+                    "hints_enabled_default": False,
+                    "answer_timer_enabled": True,
+                    "answer_duration_sec": 12,
+                    "round3_step_durations": "0.5,1,2",
+                    "round3_step_gap_sec": 4,
+                    "round3_progression_mode": "continuous",
+                    "songs": [
+                        {
+                            "song_id": 1,
+                            "order_index": 0,
+                            "start_sec": 45,
+                            "duration_sec": 3.5,
+                            "override_title": "Opening song",
+                            "override_artist": None,
+                            "override_album": None,
+                            "override_year": 1999,
+                            "override_genre": None,
+                            "override_cover": None,
+                            "custom_hint": "Final chorus",
+                        }
+                    ],
+                },
+            )
+
     async def run_startup() -> None:
         async with main_module.lifespan(main_module.app):
             return None
@@ -304,6 +349,8 @@ def test_fastapi_routes_serve_expected_responses() -> None:
     asyncio.run(run_startup())
     original_scan_library = main_module.scan_library
     original_list_songs = main_module.song_repository.list_songs
+    original_get_first_blindtest = main_module.blindtest_repository.get_first_blindtest
+    original_save_blindtest = main_module.blindtest_repository.save_blindtest
     main_module.scan_library = lambda _: ScanSummary(
         root_path="/music",
         scanned_files=1,
@@ -318,14 +365,65 @@ def test_fastapi_routes_serve_expected_responses() -> None:
             "id": 1,
             "title": "Song 1",
             "artist": "Artist 1",
+            "album": "Album 1",
+            "year": 2001,
+            "genre": "Rock",
+            "cover_path": "/covers/song-1.jpg",
             "duration_sec": 10.0,
         }
     ]
+    main_module.blindtest_repository.get_first_blindtest = lambda: {
+        "id": 1,
+        "title": "Stored blindtest",
+        "game_mode": "blind_test",
+        "pre_play_delay_sec": 0.0,
+        "auto_enabled_default": 0,
+        "hints_enabled_default": 1,
+        "answer_timer_enabled": 0,
+        "answer_duration_sec": 10.0,
+        "round3_step_durations": "0.5,1,1.5,2,3,4,5",
+        "round3_step_gap_sec": 3.0,
+        "round3_progression_mode": "fixed_start",
+        "songs": [],
+    }
+    main_module.blindtest_repository.save_blindtest = lambda record: {
+        "id": 2,
+        "title": record.title,
+        "game_mode": record.game_mode,
+        "pre_play_delay_sec": record.pre_play_delay_sec,
+        "auto_enabled_default": int(record.auto_enabled_default),
+        "hints_enabled_default": int(record.hints_enabled_default),
+        "answer_timer_enabled": int(record.answer_timer_enabled),
+        "answer_duration_sec": record.answer_duration_sec,
+        "round3_step_durations": record.round3_step_durations,
+        "round3_step_gap_sec": record.round3_step_gap_sec,
+        "round3_progression_mode": record.round3_progression_mode,
+        "songs": [
+            {
+                "id": 1,
+                "blindtest_id": 2,
+                "song_id": song.song_id,
+                "order_index": song.order_index,
+                "start_sec": song.start_sec,
+                "duration_sec": song.duration_sec,
+                "override_title": song.override_title,
+                "override_artist": song.override_artist,
+                "override_album": song.override_album,
+                "override_year": song.override_year,
+                "override_genre": song.override_genre,
+                "override_cover": song.override_cover,
+                "custom_hint": song.custom_hint,
+            }
+            for song in record.songs
+        ],
+    }
     root_response = asyncio.run(main_module.root())
     health_payload = asyncio.run(main_module.health())
     health_response = asyncio.run(get_health_response())
     scan_response = asyncio.run(post_scan_response())
     songs_response = asyncio.run(get_songs_response())
+    blindtest_response = asyncio.run(get_blindtest_response())
+    save_blindtest_response = asyncio.run(post_blindtest_response())
     static_index = main_module.settings.static_dir / "index.html"
     static_styles = main_module.settings.static_dir / "styles.css"
     static_script = main_module.settings.static_dir / "app.js"
@@ -361,27 +459,89 @@ def test_fastapi_routes_serve_expected_responses() -> None:
                     "id": 1,
                     "title": "Song 1",
                     "artist": "Artist 1",
+                    "album": "Album 1",
+                    "year": 2001,
+                    "genre": "Rock",
+                    "cover_path": "/covers/song-1.jpg",
                     "duration_sec": 10.0,
                 }
             ]
         }
+        assert blindtest_response.status_code == 200
+        assert blindtest_response.json() == {
+            "blindtest": {
+                "id": 1,
+                "title": "Stored blindtest",
+                "game_mode": "blind_test",
+                "pre_play_delay_sec": 0.0,
+                "auto_enabled_default": 0,
+                "hints_enabled_default": 1,
+                "answer_timer_enabled": 0,
+                "answer_duration_sec": 10.0,
+                "round3_step_durations": "0.5,1,1.5,2,3,4,5",
+                "round3_step_gap_sec": 3.0,
+                "round3_progression_mode": "fixed_start",
+                "songs": [],
+            }
+        }
+        assert save_blindtest_response.status_code == 200
+        assert save_blindtest_response.json() == {
+            "status": "ok",
+            "blindtest": {
+                "id": 2,
+                "title": "Friday night",
+                "game_mode": "blindup",
+                "pre_play_delay_sec": 1.5,
+                "auto_enabled_default": 1,
+                "hints_enabled_default": 0,
+                "answer_timer_enabled": 1,
+                "answer_duration_sec": 12.0,
+                "round3_step_durations": "0.5,1,2",
+                "round3_step_gap_sec": 4.0,
+                "round3_progression_mode": "continuous",
+                "songs": [
+                    {
+                        "id": 1,
+                        "blindtest_id": 2,
+                        "song_id": 1,
+                        "order_index": 0,
+                        "start_sec": 45.0,
+                        "duration_sec": 3.5,
+                        "override_title": "Opening song",
+                        "override_artist": None,
+                        "override_album": None,
+                        "override_year": 1999,
+                        "override_genre": None,
+                        "override_cover": None,
+                        "custom_hint": "Final chorus",
+                    }
+                ],
+            },
+        }
         assert static_index.exists()
         index_text = static_index.read_text(encoding="utf-8")
         assert "BlindUp" in index_text
-        assert "Waveform editor" in index_text
-        assert "Reset Selection" in index_text
+        assert "Blindtest editor" in index_text
+        assert "Reset selection" in index_text
+        assert "Library" in index_text
         assert static_styles.exists()
         styles_text = static_styles.read_text(encoding="utf-8")
         assert "background" in styles_text
         assert ".waveform-region" in styles_text
+        assert ".song-card.active" in styles_text
         assert static_script.exists()
         script_text = static_script.read_text(encoding="utf-8")
         assert "blindUpReady" in script_text
-        assert "Mark → Start" in script_text
+        assert "saveBlindtest" in script_text
+        assert "replaceSlotSong" in script_text
         assert "Audio unavailable" in script_text
     finally:
         main_module.scan_library = original_scan_library
         main_module.song_repository.list_songs = original_list_songs
+        main_module.blindtest_repository.get_first_blindtest = (
+            original_get_first_blindtest
+        )
+        main_module.blindtest_repository.save_blindtest = original_save_blindtest
 
 
 def test_library_scan_route_returns_400_for_invalid_root(monkeypatch) -> None:

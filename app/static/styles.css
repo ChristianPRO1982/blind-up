@@ -1,84 +1,318 @@
 :root {
   color-scheme: light;
   font-family: Georgia, "Times New Roman", serif;
-  background: #f5f1e8;
-  color: #1d1b16;
-  --panel: rgba(255, 252, 245, 0.92);
-  --line: rgba(29, 27, 22, 0.12);
-  --accent: #7f3f00;
-  --accent-soft: rgba(127, 63, 0, 0.16);
+  color: #1f1b18;
+  --page-top: #f7e0ba;
+  --page-bottom: #e8decd;
+  --panel: rgba(255, 251, 244, 0.9);
+  --panel-strong: rgba(255, 255, 255, 0.75);
+  --line: rgba(31, 27, 24, 0.14);
+  --line-strong: rgba(31, 27, 24, 0.28);
+  --accent: #87480d;
+  --accent-soft: rgba(135, 72, 13, 0.15);
+  --muted: #746756;
   --wave: #b6a693;
   --wave-progress: #5a4a3a;
-  --region: rgba(127, 63, 0, 0.28);
+  --region: rgba(135, 72, 13, 0.24);
+  --shadow: 0 24px 50px rgba(31, 27, 24, 0.08);
 }
 
 body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(circle at top, #f8d7a7 0%, transparent 30%),
-    linear-gradient(180deg, #f7f2e8 0%, #ebe3d3 100%);
+    radial-gradient(circle at top, var(--page-top) 0, transparent 32%),
+    linear-gradient(180deg, #f9f4eb 0, var(--page-bottom) 100%);
+}
+
+button,
+input {
+  font: inherit;
 }
 
 .app-shell {
-  width: min(1100px, calc(100vw - 2rem));
-  margin: 2rem auto;
-  padding: 2rem;
+  width: min(1380px, calc(100vw - 2rem));
+  margin: 1.5rem auto 2rem;
 }
 
-.hero {
-  margin-bottom: 1.5rem;
+.page-header {
+  margin-bottom: 1rem;
 }
 
 .eyebrow {
-  margin: 0 0 0.35rem;
-  font-size: 0.85rem;
+  margin: 0 0 0.25rem;
+  font-size: 0.82rem;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: #7f6d5a;
+  color: #7a6b5a;
 }
 
-.editor {
-  padding: 2rem;
-  border: 1px solid rgba(29, 27, 22, 0.15);
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: clamp(2rem, 4vw, 3.4rem);
+}
+
+h2 {
+  font-size: 1.2rem;
+}
+
+.editor-layout {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1.1fr 1fr 0.95fr;
+  grid-template-areas:
+    "topbar topbar topbar"
+    "settings settings library"
+    "songs editor library";
+}
+
+.panel,
+.topbar {
+  border: 1px solid var(--line);
   border-radius: 1rem;
   background: var(--panel);
-  box-shadow: 0 20px 50px rgba(29, 27, 22, 0.08);
+  box-shadow: var(--shadow);
 }
 
-.editor-header {
+.topbar {
+  grid-area: topbar;
   display: flex;
   gap: 1rem;
   align-items: end;
   justify-content: space-between;
-  margin-bottom: 1rem;
+  padding: 1.15rem 1.25rem;
 }
 
-.song-picker {
+.title-field {
+  display: grid;
+  gap: 0.4rem;
+  min-width: min(28rem, 100%);
+}
+
+.title-field input,
+.settings-grid input,
+.search-field input,
+.metadata-grid input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 0.8rem;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.header-actions,
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.header-actions button,
+.controls button {
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.panel {
+  padding: 1.1rem;
+}
+
+.panel-heading {
+  margin-bottom: 0.85rem;
+}
+
+.settings-panel {
+  grid-area: settings;
+}
+
+.song-list-panel {
+  grid-area: songs;
+}
+
+.song-editor-panel {
+  grid-area: editor;
+}
+
+.library-panel {
+  grid-area: library;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-grid,
+.metadata-grid {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settings-grid label,
+.metadata-grid label {
   display: grid;
   gap: 0.35rem;
-  font-size: 0.95rem;
+  color: var(--muted);
 }
 
-.song-picker select,
-.controls button {
-  font: inherit;
+.wide-field {
+  grid-column: 1 / -1;
 }
 
-.song-picker select {
-  min-width: min(22rem, 80vw);
-  padding: 0.55rem 0.75rem;
+.inline-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  padding: 0.85rem 0.95rem;
   border: 1px solid var(--line);
-  border-radius: 0.7rem;
-  background: #fffdf9;
+  border-radius: 0.9rem;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.inline-options legend {
+  padding: 0 0.35rem;
+  color: var(--muted);
+}
+
+.inline-options label,
+.toggle-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #1f1b18;
+}
+
+.song-list,
+.library-list {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.song-list:empty::before {
+  content: "Use the library on the right to add songs.";
+  display: block;
+  padding: 1rem;
+  border: 1px dashed var(--line);
+  border-radius: 0.9rem;
+  color: var(--muted);
+}
+
+.song-card,
+.library-item {
+  display: grid;
+  grid-template-columns: 3.2rem minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: start;
+  padding: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 0.95rem;
+  background: var(--panel-strong);
+}
+
+.song-card {
+  cursor: pointer;
+}
+
+.song-card.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.song-card.drag-over,
+.library-item.drag-over {
+  border-color: var(--accent);
+}
+
+.song-card.is-dragging,
+.library-item.is-dragging {
+  opacity: 0.55;
+}
+
+.song-card-header,
+.library-item-header {
+  display: flex;
+  gap: 0.5rem;
+  align-items: start;
+  justify-content: space-between;
+}
+
+.song-card-meta,
+.library-item-meta {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.song-card-title,
+.library-item-title {
+  font-weight: 700;
+}
+
+.song-card-subtitle,
+.library-item-subtitle,
+.song-card-times,
+.library-item-details {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.song-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+}
+
+.song-card-actions button {
+  padding: 0.45rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.cover-thumb {
+  display: grid;
+  place-items: center;
+  width: 3.2rem;
+  height: 3.2rem;
+  border-radius: 0.8rem;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(135deg, rgba(247, 224, 186, 0.95), rgba(193, 158, 120, 0.85));
+  color: #54361d;
+  font-weight: 700;
+}
+
+.search-field {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 0.9rem;
+}
+
+.empty-state,
+.waveform-empty {
+  display: grid;
+  place-items: center;
+  min-height: 140px;
+  border: 1px dashed var(--line);
+  border-radius: 0.9rem;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.42);
 }
 
 .status {
-  margin: 0 0 1rem;
+  margin: 0.8rem 0 0;
   color: #8a1c1c;
 }
 
 .waveform-frame {
+  margin-top: 1rem;
   padding: 1rem;
   border: 1px solid var(--line);
   border-radius: 1rem;
@@ -88,8 +322,8 @@ body {
       90deg,
       transparent 0,
       transparent 39px,
-      rgba(29, 27, 22, 0.03) 39px,
-      rgba(29, 27, 22, 0.03) 40px
+      rgba(31, 27, 24, 0.03) 39px,
+      rgba(31, 27, 24, 0.03) 40px
     );
 }
 
@@ -145,14 +379,14 @@ body {
   top: 10px;
   bottom: 10px;
   min-width: 2px;
-  border: 1px solid rgba(127, 63, 0, 0.45);
+  border: 1px solid rgba(135, 72, 13, 0.45);
   border-radius: 0.5rem;
   background: var(--region);
   cursor: grab;
 }
 
 .waveform-region.pending {
-  background: rgba(127, 63, 0, 0.16);
+  background: rgba(135, 72, 13, 0.14);
 }
 
 .waveform-region.is-dragging {
@@ -170,56 +404,20 @@ body {
 .region-handle.start {
   left: 0;
   cursor: ew-resize;
-  border-right: 1px solid rgba(127, 63, 0, 0.5);
+  border-right: 1px solid rgba(135, 72, 13, 0.5);
 }
 
 .region-handle.end {
   right: 0;
   cursor: ew-resize;
-  border-left: 1px solid rgba(127, 63, 0, 0.5);
-}
-
-.waveform-empty {
-  display: grid;
-  place-items: center;
-  min-height: 120px;
-  border: 1px dashed var(--line);
-  border-radius: 0.85rem;
-  color: #7f6d5a;
-}
-
-.controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin: 1rem 0;
-}
-
-.controls button {
-  padding: 0.7rem 0.95rem;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: #fffdf9;
-}
-
-.controls button:disabled,
-.song-picker select:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.controls button:not(:disabled):hover,
-.song-picker select:not(:disabled):focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
-  outline: none;
+  border-left: 1px solid rgba(135, 72, 13, 0.5);
 }
 
 .time-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.75rem;
-  margin: 0;
+  margin: 1rem 0 0;
 }
 
 .time-grid div {
@@ -230,52 +428,65 @@ body {
 }
 
 .time-grid dt {
-  font-size: 0.85rem;
-  color: #7f6d5a;
+  font-size: 0.84rem;
+  color: var(--muted);
 }
 
 .time-grid dd {
   margin: 0.25rem 0 0;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
 }
 
-h1 {
-  margin: 0;
-  font-size: clamp(2rem, 4vw, 3.2rem);
-  letter-spacing: 0.03em;
+button:disabled,
+input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
-p {
-  margin: 0;
-  font-size: 1rem;
+button:not(:disabled):hover,
+button:not(:disabled):focus-visible,
+input:not(:disabled):focus-visible,
+.song-card:focus-visible,
+.library-item:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
-h2 {
-  margin: 0;
-  font-size: 1.35rem;
+@media (max-width: 1100px) {
+  .editor-layout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "topbar"
+      "settings"
+      "songs"
+      "editor"
+      "library";
+  }
+
+  .library-panel {
+    min-height: 0;
+  }
 }
 
 @media (max-width: 720px) {
   .app-shell {
     width: min(100vw, calc(100vw - 1rem));
-    margin: 1rem auto;
-    padding: 0.5rem;
+    margin: 1rem auto 1.5rem;
   }
 
-  .editor {
-    padding: 1rem;
-  }
-
-  .editor-header {
+  .topbar {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .song-picker select {
+  .title-field {
     min-width: 0;
   }
 
+  .settings-grid,
+  .metadata-grid,
   .time-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
   }
 }

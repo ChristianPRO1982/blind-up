@@ -4,11 +4,11 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.db import init_db
-from app.repositories import song_repository
+from app.repositories import blindtest_repository, song_repository
 from app.services.library_scan_service import scan_library
 
 
@@ -36,6 +36,35 @@ class LibraryScanRequest(BaseModel):
     root_path: str
 
 
+class BlindtestSongPayload(BaseModel):
+    song_id: int
+    order_index: int
+    start_sec: float | None = None
+    duration_sec: float | None = None
+    override_title: str | None = None
+    override_artist: str | None = None
+    override_album: str | None = None
+    override_year: int | None = None
+    override_genre: str | None = None
+    override_cover: str | None = None
+    custom_hint: str | None = None
+
+
+class BlindtestPayload(BaseModel):
+    id: int | None = None
+    title: str = ""
+    game_mode: str = "blind_test"
+    pre_play_delay_sec: float = 0.0
+    auto_enabled_default: bool = False
+    hints_enabled_default: bool = True
+    answer_timer_enabled: bool = False
+    answer_duration_sec: float = 10.0
+    round3_step_durations: str = "0.5,1,1.5,2,3,4,5"
+    round3_step_gap_sec: float = 3.0
+    round3_progression_mode: str = "fixed_start"
+    songs: list[BlindtestSongPayload] = Field(default_factory=list)
+
+
 @app.post("/api/library/scan")
 async def library_scan(payload: LibraryScanRequest) -> dict[str, object]:
     try:
@@ -57,6 +86,10 @@ async def songs() -> dict[str, list[dict[str, object]]]:
                 "id": song["id"],
                 "title": song["title"],
                 "artist": song["artist"],
+                "album": song["album"],
+                "year": song["year"],
+                "genre": song["genre"],
+                "cover_path": song["cover_path"],
                 "duration_sec": song["duration_sec"],
             }
             for song in song_repository.list_songs()
@@ -75,3 +108,45 @@ async def audio(song_id: int) -> FileResponse:
         raise HTTPException(status_code=404, detail="Audio unavailable")
 
     return FileResponse(file_path)
+
+
+@app.get("/api/blindtest")
+async def get_blindtest() -> dict[str, object]:
+    blindtest = blindtest_repository.get_first_blindtest()
+    return {"blindtest": blindtest}
+
+
+@app.post("/api/blindtest")
+async def save_blindtest(payload: BlindtestPayload) -> dict[str, object]:
+    blindtest = blindtest_repository.save_blindtest(
+        blindtest_repository.BlindtestRecord(
+            id=payload.id,
+            title=payload.title,
+            game_mode=payload.game_mode,
+            pre_play_delay_sec=payload.pre_play_delay_sec,
+            auto_enabled_default=payload.auto_enabled_default,
+            hints_enabled_default=payload.hints_enabled_default,
+            answer_timer_enabled=payload.answer_timer_enabled,
+            answer_duration_sec=payload.answer_duration_sec,
+            round3_step_durations=payload.round3_step_durations,
+            round3_step_gap_sec=payload.round3_step_gap_sec,
+            round3_progression_mode=payload.round3_progression_mode,
+            songs=[
+                blindtest_repository.BlindtestSongRecord(
+                    song_id=song.song_id,
+                    order_index=song.order_index,
+                    start_sec=song.start_sec,
+                    duration_sec=song.duration_sec,
+                    override_title=song.override_title,
+                    override_artist=song.override_artist,
+                    override_album=song.override_album,
+                    override_year=song.override_year,
+                    override_genre=song.override_genre,
+                    override_cover=song.override_cover,
+                    custom_hint=song.custom_hint,
+                )
+                for song in payload.songs
+            ],
+        )
+    )
+    return {"status": "ok", "blindtest": blindtest}
