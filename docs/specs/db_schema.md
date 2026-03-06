@@ -167,12 +167,21 @@ CREATE TABLE blindtest_songs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
 
     blindtest_id INTEGER NOT NULL,
-    song_id INTEGER NOT NULL,
+    song_id INTEGER,
 
     order_index INTEGER,
 
+    slot_status TEXT,
+
     start_sec REAL,
     duration_sec REAL,
+
+    source_title TEXT,
+    source_artist TEXT,
+    source_album TEXT,
+    source_year INTEGER,
+    source_genre TEXT,
+    source_cover TEXT,
 
     override_title TEXT,
     override_artist TEXT,
@@ -187,15 +196,31 @@ CREATE TABLE blindtest_songs (
 
 ### Fields
 
-| Field        | Description            |
-| ------------ | ---------------------- |
-| blindtest_id | reference to blindtest |
-| song_id      | reference to song      |
-| order_index  | order used in round 1  |
-| start_sec    | teaser start           |
-| duration_sec | teaser duration        |
-| override_*   | metadata overrides     |
-| custom_hint  | optional hint          |
+| Field         | Description                                  |
+| ------------- | -------------------------------------------- |
+| blindtest_id  | reference to blindtest                       |
+| song_id       | reference to song, nullable when slot broken |
+| order_index   | order used in round 1                        |
+| slot_status   | `ok` or `missing`                            |
+| start_sec     | teaser start                                 |
+| duration_sec  | teaser duration                              |
+| source_*      | last known library metadata snapshot         |
+| override_*    | metadata overrides                           |
+| custom_hint   | optional hint                                |
+
+### Broken Slot Rules
+
+A blindtest slot must survive even if its source song disappears from the library.
+
+When a library song becomes unavailable:
+
+* `songs` may remove the row
+* `blindtest_songs` keeps the slot
+* `song_id` becomes null
+* `slot_status` becomes `missing`
+* `source_*` keeps the last known metadata used for display and recovery
+
+The goal is to preserve the blindtest structure without hiding that manual action is needed.
 
 ---
 
@@ -226,13 +251,13 @@ filesystem → metadata extraction → songs table
 ### Blindtest creation
 
 ```text id="creation_flow"
-songs → blindtest_songs
+songs + metadata snapshot → blindtest_songs
 ```
 
 ### Gameplay
 
 ```text id="gameplay_flow"
-blindtest → blindtest_songs → songs
+blindtest → blindtest_songs → songs or missing slot snapshot
 ```
 
 ---
@@ -242,7 +267,7 @@ blindtest → blindtest_songs → songs
 The database enforces several constraints:
 
 * `file_hash` must be unique
-* blindtest songs must reference valid songs
+* blindtest songs may reference a valid song or preserve a missing slot
 * blindtest tags must be unique
 
 ---

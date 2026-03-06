@@ -114,12 +114,63 @@ Duration: 3.5s
 * drag & drop reorder
 * click to select
 * active card highlighted
+* broken slots remain visible and editable
 
 CSS:
 
 ```
 .song-card.active
+.song-card.missing
 ```
+
+### Broken Slot Presentation
+
+If a slot no longer points to a valid library song:
+
+* the card remains in the list
+* the card is highlighted in orange
+* a visible roadwork indicator is shown, for example `🚧`
+* the card displays a short status such as `Missing audio`
+* the card still shows the last known song metadata from `source_*`
+
+The host must immediately understand that the blindtest structure is intact but that repair is required.
+
+### Blindtest Open Validation
+
+When a blindtest is opened in the editor, the application must perform a lightweight integrity check.
+
+This check does **not** rescan the whole music library.
+
+It only verifies:
+
+* whether `blindtest_songs.song_id` still points to an existing `songs` row
+* whether the referenced `songs.file_path` still exists on disk
+
+If a reference is broken:
+
+* the slot remains in the blindtest
+* `slot_status` becomes `missing`
+* the editor displays the broken slot presentation immediately
+
+The goal is to surface broken blindtest entries as soon as the host opens the blindtest, even before running a library scan.
+
+### Suggested API
+
+The backend may expose a lightweight validation endpoint for this purpose.
+
+Example:
+
+```text
+POST /api/blindtest/{id}/validate-links
+```
+
+Expected behavior:
+
+* validate only the slots belonging to the target blindtest
+* do not compute file hashes
+* do not walk the full music library
+* update broken slots in place if needed
+* return a short summary of detected missing slots
 
 ---
 
@@ -151,6 +202,25 @@ Rules:
 if field empty → use source metadata
 if field filled → use override
 ```
+
+If the slot is broken:
+
+* placeholders use `source_*` values stored in the blindtest slot
+* the editor remains fully accessible
+* the host may keep, edit, replace, or remove the slot
+
+### Broken Slot Repair
+
+A broken slot can be repaired by replacing it with a library song.
+
+Expected behaviors:
+
+* click broken slot, then click library song → replace target slot
+* drag library song onto broken slot → replace target slot
+* after replacement:
+  * `song_id` points to the new song
+  * `slot_status` returns to `ok`
+  * `source_*` snapshot is refreshed from the new library song
 
 ---
 
@@ -354,6 +424,8 @@ Click library song with target → replace
 Drag library song to slot → replace
 
 Drag song cards → reorder
+
+Missing slot stays visible until manually repaired or removed
 ```
 
 ---

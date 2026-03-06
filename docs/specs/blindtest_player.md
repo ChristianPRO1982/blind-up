@@ -27,6 +27,10 @@ The Blindtest Player must:
 
 The player must remain **fully controllable by the host**.
 
+Broken blindtest slots are allowed and must not crash the player.
+
+Before gameplay starts, the loaded blindtest should already reflect the result of the latest lightweight link validation done when opening the blindtest in the editor.
+
 ---
 
 # Player State
@@ -65,6 +69,8 @@ Panels:
 * teaser
 * answer
 * end
+
+The player may encounter a slot with `slot_status = missing`.
 
 ---
 
@@ -114,6 +120,12 @@ Audio playback starts after the **pre_play_delay_sec**.
 
 The teaser audio plays **once**.
 
+If the current slot is missing:
+
+* teaser audio is unavailable
+* the panel displays the usual playback error state
+* the host may continue manually
+
 ---
 
 # Answer Panel
@@ -130,6 +142,11 @@ Content:
 * cover
 
 Playback behavior depends on the round.
+
+If the current slot is missing:
+
+* the answer panel still displays the preserved metadata snapshot
+* no answer audio is played
 
 ---
 
@@ -167,6 +184,12 @@ Answer playback:
 full song
 ```
 
+If the slot is missing:
+
+```text id="round1_missing"
+show error state, keep answer metadata, no audio
+```
+
 ---
 
 ## Round 2 — Reverse
@@ -188,6 +211,12 @@ Answer playback:
 
 ```text id="round2_answer"
 normal teaser segment
+```
+
+If the slot is missing:
+
+```text id="round2_missing"
+show error state, keep answer metadata, no audio
 ```
 
 ---
@@ -217,6 +246,12 @@ Example:
 4
 5
 ```
+
+If the slot is missing:
+
+* no teaser step can be played
+* the host can still advance panels manually
+* the answer panel uses preserved metadata only
 
 ---
 
@@ -387,6 +422,12 @@ Schrouunntch
 ```
 
 The host can skip to the next panel.
+
+The same visual error state must be used for:
+
+* unreadable files
+* missing library songs
+* broken blindtest slots
 
 ---
 

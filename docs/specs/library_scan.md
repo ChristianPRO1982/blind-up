@@ -11,7 +11,8 @@ It is responsible for:
 - extracting metadata
 - generating file hashes
 - inserting new songs
-- removing missing songs
+- removing missing songs from the library table
+- preserving broken blindtest slots when referenced songs disappear
 
 The scan does **not** manage blindtests.
 
@@ -158,8 +159,22 @@ For MVP, the scan should refresh extracted metadata from the file.
 If a song exists in the database but its file is no longer present anywhere in the scan result:
 
 * remove the row from `songs`
+* detect whether this song is referenced by one or more `blindtest_songs`
+* for each referenced blindtest slot:
+  * keep the slot
+  * set `song_id = null`
+  * set `slot_status = missing`
+  * preserve the last known metadata snapshot in `source_*`
 
-This removal is allowed because blindtests only reference valid scanned songs.
+The scan must **not** delete or silently collapse blindtest slots.
+
+This allows the editor to show a visible broken slot that the host can repair later.
+
+If a file was only renamed or moved without content change:
+
+* the file hash remains the same
+* the song row is updated normally
+* no blindtest slot becomes broken
 
 ---
 
@@ -205,8 +220,12 @@ Examples of scan errors:
    - extract cover
    - upsert database row
 4. Detect database songs no longer present
-5. delete missing songs
-6. return scan summary
+5. if missing song is referenced:
+   - convert blindtest slots to missing slots
+   - delete the song row
+6. if missing song is not referenced:
+   - delete the song row
+7. return scan summary
 ```
 
 ---
@@ -219,6 +238,7 @@ After each scan, return a summary object containing:
 * added song count
 * updated song count
 * removed song count
+* broken slot count
 * skipped file count
 * error count
 
@@ -231,6 +251,7 @@ Example:
   "added": 12,
   "updated": 231,
   "removed": 5,
+  "broken_slots": 2,
   "skipped": 2,
   "errors": 2
 }
@@ -266,6 +287,7 @@ Possible response:
     "added": 12,
     "updated": 231,
     "removed": 5,
+    "broken_slots": 2,
     "skipped": 2,
     "errors": 2
   }
@@ -302,6 +324,7 @@ Minimum log events:
 * song inserted
 * song updated
 * song removed
+* blindtest slot marked missing
 * scan finished
 
 Logs should be readable in development.

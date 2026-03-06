@@ -68,6 +68,14 @@ Each song inside a blindtest defines:
 
 Overrides allow modifying displayed metadata without altering the original library data.
 
+Blindtest song slots may remain in place even if the source audio disappears from the library later.
+
+In that case:
+
+* the slot is preserved
+* the blindtest keeps the last known source metadata
+* the slot is marked as broken and must be repaired manually
+
 ---
 
 # Game Modes
