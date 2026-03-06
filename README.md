@@ -29,6 +29,7 @@ uv run uvicorn app.main:app --reload
 
 Open:
 
+- `http://127.0.0.1:8000/`
 - `http://127.0.0.1:8000/health`
 - `http://127.0.0.1:8000/static/index.html`
 
@@ -47,21 +48,33 @@ Build and start the app:
 docker compose up --build
 ```
 
-The application is exposed on port `8000`.
+With Docker Compose, the application is exposed on host port `8500`:
+
+- `http://127.0.0.1:8500/`
+- `http://127.0.0.1:8500/health`
+- `http://127.0.0.1:8500/static/index.html`
 
 ## Project layout
 
 ```text
 blindup/
+├─ .github/
+│  └─ workflows/
 ├─ app/
+│  ├─ __init__.py
 │  ├─ config.py
 │  ├─ db.py
 │  ├─ main.py
 │  └─ static/
+│     ├─ app.js
+│     ├─ index.html
+│     └─ styles.css
 ├─ docs/
 ├─ tests/
+│  └─ test_app.py
 ├─ Dockerfile
 ├─ docker-compose.yml
 ├─ pyproject.toml
+├─ uv.lock
 └─ README.md
 ```

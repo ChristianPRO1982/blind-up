@@ -83,10 +83,17 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         ) as client:
             return await client.get("/health")
 
+    async def run_startup() -> None:
+        async with main_module.lifespan(main_module.app):
+            return None
+
+    asyncio.run(run_startup())
     root_response = asyncio.run(main_module.root())
     health_payload = asyncio.run(main_module.health())
     health_response = asyncio.run(get_health_response())
     static_index = main_module.settings.static_dir / "index.html"
+    static_styles = main_module.settings.static_dir / "styles.css"
+    static_script = main_module.settings.static_dir / "app.js"
 
     assert main_module.app.title == main_module.settings.project_name
     assert any(route.name == "static" for route in main_module.app.routes)
@@ -97,3 +104,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
     assert health_response.json() == {"status": "ok"}
     assert static_index.exists()
     assert "BlindUp" in static_index.read_text(encoding="utf-8")
+    assert static_styles.exists()
+    assert "background" in static_styles.read_text(encoding="utf-8")
+    assert static_script.exists()
+    assert "blindUpReady" in static_script.read_text(encoding="utf-8")

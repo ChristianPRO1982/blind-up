@@ -1,0 +1,1 @@
+"""BlindUp application package."""

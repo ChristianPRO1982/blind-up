@@ -4,47 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BlindUp</title>
-    <style>
-      :root {
-        color-scheme: light;
-        font-family: Georgia, "Times New Roman", serif;
-        background: #f5f1e8;
-        color: #1d1b16;
-      }
-
-      body {
-        margin: 0;
-        min-height: 100vh;
-        display: grid;
-        place-items: center;
-        background:
-          radial-gradient(circle at top, #f8d7a7 0%, transparent 30%),
-          linear-gradient(180deg, #f7f2e8 0%, #ebe3d3 100%);
-      }
-
-      main {
-        padding: 3rem 4rem;
-        border: 1px solid rgba(29, 27, 22, 0.15);
-        border-radius: 1rem;
-        background: rgba(255, 252, 245, 0.88);
-        box-shadow: 0 20px 50px rgba(29, 27, 22, 0.08);
-        text-align: center;
-      }
-
-      h1 {
-        margin: 0;
-        font-size: clamp(2.5rem, 7vw, 5rem);
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-      }
-    </style>
+    <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body>
     <main>
       <h1>BlindUp</h1>
+      <p>Local-first blind test foundation</p>
     </main>
-    <script>
-      window.blindUpReady = true;
-    </script>
+    <script src="/static/app.js"></script>
   </body>
 </html>

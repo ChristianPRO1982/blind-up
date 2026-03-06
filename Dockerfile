@@ -4,8 +4,8 @@ WORKDIR /app
 
 COPY --from=ghcr.io/astral-sh/uv:0.6.5 /uv /uvx /bin/
 
-COPY pyproject.toml README.md ./
-RUN uv sync --no-dev --no-install-project
+COPY pyproject.toml uv.lock README.md ./
+RUN uv sync --frozen --no-dev --no-install-project
 
 COPY app ./app
 COPY docs ./docs

@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -5,8 +7,14 @@ from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.db import init_db
 
-init_db()
-app = FastAPI(title=settings.project_name)
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    init_db()
+    yield
+
+
+app = FastAPI(title=settings.project_name, lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")
 
 
