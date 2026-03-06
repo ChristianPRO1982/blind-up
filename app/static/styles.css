@@ -64,7 +64,15 @@ h2 {
 .editor-layout {
   display: grid;
   gap: 1rem;
-  grid-template-columns: 1.1fr 1fr 0.95fr;
+  grid-template-columns: 1.05fr 1fr;
+  grid-template-areas:
+    "topbar topbar"
+    "settings settings"
+    "songs editor";
+}
+
+.editor-layout.library-open {
+  grid-template-columns: 1.05fr 1fr 0.92fr;
   grid-template-areas:
     "topbar topbar topbar"
     "settings settings library"
@@ -280,6 +288,13 @@ h2 {
   margin-bottom: 0.85rem;
 }
 
+.panel-heading-split {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
 .settings-panel {
   grid-area: settings;
 }
@@ -298,7 +313,16 @@ h2 {
   flex-direction: column;
 }
 
-.settings-grid,
+.library-panel[hidden] {
+  display: none;
+}
+
+.settings-grid {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .metadata-grid {
   display: grid;
   gap: 0.85rem;
@@ -339,6 +363,32 @@ h2 {
   color: #1f1b18;
 }
 
+.toggle-field {
+  min-height: 2.9rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 0.8rem;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.toggle-field input {
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.panel-close-button {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
 .song-list,
 .library-list {
   display: grid;
@@ -346,7 +396,7 @@ h2 {
 }
 
 .song-list:empty::before {
-  content: "Use the library on the right to add songs.";
+  content: "Open the library to add songs.";
   display: block;
   padding: 1rem;
   border: 1px dashed var(--line);

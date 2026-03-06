@@ -521,6 +521,7 @@
         scanImpactEmpty: document.getElementById("scan-impact-empty"),
         scanImpactList: document.getElementById("scan-impact-list"),
         title: document.getElementById("blindtest-title"),
+        toggleLibraryButton: document.getElementById("toggle-library-button"),
         saveButton: document.getElementById("save-button"),
         launchButton: document.getElementById("launch-button"),
         backButton: document.getElementById("back-button"),
@@ -547,6 +548,8 @@
         overrideGenre: document.getElementById("override-genre"),
         overrideCover: document.getElementById("override-cover"),
         customHint: document.getElementById("custom-hint"),
+        libraryPanel: document.querySelector(".library-panel"),
+        closeLibraryButton: document.getElementById("close-library-button"),
         librarySearch: document.getElementById("library-search"),
         libraryList: document.getElementById("library-list"),
         error: document.getElementById("audio-error"),
@@ -597,6 +600,7 @@
       this.latestScanSummaryKey = "";
       this.librarySongs = [];
       this.librarySongMap = new Map();
+      this.isLibraryVisible = false;
       this.blindtest = this.createDefaultBlindtest();
       this.activeSlotId = null;
       this.nextSlotId = 1;
@@ -629,6 +633,7 @@
         this.showEditorEmpty();
         this.setWaveformControlsDisabled(true);
         this.showPlaceholder("Select a song card");
+        this.setLibraryVisible(false);
       }
     }
 
@@ -720,11 +725,17 @@
       this.elements.saveButton.addEventListener("click", () => {
         this.saveBlindtest().catch(() => {});
       });
+      this.elements.toggleLibraryButton.addEventListener("click", () => {
+        this.setLibraryVisible(!this.isLibraryVisible);
+      });
       this.elements.launchButton.addEventListener("click", () => {
         this.launchPlayer();
       });
       this.elements.backButton.addEventListener("click", () => {
         this.showHomeView();
+      });
+      this.elements.closeLibraryButton.addEventListener("click", () => {
+        this.setLibraryVisible(false);
       });
       this.elements.librarySearch.addEventListener("input", () => this.renderLibrary());
       this.elements.metadataForm.addEventListener("input", (event) => {
@@ -851,6 +862,24 @@
       this.renderSongList();
       this.renderLibrary();
       this.renderEditor();
+    }
+
+    setLibraryVisible(visible) {
+      this.isLibraryVisible = Boolean(visible);
+      if (this.elements.libraryPanel !== null) {
+        this.elements.libraryPanel.hidden = !this.isLibraryVisible;
+      }
+      if (this.elements.editorLayout !== null) {
+        this.elements.editorLayout.classList.toggle(
+          "library-open",
+          this.isLibraryVisible
+        );
+      }
+      if (this.elements.toggleLibraryButton !== null) {
+        this.elements.toggleLibraryButton.textContent = this.isLibraryVisible
+          ? "Hide library"
+          : "Show library";
+      }
     }
 
     hydrateBlindtest(data) {

@@ -8,6 +8,7 @@
         <input id="blindtest-title" type="text" placeholder="Blindtest title" />
       </label>
       <div class="header-actions">
+        <button id="toggle-library-button" type="button">Show library</button>
         <button id="save-button" type="button">Save</button>
         <button id="launch-button" type="button">Launch</button>
         <button id="back-button" type="button">Back</button>
@@ -50,7 +51,7 @@
           <input id="answer-duration" type="number" min="0" step="0.1" />
         </label>
 
-        <label class="wide-field">
+        <label>
           Step durations preset
           <input
             id="round3-step-durations"
@@ -170,9 +171,12 @@
       </div>
     </section>
 
-    <aside class="library-panel panel" aria-labelledby="library-title">
-      <div class="panel-heading">
+    <aside class="library-panel panel" aria-labelledby="library-title" hidden>
+      <div class="panel-heading panel-heading-split">
         <h2 id="library-title">Library</h2>
+        <button id="close-library-button" class="panel-close-button" type="button" aria-label="Hide library">
+          ×
+        </button>
       </div>
       <label class="search-field" for="library-search">
         Search
