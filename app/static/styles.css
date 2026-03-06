@@ -68,7 +68,7 @@ h2 {
   grid-template-areas:
     "topbar topbar"
     "settings settings"
-    "songs editor";
+    "editor songs";
 }
 
 .editor-layout.library-open {
@@ -76,7 +76,7 @@ h2 {
   grid-template-areas:
     "topbar topbar topbar"
     "settings settings library"
-    "songs editor library";
+    "editor songs library";
 }
 
 .home-layout {
