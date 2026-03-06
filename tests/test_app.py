@@ -608,8 +608,8 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         storage_dir=main_module.settings.storage_dir,
         covers_dir=main_module.settings.covers_dir,
     )
-    main_module.library_scan_controller.start = (
-        lambda root_path: scan_start_calls.append(root_path) or {"status": "running"}
+    main_module.library_scan_controller.start = lambda root_path: (
+        scan_start_calls.append(root_path) or {"status": "running"}
     )
     main_module.library_scan_controller.stop = lambda: {"status": "stopping"}
     main_module.library_scan_controller.snapshot = lambda: {
@@ -734,8 +734,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         assert any(route.path == "/scan" for route in main_module.app.routes)
         assert any(route.path == "/editor/new" for route in main_module.app.routes)
         assert any(
-            route.path == "/editor/{blindtest_id}"
-            for route in main_module.app.routes
+            route.path == "/editor/{blindtest_id}" for route in main_module.app.routes
         )
         assert any(route.path == "/player" for route in main_module.app.routes)
         assert any(
@@ -768,9 +767,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         assert "readonly" in scan_page_response.text
         assert scan_page_response.text.index(
             "Library root path"
-        ) < scan_page_response.text.index(
-            "Scan info"
-        )
+        ) < scan_page_response.text.index("Scan info")
         assert editor_new_page_response.status_code == 200
         assert 'data-page="editor"' in editor_new_page_response.text
         assert 'data-editor-mode="new"' in editor_new_page_response.text
@@ -908,7 +905,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         assert static_script.exists()
         script_text = static_script.read_text(encoding="utf-8")
         assert "blindUpReady" in script_text
-        assert "window.location.assign(\"/player\")" in script_text
+        assert 'window.location.assign("/player")' in script_text
         assert "window.sessionStorage" in script_text
         assert "handleScanToggle" in script_text
         assert "showScanView" in script_text
