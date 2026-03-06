@@ -4,10 +4,16 @@ import sqlite3
 from pathlib import Path
 
 import httpx
+import pytest
 
 import app.config as config_module
 import app.db as db_module
 import app.main as main_module
+
+
+def _table_columns(connection: sqlite3.Connection, table_name: str) -> list[str]:
+    rows = connection.execute(f"PRAGMA table_info({table_name});").fetchall()
+    return [row["name"] for row in rows]
 
 
 def test_config_defaults(monkeypatch) -> None:
@@ -72,6 +78,179 @@ def test_init_db_creates_database_file(monkeypatch, tmp_path) -> None:
     db_module.init_db()
 
     assert database_path.exists()
+
+
+def test_init_db_creates_expected_schema(monkeypatch, tmp_path) -> None:
+    database_path = tmp_path / "schema" / "blindup.db"
+    monkeypatch.setattr(
+        db_module,
+        "settings",
+        config_module.Settings(database_path=database_path),
+    )
+
+    db_module.init_db()
+
+    with db_module.get_connection() as connection:
+        tables = {
+            row["name"]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table';"
+            ).fetchall()
+        }
+        indexes = {
+            row["name"]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'index';"
+            ).fetchall()
+        }
+
+        assert {
+            "songs",
+            "blindtests",
+            "blindtest_tags",
+            "blindtest_tag_links",
+            "blindtest_songs",
+        }.issubset(tables)
+
+        assert _table_columns(connection, "songs") == [
+            "id",
+            "file_hash",
+            "file_path",
+            "duration_sec",
+            "title",
+            "artist",
+            "album",
+            "year",
+            "genre",
+            "cover_path",
+            "created_at",
+            "updated_at",
+        ]
+        assert _table_columns(connection, "blindtests") == [
+            "id",
+            "title",
+            "background_image",
+            "game_mode",
+            "pre_play_delay_sec",
+            "auto_enabled_default",
+            "hints_enabled_default",
+            "answer_timer_enabled",
+            "answer_duration_sec",
+            "round3_step_durations",
+            "round3_step_gap_sec",
+            "round3_progression_mode",
+            "created_at",
+            "updated_at",
+        ]
+        assert _table_columns(connection, "blindtest_tags") == ["id", "name"]
+        assert _table_columns(connection, "blindtest_tag_links") == [
+            "blindtest_id",
+            "tag_id",
+        ]
+        assert _table_columns(connection, "blindtest_songs") == [
+            "id",
+            "blindtest_id",
+            "song_id",
+            "order_index",
+            "start_sec",
+            "duration_sec",
+            "override_title",
+            "override_artist",
+            "override_album",
+            "override_year",
+            "override_genre",
+            "override_cover",
+            "custom_hint",
+        ]
+
+        assert "idx_song_hash" in indexes
+        assert "idx_song_path" in indexes
+        assert "idx_blindtest_song_order" in indexes
+
+
+def test_schema_constraints_are_enforced(monkeypatch, tmp_path) -> None:
+    database_path = tmp_path / "constraints" / "blindup.db"
+    monkeypatch.setattr(
+        db_module,
+        "settings",
+        config_module.Settings(database_path=database_path),
+    )
+
+    db_module.init_db()
+
+    with db_module.get_connection() as connection:
+        connection.execute(
+            """
+            INSERT INTO songs (file_hash, file_path)
+            VALUES (?, ?);
+            """,
+            ("hash-1", "/music/song-1.mp3"),
+        )
+        connection.execute(
+            """
+            INSERT INTO blindtests (title)
+            VALUES (?);
+            """,
+            ("Blindtest demo",),
+        )
+        connection.execute(
+            """
+            INSERT INTO blindtest_tags (name)
+            VALUES (?);
+            """,
+            ("Rock",),
+        )
+
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute(
+                """
+                INSERT INTO songs (file_hash, file_path)
+                VALUES (?, ?);
+                """,
+                ("hash-1", "/music/song-2.mp3"),
+            )
+
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute(
+                """
+                INSERT INTO blindtest_tags (name)
+                VALUES (?);
+                """,
+                ("Rock",),
+            )
+
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute(
+                """
+                INSERT INTO blindtest_songs (blindtest_id, song_id)
+                VALUES (?, ?);
+                """,
+                (1, 999),
+            )
+
+        connection.execute(
+            """
+            INSERT INTO blindtest_songs (blindtest_id, song_id, order_index)
+            VALUES (?, ?, ?);
+            """,
+            (1, 1, 0),
+        )
+        connection.execute(
+            """
+            INSERT INTO blindtest_tag_links (blindtest_id, tag_id)
+            VALUES (?, ?);
+            """,
+            (1, 1),
+        )
+
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute(
+                """
+                INSERT INTO blindtest_tag_links (blindtest_id, tag_id)
+                VALUES (?, ?);
+                """,
+                (1, 1),
+            )
 
 
 def test_fastapi_routes_serve_expected_responses() -> None:
