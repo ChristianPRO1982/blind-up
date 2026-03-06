@@ -83,6 +83,16 @@ def test_get_connection_creates_database_and_enables_foreign_keys(
     assert database_path.exists()
 
 
+def test_blindtest_song_migration_helpers_handle_missing_table() -> None:
+    connection = sqlite3.connect(":memory:")
+    connection.row_factory = sqlite3.Row
+    try:
+        assert db_module._blindtest_songs_needs_migration(connection) is False
+        db_module._migrate_blindtest_songs(connection)
+    finally:
+        connection.close()
+
+
 def test_init_db_creates_database_file(monkeypatch, tmp_path) -> None:
     database_path = tmp_path / "init" / "blindup.db"
     monkeypatch.setattr(
@@ -168,8 +178,15 @@ def test_init_db_creates_expected_schema(monkeypatch, tmp_path) -> None:
             "blindtest_id",
             "song_id",
             "order_index",
+            "slot_status",
             "start_sec",
             "duration_sec",
+            "source_title",
+            "source_artist",
+            "source_album",
+            "source_year",
+            "source_genre",
+            "source_cover",
             "override_title",
             "override_artist",
             "override_album",
@@ -182,6 +199,133 @@ def test_init_db_creates_expected_schema(monkeypatch, tmp_path) -> None:
         assert "idx_song_hash" in indexes
         assert "idx_song_path" in indexes
         assert "idx_blindtest_song_order" in indexes
+
+
+def test_init_db_migrates_legacy_blindtest_songs_table(monkeypatch, tmp_path) -> None:
+    database_path = tmp_path / "legacy" / "blindup.db"
+    monkeypatch.setattr(
+        db_module,
+        "settings",
+        config_module.Settings(database_path=database_path),
+    )
+
+    database_path.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(database_path)
+    connection.row_factory = sqlite3.Row
+    connection.execute("PRAGMA foreign_keys = ON;")
+    connection.executescript(
+        """
+        CREATE TABLE songs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            file_hash TEXT UNIQUE NOT NULL,
+            file_path TEXT NOT NULL,
+            duration_sec REAL,
+            title TEXT,
+            artist TEXT,
+            album TEXT,
+            year INTEGER,
+            genre TEXT,
+            cover_path TEXT,
+            created_at TEXT,
+            updated_at TEXT
+        );
+
+        CREATE TABLE blindtests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            background_image TEXT,
+            game_mode TEXT,
+            pre_play_delay_sec REAL,
+            auto_enabled_default INTEGER,
+            hints_enabled_default INTEGER,
+            answer_timer_enabled INTEGER,
+            answer_duration_sec REAL,
+            round3_step_durations TEXT,
+            round3_step_gap_sec REAL,
+            round3_progression_mode TEXT,
+            created_at TEXT,
+            updated_at TEXT
+        );
+
+        CREATE TABLE blindtest_songs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            blindtest_id INTEGER NOT NULL,
+            song_id INTEGER NOT NULL,
+            order_index INTEGER,
+            start_sec REAL,
+            duration_sec REAL,
+            override_title TEXT,
+            override_artist TEXT,
+            override_album TEXT,
+            override_year INTEGER,
+            override_genre TEXT,
+            override_cover TEXT,
+            custom_hint TEXT,
+            FOREIGN KEY (blindtest_id) REFERENCES blindtests(id),
+            FOREIGN KEY (song_id) REFERENCES songs(id)
+        );
+
+        INSERT INTO songs (id, file_hash, file_path, title, artist)
+        VALUES (1, 'hash-1', '/music/song-1.mp3', 'Song 1', 'Artist 1');
+
+        INSERT INTO blindtests (id, title)
+        VALUES (1, 'Legacy');
+
+        INSERT INTO blindtest_songs (
+            id,
+            blindtest_id,
+            song_id,
+            order_index,
+            start_sec,
+            duration_sec,
+            custom_hint
+        )
+        VALUES (1, 1, 1, 0, 12, 3.5, 'legacy');
+        """
+    )
+    connection.close()
+
+    db_module.init_db()
+
+    with db_module.get_connection() as migrated:
+        columns = _table_columns(migrated, "blindtest_songs")
+        row = migrated.execute(
+            """
+            SELECT song_id, slot_status, source_title, source_artist, custom_hint
+            FROM blindtest_songs
+            WHERE id = 1;
+            """
+        ).fetchone()
+
+    assert columns == [
+        "id",
+        "blindtest_id",
+        "song_id",
+        "order_index",
+        "slot_status",
+        "start_sec",
+        "duration_sec",
+        "source_title",
+        "source_artist",
+        "source_album",
+        "source_year",
+        "source_genre",
+        "source_cover",
+        "override_title",
+        "override_artist",
+        "override_album",
+        "override_year",
+        "override_genre",
+        "override_cover",
+        "custom_hint",
+    ]
+    assert dict(row) == {
+        "song_id": 1,
+        "slot_status": "ok",
+        "source_title": "Song 1",
+        "source_artist": "Artist 1",
+        "custom_hint": "legacy",
+    }
 
 
 def test_schema_constraints_are_enforced(monkeypatch, tmp_path) -> None:
@@ -246,10 +390,15 @@ def test_schema_constraints_are_enforced(monkeypatch, tmp_path) -> None:
 
         connection.execute(
             """
-            INSERT INTO blindtest_songs (blindtest_id, song_id, order_index)
-            VALUES (?, ?, ?);
+            INSERT INTO blindtest_songs (
+                blindtest_id,
+                song_id,
+                order_index,
+                slot_status
+            )
+            VALUES (?, ?, ?, ?);
             """,
-            (1, 1, 0),
+            (1, 1, 0, "ok"),
         )
         connection.execute(
             """
@@ -351,6 +500,10 @@ def test_fastapi_routes_serve_expected_responses() -> None:
     original_scan_library = main_module.scan_library
     original_list_songs = main_module.song_repository.list_songs
     original_get_first_blindtest = main_module.blindtest_repository.get_first_blindtest
+    original_get_blindtest = main_module.blindtest_repository.get_blindtest
+    original_validate_blindtest_links = (
+        main_module.blindtest_repository.validate_blindtest_links
+    )
     original_save_blindtest = main_module.blindtest_repository.save_blindtest
     main_module.scan_library = lambda _: ScanSummary(
         root_path="/music",
@@ -358,6 +511,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         added=1,
         updated=0,
         removed=0,
+        broken_slots=0,
         skipped=0,
         errors=0,
     )
@@ -388,6 +542,25 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         "round3_progression_mode": "fixed_start",
         "songs": [],
     }
+    main_module.blindtest_repository.get_blindtest = lambda _: {
+        "id": 1,
+        "title": "Stored blindtest",
+        "background_image": "/backgrounds/stored.jpg",
+        "game_mode": "blind_test",
+        "pre_play_delay_sec": 0.0,
+        "auto_enabled_default": 0,
+        "hints_enabled_default": 1,
+        "answer_timer_enabled": 0,
+        "answer_duration_sec": 10.0,
+        "round3_step_durations": "0.5,1,1.5,2,3,4,5",
+        "round3_step_gap_sec": 3.0,
+        "round3_progression_mode": "fixed_start",
+        "songs": [],
+    }
+    main_module.blindtest_repository.validate_blindtest_links = lambda _: {
+        "validated_slots": 0,
+        "missing_slots": 0,
+    }
     main_module.blindtest_repository.save_blindtest = lambda record: {
         "id": 2,
         "title": record.title,
@@ -407,8 +580,15 @@ def test_fastapi_routes_serve_expected_responses() -> None:
                 "blindtest_id": 2,
                 "song_id": song.song_id,
                 "order_index": song.order_index,
+                "slot_status": song.slot_status,
                 "start_sec": song.start_sec,
                 "duration_sec": song.duration_sec,
+                "source_title": song.source_title,
+                "source_artist": song.source_artist,
+                "source_album": song.source_album,
+                "source_year": song.source_year,
+                "source_genre": song.source_genre,
+                "source_cover": song.source_cover,
                 "override_title": song.override_title,
                 "override_artist": song.override_artist,
                 "override_album": song.override_album,
@@ -451,6 +631,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
                 "added": 1,
                 "updated": 0,
                 "removed": 0,
+                "broken_slots": 0,
                 "skipped": 0,
                 "errors": 0,
             },
@@ -510,8 +691,15 @@ def test_fastapi_routes_serve_expected_responses() -> None:
                         "blindtest_id": 2,
                         "song_id": 1,
                         "order_index": 0,
+                        "slot_status": "ok",
                         "start_sec": 45.0,
                         "duration_sec": 3.5,
+                        "source_title": None,
+                        "source_artist": None,
+                        "source_album": None,
+                        "source_year": None,
+                        "source_genre": None,
+                        "source_cover": None,
                         "override_title": "Opening song",
                         "override_artist": None,
                         "override_album": None,
@@ -551,6 +739,10 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         main_module.song_repository.list_songs = original_list_songs
         main_module.blindtest_repository.get_first_blindtest = (
             original_get_first_blindtest
+        )
+        main_module.blindtest_repository.get_blindtest = original_get_blindtest
+        main_module.blindtest_repository.validate_blindtest_links = (
+            original_validate_blindtest_links
         )
         main_module.blindtest_repository.save_blindtest = original_save_blindtest
 

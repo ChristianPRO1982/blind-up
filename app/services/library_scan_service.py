@@ -6,9 +6,11 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from app.config import settings
+from app.repositories import blindtest_repository
 from app.repositories.song_repository import (
     SongRecord,
-    delete_songs_missing_from,
+    delete_songs_by_ids,
+    list_songs_missing_from,
     upsert_song,
 )
 from app.services.audio_metadata_service import (
@@ -27,6 +29,7 @@ class ScanSummary:
     added: int
     updated: int
     removed: int
+    broken_slots: int
     skipped: int
     errors: int
 
@@ -46,6 +49,7 @@ def scan_library(root_path: str) -> ScanSummary:
     scanned_files = 0
     added = 0
     updated = 0
+    broken_slots = 0
     skipped = 0
     errors = 0
 
@@ -87,7 +91,14 @@ def scan_library(root_path: str) -> ScanSummary:
             updated += 1
             logger.info("song updated: %s", audio_path)
 
-    removed = delete_songs_missing_from(seen_hashes)
+    missing_songs = list_songs_missing_from(seen_hashes)
+    for song in missing_songs:
+        broken_for_song = blindtest_repository.mark_song_slots_missing(song)
+        broken_slots += broken_for_song
+        if broken_for_song:
+            logger.info("blindtest slot marked missing: %s", song["id"])
+
+    removed = delete_songs_by_ids([int(song["id"]) for song in missing_songs])
     if removed:
         logger.info("song removed: %s", removed)
 
@@ -98,6 +109,7 @@ def scan_library(root_path: str) -> ScanSummary:
         added=added,
         updated=updated,
         removed=removed,
+        broken_slots=broken_slots,
         skipped=skipped,
         errors=errors,
     )

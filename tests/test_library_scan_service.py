@@ -4,6 +4,7 @@ import pytest
 
 import app.config as config_module
 import app.db as db_module
+from app.repositories import blindtest_repository
 from app.services import audio_metadata_service
 from app.services import library_scan_service as scan_service
 
@@ -90,6 +91,7 @@ def test_scan_library_syncs_database_and_removes_missing_files(
         "added": 2,
         "updated": 0,
         "removed": 0,
+        "broken_slots": 0,
         "skipped": 0,
         "errors": 0,
     }
@@ -104,6 +106,7 @@ def test_scan_library_syncs_database_and_removes_missing_files(
         "added": 0,
         "updated": 1,
         "removed": 1,
+        "broken_slots": 0,
         "skipped": 0,
         "errors": 0,
     }
@@ -150,10 +153,82 @@ def test_scan_library_skips_broken_files_and_continues(monkeypatch, tmp_path) ->
         "added": 1,
         "updated": 0,
         "removed": 0,
+        "broken_slots": 0,
         "skipped": 1,
         "errors": 1,
     }
     assert [dict(row) for row in rows] == [{"title": "good"}]
+
+
+def test_scan_library_breaks_referenced_slots_before_deleting_song(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    _configure_scan_settings(monkeypatch, tmp_path)
+    root = tmp_path / "music"
+    root.mkdir()
+    song_path = root / "keep.mp3"
+    song_path.write_bytes(b"keep")
+
+    def fake_extract_metadata(path: Path, file_hash: str, covers_dir: Path):
+        return audio_metadata_service.AudioMetadata(
+            duration_sec=2.0,
+            title=path.stem,
+            artist="BlindUp",
+            album=None,
+            year=None,
+            genre=None,
+            cover_path=None,
+        )
+
+    monkeypatch.setattr(scan_service, "extract_audio_metadata", fake_extract_metadata)
+
+    first_summary = scan_service.scan_library(str(root))
+    blindtest_repository.save_blindtest(
+        blindtest_repository.BlindtestRecord(
+            title="Broken slots",
+            songs=[
+                blindtest_repository.BlindtestSongRecord(
+                    song_id=1,
+                    order_index=0,
+                )
+            ],
+        )
+    )
+
+    song_path.unlink()
+    second_summary = scan_service.scan_library(str(root))
+
+    with db_module.get_connection() as connection:
+        songs = connection.execute("SELECT * FROM songs;").fetchall()
+        slots = connection.execute(
+            """
+            SELECT song_id, slot_status, source_title, source_artist
+            FROM blindtest_songs
+            ORDER BY id;
+            """
+        ).fetchall()
+
+    assert first_summary.as_dict()["broken_slots"] == 0
+    assert second_summary.as_dict() == {
+        "root_path": str(root.resolve()),
+        "scanned_files": 0,
+        "added": 0,
+        "updated": 0,
+        "removed": 1,
+        "broken_slots": 1,
+        "skipped": 0,
+        "errors": 0,
+    }
+    assert songs == []
+    assert [dict(row) for row in slots] == [
+        {
+            "song_id": None,
+            "slot_status": "missing",
+            "source_title": "keep",
+            "source_artist": "BlindUp",
+        }
+    ]
 
 
 def test_scan_library_rejects_missing_root() -> None:

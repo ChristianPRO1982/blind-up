@@ -225,6 +225,11 @@ h2 {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
+.song-card.missing {
+  border-color: rgba(181, 104, 10, 0.55);
+  background: linear-gradient(180deg, rgba(255, 240, 220, 0.95), rgba(255, 248, 239, 0.88));
+}
+
 .song-card.drag-over,
 .library-item.drag-over {
   border-color: var(--accent);
@@ -261,6 +266,12 @@ h2 {
 .library-item-details {
   color: var(--muted);
   font-size: 0.92rem;
+}
+
+.song-card-status {
+  color: #b5680a;
+  font-size: 0.84rem;
+  font-weight: 700;
 }
 
 .song-card-actions {

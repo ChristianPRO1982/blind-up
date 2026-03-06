@@ -713,8 +713,15 @@
           slot_id: song.id || this.nextSlotId++,
           song_id: song.song_id,
           order_index: song.order_index ?? 0,
+          slot_status: song.slot_status || (song.song_id === null ? "missing" : "ok"),
           start_sec: song.start_sec,
           duration_sec: song.duration_sec,
+          source_title: song.source_title || "",
+          source_artist: song.source_artist || "",
+          source_album: song.source_album || "",
+          source_year: song.source_year ?? "",
+          source_genre: song.source_genre || "",
+          source_cover: song.source_cover || "",
           override_title: song.override_title || "",
           override_artist: song.override_artist || "",
           override_album: song.override_album || "",
@@ -731,6 +738,44 @@
       }
       this.reindexSongs();
       this.activeSlotId = this.blindtest.songs.length > 0 ? this.blindtest.songs[0].slot_id : null;
+    }
+
+    isSlotMissing(slot) {
+      return slot.song_id === null || slot.slot_status === "missing";
+    }
+
+    getSlotSource(slot) {
+      const librarySource =
+        slot.song_id === null ? null : this.librarySongMap.get(slot.song_id) || null;
+      return {
+        title: normalizeText(slot.source_title) || normalizeText(librarySource && librarySource.title),
+        artist:
+          normalizeText(slot.source_artist) || normalizeText(librarySource && librarySource.artist),
+        album:
+          normalizeText(slot.source_album) || normalizeText(librarySource && librarySource.album),
+        year:
+          slot.source_year !== "" && slot.source_year !== null && slot.source_year !== undefined
+            ? slot.source_year
+            : librarySource && librarySource.year,
+        genre:
+          normalizeText(slot.source_genre) || normalizeText(librarySource && librarySource.genre),
+        cover_path:
+          normalizeText(slot.source_cover) ||
+          normalizeText(librarySource && librarySource.cover_path),
+      };
+    }
+
+    snapshotFromLibrarySong(songId) {
+      const song = this.librarySongMap.get(songId) || null;
+      return {
+        source_title: normalizeText(song && song.title),
+        source_artist: normalizeText(song && song.artist),
+        source_album: normalizeText(song && song.album),
+        source_year:
+          song && song.year !== null && song.year !== undefined ? song.year : "",
+        source_genre: normalizeText(song && song.genre),
+        source_cover: normalizeText(song && song.cover_path),
+      };
     }
 
     renderAll() {
@@ -760,24 +805,36 @@
     renderSongList() {
       this.elements.songList.innerHTML = "";
       for (const slot of this.blindtest.songs) {
-        const source = this.librarySongMap.get(slot.song_id);
+        const source = this.getSlotSource(slot);
+        const missing = this.isSlotMissing(slot);
         const card = document.createElement("article");
         card.className = "song-card";
         card.draggable = true;
         card.dataset.slotId = String(slot.slot_id);
+        if (missing) {
+          card.classList.add("missing");
+        }
         if (slot.slot_id === this.activeSlotId) {
           card.classList.add("active");
         }
 
         const cover = this.createCoverThumb(source);
         const body = document.createElement("div");
-        const title = normalizeText(slot.override_title) || normalizeText(source && source.title) || `Song ${slot.song_id}`;
-        const artist = normalizeText(slot.override_artist) || normalizeText(source && source.artist);
+        const title =
+          normalizeText(slot.override_title) ||
+          normalizeText(source.title) ||
+          "Missing song";
+        const artist =
+          normalizeText(slot.override_artist) || normalizeText(source.artist);
+        const statusLine = missing
+          ? '<div class="song-card-status">🚧 Missing audio</div>'
+          : "";
         body.innerHTML = `
           <div class="song-card-header">
             <div class="song-card-meta">
               <div class="song-card-title">${this.escapeHtml(title)}</div>
               <div class="song-card-subtitle">${this.escapeHtml(artist || "Unknown artist")}</div>
+              ${statusLine}
             </div>
           </div>
           <div class="song-card-times">${this.escapeHtml(
@@ -913,7 +970,7 @@
     }
 
     fillMetadataForm(slot) {
-      const source = this.librarySongMap.get(slot.song_id) || {};
+      const source = this.getSlotSource(slot);
       this.elements.overrideTitle.value = slot.override_title || "";
       this.elements.overrideArtist.value = slot.override_artist || "";
       this.elements.overrideAlbum.value = slot.override_album || "";
@@ -931,6 +988,20 @@
     }
 
     loadSlotWaveform(slot) {
+      if (this.isSlotMissing(slot)) {
+        this.currentLoadedSongId = null;
+        this.destroyWaveform();
+        this.pendingStart = slot.start_sec;
+        this.selectionEnd =
+          Number.isFinite(slot.start_sec) && Number.isFinite(slot.duration_sec)
+            ? slot.start_sec + slot.duration_sec
+            : null;
+        this.updateDisplays();
+        this.updateMarkLabel();
+        this.showAudioError();
+        return;
+      }
+
       if (slot.song_id === this.currentLoadedSongId && this.wavesurfer !== null) {
         this.pendingStart = slot.start_sec;
         this.selectionEnd =
@@ -1057,8 +1128,10 @@
         slot_id: this.nextSlotId++,
         song_id: songId,
         order_index: orderIndex,
+        slot_status: "ok",
         start_sec: null,
         duration_sec: null,
+        ...this.snapshotFromLibrarySong(songId),
         override_title: "",
         override_artist: "",
         override_album: "",
@@ -1333,16 +1406,23 @@
           answer_timer_enabled: this.blindtest.answer_timer_enabled,
           answer_duration_sec: this.blindtest.answer_duration_sec,
           round3_step_durations: this.blindtest.round3_step_durations,
-          round3_step_gap_sec: this.blindtest.round3_step_gap_sec,
-          round3_progression_mode: this.blindtest.round3_progression_mode,
-          songs: this.blindtest.songs.map((slot) => ({
-            song_id: slot.song_id,
-            order_index: slot.order_index,
-            start_sec: slot.start_sec,
-            duration_sec: slot.duration_sec,
-            override_title: normalizeText(slot.override_title) || null,
-            override_artist: normalizeText(slot.override_artist) || null,
-            override_album: normalizeText(slot.override_album) || null,
+            round3_step_gap_sec: this.blindtest.round3_step_gap_sec,
+            round3_progression_mode: this.blindtest.round3_progression_mode,
+            songs: this.blindtest.songs.map((slot) => ({
+              song_id: slot.song_id,
+              order_index: slot.order_index,
+              slot_status: slot.slot_status,
+              start_sec: slot.start_sec,
+              duration_sec: slot.duration_sec,
+              source_title: normalizeText(slot.source_title) || null,
+              source_artist: normalizeText(slot.source_artist) || null,
+              source_album: normalizeText(slot.source_album) || null,
+              source_year: slot.source_year === "" ? null : numberOrNull(slot.source_year),
+              source_genre: normalizeText(slot.source_genre) || null,
+              source_cover: normalizeText(slot.source_cover) || null,
+              override_title: normalizeText(slot.override_title) || null,
+              override_artist: normalizeText(slot.override_artist) || null,
+              override_album: normalizeText(slot.override_album) || null,
             override_year: slot.override_year === "" ? null : numberOrNull(slot.override_year),
             override_genre: normalizeText(slot.override_genre) || null,
             override_cover: normalizeText(slot.override_cover) || null,
@@ -1398,7 +1478,7 @@
 
     buildPlayerSongs() {
       return this.blindtest.songs.map((slot) => {
-        const source = this.librarySongMap.get(slot.song_id) || {};
+        const source = this.getSlotSource(slot);
         return {
           ...slot,
           source,
@@ -1688,7 +1768,7 @@
         title:
           normalizeText(song.override_title) ||
           normalizeText(song.source.title) ||
-          `Song ${song.song_id}`,
+          "Missing song",
         artist:
           normalizeText(song.override_artist) ||
           normalizeText(song.source.artist) ||
@@ -1771,6 +1851,14 @@
     }
 
     startTeaserPanel(token, song) {
+      if (this.isSlotMissing(song)) {
+        this.playerHintDefinitions = [];
+        this.playerHintRevealCount = 0;
+        this.renderPlayerHints();
+        this.showPlayerError();
+        return;
+      }
+
       const playback = this.getTeaserPlayback(song);
       this.playerHintDefinitions = this.buildPlayerHints(song);
       this.playerHintRevealCount = 0;
@@ -1960,7 +2048,9 @@
         return;
       }
 
-      if (this.playerState.current_round === 1) {
+      if (this.isSlotMissing(song)) {
+        this.showPlayerError();
+      } else if (this.playerState.current_round === 1) {
         this.playNormalAudio(song.song_id, 0, null, token, () => {});
       } else if (this.playerState.current_round === 2) {
         const playback = this.getTeaserPlayback(song);

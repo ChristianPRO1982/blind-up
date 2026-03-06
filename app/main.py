@@ -37,10 +37,17 @@ class LibraryScanRequest(BaseModel):
 
 
 class BlindtestSongPayload(BaseModel):
-    song_id: int
+    song_id: int | None = None
     order_index: int
+    slot_status: str = "ok"
     start_sec: float | None = None
     duration_sec: float | None = None
+    source_title: str | None = None
+    source_artist: str | None = None
+    source_album: str | None = None
+    source_year: int | None = None
+    source_genre: str | None = None
+    source_cover: str | None = None
     override_title: str | None = None
     override_artist: str | None = None
     override_album: str | None = None
@@ -114,6 +121,9 @@ async def audio(song_id: int) -> FileResponse:
 @app.get("/api/blindtest")
 async def get_blindtest() -> dict[str, object]:
     blindtest = blindtest_repository.get_first_blindtest()
+    if blindtest is not None:
+        blindtest_repository.validate_blindtest_links(int(blindtest["id"]))
+        blindtest = blindtest_repository.get_blindtest(int(blindtest["id"]))
     return {"blindtest": blindtest}
 
 
@@ -137,8 +147,15 @@ async def save_blindtest(payload: BlindtestPayload) -> dict[str, object]:
                 blindtest_repository.BlindtestSongRecord(
                     song_id=song.song_id,
                     order_index=song.order_index,
+                    slot_status=song.slot_status,
                     start_sec=song.start_sec,
                     duration_sec=song.duration_sec,
+                    source_title=song.source_title,
+                    source_artist=song.source_artist,
+                    source_album=song.source_album,
+                    source_year=song.source_year,
+                    source_genre=song.source_genre,
+                    source_cover=song.source_cover,
                     override_title=song.override_title,
                     override_artist=song.override_artist,
                     override_album=song.override_album,

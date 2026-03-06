@@ -140,6 +140,9 @@ def test_delete_songs_missing_from_removes_absent_rows(monkeypatch, tmp_path) ->
     removed_count = song_repository.delete_songs_missing_from({"keep"})
 
     assert removed_count == 1
+    assert [
+        song["file_hash"] for song in song_repository.list_songs_missing_from({"keep"})
+    ] == []
     assert song_repository.get_song_by_hash("keep") is not None
     assert song_repository.get_song_by_hash("remove") is None
 
@@ -147,3 +150,47 @@ def test_delete_songs_missing_from_removes_absent_rows(monkeypatch, tmp_path) ->
 
     assert removed_remaining == 1
     assert song_repository.get_song_by_hash("keep") is None
+
+
+def test_list_songs_missing_from_and_delete_songs_by_ids(monkeypatch, tmp_path) -> None:
+    database_path = tmp_path / "blindup.db"
+    monkeypatch.setattr(
+        db_module,
+        "settings",
+        config_module.Settings(database_path=database_path),
+    )
+
+    db_module.init_db()
+    song_repository.upsert_song(
+        song_repository.SongRecord(
+            file_hash="keep",
+            file_path="/music/keep.mp3",
+            duration_sec=None,
+            title="Keep",
+            artist=None,
+            album=None,
+            year=None,
+            genre=None,
+            cover_path=None,
+        )
+    )
+    song_repository.upsert_song(
+        song_repository.SongRecord(
+            file_hash="remove",
+            file_path="/music/remove.mp3",
+            duration_sec=None,
+            title="Remove",
+            artist=None,
+            album=None,
+            year=None,
+            genre=None,
+            cover_path=None,
+        )
+    )
+
+    missing = song_repository.list_songs_missing_from({"keep"})
+    removed = song_repository.delete_songs_by_ids([int(missing[0]["id"])])
+
+    assert [song["file_hash"] for song in missing] == ["remove"]
+    assert removed == 1
+    assert [song["file_hash"] for song in song_repository.list_songs()] == ["keep"]

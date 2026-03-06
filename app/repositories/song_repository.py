@@ -122,14 +122,37 @@ def upsert_song(song: SongRecord) -> str:
     return "updated"
 
 
-def delete_songs_missing_from(scan_hashes: set[str]) -> int:
+def list_songs_missing_from(scan_hashes: set[str]) -> list[dict[str, object]]:
     with get_connection() as connection:
         if scan_hashes:
             placeholders = ", ".join("?" for _ in scan_hashes)
-            cursor = connection.execute(
-                f"DELETE FROM songs WHERE file_hash NOT IN ({placeholders});",
+            rows = connection.execute(
+                (
+                    "SELECT * FROM songs "
+                    f"WHERE file_hash NOT IN ({placeholders}) "
+                    "ORDER BY id;"
+                ),
                 tuple(sorted(scan_hashes)),
-            )
+            ).fetchall()
         else:
-            cursor = connection.execute("DELETE FROM songs;")
+            rows = connection.execute("SELECT * FROM songs ORDER BY id;").fetchall()
+    return [dict(row) for row in rows]
+
+
+def delete_songs_by_ids(song_ids: list[int]) -> int:
+    if not song_ids:
+        return 0
+
+    placeholders = ", ".join("?" for _ in song_ids)
+    with get_connection() as connection:
+        cursor = connection.execute(
+            f"DELETE FROM songs WHERE id IN ({placeholders});",
+            tuple(song_ids),
+        )
     return cursor.rowcount
+
+
+def delete_songs_missing_from(scan_hashes: set[str]) -> int:
+    return delete_songs_by_ids(
+        [int(song["id"]) for song in list_songs_missing_from(scan_hashes)]
+    )
