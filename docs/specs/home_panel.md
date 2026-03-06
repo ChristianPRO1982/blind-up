@@ -11,6 +11,7 @@ It allows the host to:
 * view all blindtests stored locally
 * open a specific blindtest in the editor
 * create a new blindtest
+* open the Library scan panel
 
 The Home panel is intentionally simple and local-first.
 
@@ -92,6 +93,7 @@ Navigation for this feature is intentionally shallow:
 
 * `Home -> Open -> Editor`
 * `Home -> New blindtest -> Editor`
+* `Home -> Library scan`
 * `Editor -> Back -> Home`
 
 The Home panel is the previous screen for the editor in normal usage.

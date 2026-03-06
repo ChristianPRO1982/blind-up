@@ -16,6 +16,12 @@ It is responsible for:
 
 The scan does **not** manage blindtests.
 
+The feature includes:
+
+* backend scan execution
+* Library scan panel UI
+* scan summary display
+
 ---
 
 # Objective
@@ -37,6 +43,54 @@ Example:
 ```
 
 The scan starts from this root folder and explores all subfolders recursively.
+
+In the UI, the host enters this path directly in the **Library scan panel**.
+
+The scan always starts from the exact path currently shown in that input.
+
+No separate remembered path or hidden configured path is required for MVP.
+
+---
+
+# Library Scan Panel
+
+The Library scan panel is opened from the **Home panel**.
+
+Its layout is intentionally simple:
+
+```text
+Library Scan Panel
+ ├── Root path input
+ ├── Start / Stop scan button
+ └── Scan info panel
+```
+
+## Required controls
+
+The panel must include:
+
+* a text input for `root_path`
+* a `Start scan` action
+* a `Stop scan` action while a scan is running
+
+The same primary control may change label between:
+
+* `Start scan`
+* `Stop scan`
+
+## Scan info panel
+
+The panel must display scan information after completion.
+
+At minimum it shows:
+
+* number of new songs
+* number of removed songs
+* list of blindtests impacted by removed songs
+
+The panel remains visible after the scan finishes.
+
+The host stays on the Library scan panel after completion.
 
 ---
 
@@ -216,6 +270,18 @@ Examples of scan errors:
 * corrupt metadata
 * invalid audio container
 
+If the root path is invalid:
+
+* the scan must fail clearly
+* the Library scan panel stays visible
+* the host can stop the running scan request if needed
+* the host can correct the path and retry
+
+If the host decides the scan was started with the wrong path and is taking too long:
+
+* the host can request scan cancellation from the UI
+* the application stops the current scan as soon as practical
+
 ---
 
 # Expected Scan Flow
@@ -248,6 +314,7 @@ After each scan, return a summary object containing:
 * updated song count
 * removed song count
 * broken slot count
+* impacted blindtests list
 * skipped file count
 * error count
 
@@ -261,6 +328,16 @@ Example:
   "updated": 231,
   "removed": 5,
   "broken_slots": 2,
+  "impacted_blindtests": [
+    {
+      "id": 3,
+      "title": "Friday night"
+    },
+    {
+      "id": 7,
+      "title": "80s set"
+    }
+  ],
   "skipped": 2,
   "errors": 2
 }
@@ -270,12 +347,14 @@ Example:
 
 # API Expectations
 
-The backend should expose a scan endpoint.
+The backend should expose a cancellable scan lifecycle for the Library scan panel.
 
 Example:
 
 ```text
-POST /api/library/scan
+POST /api/library/scan/start
+POST /api/library/scan/stop
+GET /api/library/scan/status
 ```
 
 The backend should also expose read-only media routes for extracted covers.
@@ -286,6 +365,10 @@ Example:
 GET /media/covers/{filename}
 ```
 
+## `POST /api/library/scan/start`
+
+Starts a scan from the path entered by the host.
+
 Possible request body:
 
 ```json
@@ -294,17 +377,48 @@ Possible request body:
 }
 ```
 
+Possible immediate response:
+
+```json
+{
+  "status": "running"
+}
+```
+
+## `POST /api/library/scan/stop`
+
+Requests cancellation of the current scan.
+
 Possible response:
 
 ```json
 {
-  "status": "ok",
+  "status": "stopping"
+}
+```
+
+## `GET /api/library/scan/status`
+
+Returns the current scan state and the latest completed summary when available.
+
+Possible response:
+
+```json
+{
+  "status": "idle",
   "summary": {
+    "root_path": "/users/moi/music/",
     "scanned_files": 248,
     "added": 12,
     "updated": 231,
     "removed": 5,
     "broken_slots": 2,
+    "impacted_blindtests": [
+      {
+        "id": 3,
+        "title": "Friday night"
+      }
+    ],
     "skipped": 2,
     "errors": 2
   }
@@ -320,10 +434,11 @@ The scan is local and may process many files.
 Expected behavior:
 
 * acceptable performance on a personal music library
-* no concurrency requirement for MVP
-* no background worker required for MVP
+* only one scan runs at a time
+* the scan must be cancellable from the host UI
+* no heavy distributed job system is required for MVP
 
-A simple synchronous scan is acceptable.
+A lightweight in-process background task is acceptable for MVP.
 
 ---
 
@@ -401,10 +516,15 @@ This keeps the implementation modular.
 
 The feature is correct if:
 
+* the host can open the Library scan panel from Home
+* the host can enter the root path directly in the panel
+* the host can start a scan from that path
+* the host can stop a running scan
 * the scan processes the full root folder recursively
 * supported audio files are imported into `songs`
 * file hashes are generated and stored
 * tags are extracted and stored
 * missing files are removed from `songs`
 * broken files do not stop the scan
-* a summary is returned at the end
+* the summary includes impacted blindtests
+* the panel stays on the scan screen after completion

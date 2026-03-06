@@ -291,6 +291,7 @@ It allows the host to:
 * browse the full list of blindtests stored locally
 * create a new blindtest
 * open an existing blindtest in the editor
+* open the Library scan panel
 
 The blindtest list must:
 
@@ -301,6 +302,25 @@ The blindtest list must:
 Opening a blindtest from the Home panel loads that specific blindtest in the editor.
 
 The application must not automatically open the first blindtest on startup.
+
+## Library Scan Panel
+
+The Library scan panel is opened from the Home panel.
+
+It allows the host to:
+
+* enter the library root path to scan
+* start a scan using that exact path
+* stop the current scan
+* read the result summary after the scan finishes
+
+The panel remains visible after the scan finishes.
+
+The summary must show at minimum:
+
+* number of new songs
+* number of removed songs
+* list of blindtests impacted by removed songs
 
 ---
 

@@ -241,13 +241,24 @@ The Home panel is responsible for:
 * sorting them by `blindtests.updated_at` descending
 * opening a specific blindtest in the editor
 * starting the creation of a new blindtest
+* opening the Library scan panel
 
 The backend therefore exposes:
 
 * a list endpoint for blindtest summaries
 * a read endpoint for a specific blindtest
+* scan control endpoints for the Library scan panel
 
 The application should not rely on automatically loading the first blindtest in storage as the primary navigation flow.
+
+The Library scan panel is responsible for:
+
+* collecting the root path from the host
+* starting a scan for that path
+* stopping a running scan
+* displaying the latest scan summary without leaving the panel
+
+Because the scan can be stopped by the host, the backend should expose a cancellable scan lifecycle rather than relying only on a fire-and-forget synchronous HTTP call.
 
 ---
 
