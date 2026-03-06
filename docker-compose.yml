@@ -1,0 +1,13 @@
+services:
+  blindup:
+    container_name: blindup
+    build: .
+    ports:
+      - "8500:8000"
+    environment:
+      BLINDUP_DB_PATH: /data/blindup.db
+    volumes:
+      - blindup-data:/data
+
+volumes:
+  blindup-data:

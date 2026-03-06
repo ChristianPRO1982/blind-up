@@ -212,6 +212,9 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+.ruff_cache/
+.venv/
+.uv-cache/
 cover/
 
 # Translations
@@ -222,6 +225,8 @@ cover/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+blindup.db
+blindup.db-journal
 
 # Flask stuff:
 instance/
