@@ -76,6 +76,11 @@ h2 {
   gap: 1rem;
 }
 
+.scan-layout {
+  display: grid;
+  gap: 1rem;
+}
+
 .home-hero {
   display: flex;
   gap: 1rem;
@@ -122,6 +127,59 @@ h2 {
   border: 1px solid var(--line);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.82);
+}
+
+.scan-status {
+  margin-bottom: 0.9rem;
+  color: var(--muted);
+}
+
+.scan-summary-grid {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.scan-summary-grid div,
+.scan-impact-block {
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.95rem;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.scan-summary-grid dt,
+.scan-impact-block h3 {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+
+.scan-summary-grid dd {
+  margin: 0.35rem 0 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.scan-impact-block {
+  margin-top: 1rem;
+}
+
+.scan-impact-empty {
+  color: var(--muted);
+}
+
+.scan-impact-list {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.8rem;
+}
+
+.scan-impact-item {
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 0.8rem;
+  background: rgba(255, 255, 255, 0.65);
 }
 
 .panel,
@@ -736,6 +794,10 @@ input:not(:disabled):focus-visible,
   .home-blindtest-card {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .scan-summary-grid {
+    grid-template-columns: 1fr;
   }
 
   .title-field {

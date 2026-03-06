@@ -4,6 +4,7 @@ import logging
 import os
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from threading import Event
 
 from app.config import settings
 from app.repositories import blindtest_repository
@@ -23,6 +24,10 @@ from app.services.media_path_service import build_media_url
 logger = logging.getLogger(__name__)
 
 
+class ScanCancelled(Exception):
+    """Raised when a running library scan is cancelled by the host."""
+
+
 @dataclass(frozen=True)
 class ScanSummary:
     root_path: str
@@ -31,14 +36,20 @@ class ScanSummary:
     updated: int
     removed: int
     broken_slots: int
+    impacted_blindtests: list[dict[str, object]]
     skipped: int
     errors: int
 
-    def as_dict(self) -> dict[str, int | str]:
+    def as_dict(self) -> dict[str, object]:
         return asdict(self)
 
 
-def scan_library(root_path: str) -> ScanSummary:
+def _raise_if_cancelled(cancel_event: Event | None) -> None:
+    if cancel_event is not None and cancel_event.is_set():
+        raise ScanCancelled("Scan stopped")
+
+
+def scan_library(root_path: str, cancel_event: Event | None = None) -> ScanSummary:
     root = Path(root_path).expanduser().resolve()
     if not root.exists() or not root.is_dir():
         raise FileNotFoundError(root_path)
@@ -55,6 +66,7 @@ def scan_library(root_path: str) -> ScanSummary:
     errors = 0
 
     for audio_path in _iter_audio_files(root):
+        _raise_if_cancelled(cancel_event)
         scanned_files += 1
         logger.info("file processed: %s", audio_path)
         try:
@@ -96,13 +108,19 @@ def scan_library(root_path: str) -> ScanSummary:
             updated += 1
             logger.info("song updated: %s", audio_path)
 
+    _raise_if_cancelled(cancel_event)
     missing_songs = list_songs_missing_from(seen_hashes)
+    impacted_blindtests = blindtest_repository.list_blindtests_impacted_by_song_ids(
+        [int(song["id"]) for song in missing_songs]
+    )
     for song in missing_songs:
+        _raise_if_cancelled(cancel_event)
         broken_for_song = blindtest_repository.mark_song_slots_missing(song)
         broken_slots += broken_for_song
         if broken_for_song:
             logger.info("blindtest slot marked missing: %s", song["id"])
 
+    _raise_if_cancelled(cancel_event)
     removed = delete_songs_by_ids([int(song["id"]) for song in missing_songs])
     if removed:
         logger.info("song removed: %s", removed)
@@ -115,6 +133,7 @@ def scan_library(root_path: str) -> ScanSummary:
         updated=updated,
         removed=removed,
         broken_slots=broken_slots,
+        impacted_blindtests=impacted_blindtests,
         skipped=skipped,
         errors=errors,
     )

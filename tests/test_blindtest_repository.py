@@ -208,6 +208,82 @@ def test_list_blindtests_orders_by_last_update_desc(monkeypatch, tmp_path) -> No
     ]
 
 
+def test_list_blindtests_impacted_by_song_ids_returns_distinct_blindtests(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    database_path = tmp_path / "blindup.db"
+    monkeypatch.setattr(
+        db_module,
+        "settings",
+        config_module.Settings(database_path=database_path),
+    )
+
+    db_module.init_db()
+    with db_module.get_connection() as connection:
+        connection.execute(
+            """
+            INSERT INTO songs (id, file_hash, file_path, title)
+            VALUES (?, ?, ?, ?);
+            """,
+            (1, "hash-1", str(tmp_path / "a.mp3"), "Song A"),
+        )
+        connection.execute(
+            """
+            INSERT INTO songs (id, file_hash, file_path, title)
+            VALUES (?, ?, ?, ?);
+            """,
+            (2, "hash-2", str(tmp_path / "b.mp3"), "Song B"),
+        )
+        connection.execute(
+            """
+            INSERT INTO blindtests (id, title, updated_at)
+            VALUES (?, ?, ?);
+            """,
+            (1, "Older", "2026-03-06T10:00:00+00:00"),
+        )
+        connection.execute(
+            """
+            INSERT INTO blindtests (id, title, updated_at)
+            VALUES (?, ?, ?);
+            """,
+            (2, "Newer", "2026-03-06T11:00:00+00:00"),
+        )
+        connection.execute(
+            """
+            INSERT INTO blindtest_songs (
+                blindtest_id, song_id, order_index, slot_status
+            )
+            VALUES (?, ?, ?, ?);
+            """,
+            (1, 1, 0, "ok"),
+        )
+        connection.execute(
+            """
+            INSERT INTO blindtest_songs (
+                blindtest_id, song_id, order_index, slot_status
+            )
+            VALUES (?, ?, ?, ?);
+            """,
+            (2, 1, 0, "ok"),
+        )
+        connection.execute(
+            """
+            INSERT INTO blindtest_songs (
+                blindtest_id, song_id, order_index, slot_status
+            )
+            VALUES (?, ?, ?, ?);
+            """,
+            (2, 2, 1, "ok"),
+        )
+
+    assert blindtest_repository.list_blindtests_impacted_by_song_ids([1, 2]) == [
+        {"id": 2, "title": "Newer"},
+        {"id": 1, "title": "Older"},
+    ]
+    assert blindtest_repository.list_blindtests_impacted_by_song_ids([]) == []
+
+
 def test_save_blindtest_preserves_missing_slot_snapshot(monkeypatch, tmp_path) -> None:
     database_path = tmp_path / "blindup.db"
     monkeypatch.setattr(

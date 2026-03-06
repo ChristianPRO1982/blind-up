@@ -1,3 +1,4 @@
+import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -9,7 +10,7 @@ from pydantic import BaseModel, Field
 from app.config import settings
 from app.db import init_db
 from app.repositories import blindtest_repository, song_repository
-from app.services.library_scan_service import scan_library
+from app.services.library_scan_service import ScanCancelled, scan_library
 
 
 @asynccontextmanager
@@ -75,17 +76,100 @@ class BlindtestPayload(BaseModel):
     songs: list[BlindtestSongPayload] = Field(default_factory=list)
 
 
-@app.post("/api/library/scan")
-async def library_scan(payload: LibraryScanRequest) -> dict[str, object]:
-    try:
-        summary = scan_library(payload.root_path)
-    except FileNotFoundError as exc:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid root path: {exc}",
-        ) from exc
+class LibraryScanController:
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._worker: threading.Thread | None = None
+        self._cancel_event: threading.Event | None = None
+        self._status = "idle"
+        self._summary: dict[str, object] | None = None
+        self._error: str | None = None
 
-    return {"status": "ok", "summary": summary.as_dict()}
+    def _run_scan(self, root_path: str, cancel_event: threading.Event) -> None:
+        try:
+            summary = scan_library(root_path, cancel_event)
+        except ScanCancelled:
+            with self._lock:
+                self._status = "idle"
+                self._error = "Scan stopped"
+        except FileNotFoundError as exc:
+            with self._lock:
+                self._status = "error"
+                self._error = f"Invalid root path: {exc}"
+        except Exception as exc:
+            with self._lock:
+                self._status = "error"
+                self._error = str(exc)
+        else:
+            with self._lock:
+                self._status = "idle"
+                self._summary = summary.as_dict()
+                self._error = None
+        finally:
+            with self._lock:
+                self._worker = None
+                self._cancel_event = None
+
+    def start(self, root_path: str) -> dict[str, object]:
+        with self._lock:
+            if self._worker is not None and self._worker.is_alive():
+                raise RuntimeError("Scan already running")
+
+            cancel_event = threading.Event()
+            worker = threading.Thread(
+                target=self._run_scan,
+                args=(root_path, cancel_event),
+                daemon=True,
+            )
+            self._worker = worker
+            self._cancel_event = cancel_event
+            self._status = "running"
+            self._error = None
+
+        worker.start()
+        return {"status": "running"}
+
+    def stop(self) -> dict[str, object]:
+        with self._lock:
+            if (
+                self._worker is None
+                or not self._worker.is_alive()
+                or self._cancel_event is None
+            ):
+                return {"status": "idle"}
+
+            self._cancel_event.set()
+            self._status = "stopping"
+            return {"status": "stopping"}
+
+    def snapshot(self) -> dict[str, object]:
+        with self._lock:
+            return {
+                "status": self._status,
+                "summary": self._summary,
+                "error": self._error,
+            }
+
+
+library_scan_controller = LibraryScanController()
+
+
+@app.post("/api/library/scan/start")
+async def library_scan_start(payload: LibraryScanRequest) -> dict[str, object]:
+    try:
+        return library_scan_controller.start(payload.root_path)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.post("/api/library/scan/stop")
+async def library_scan_stop() -> dict[str, object]:
+    return library_scan_controller.stop()
+
+
+@app.get("/api/library/scan/status")
+async def library_scan_status() -> dict[str, object]:
+    return library_scan_controller.snapshot()
 
 
 @app.get("/api/songs")

@@ -112,6 +112,27 @@ def list_blindtests() -> list[dict[str, object]]:
     return [dict(row) for row in rows]
 
 
+def list_blindtests_impacted_by_song_ids(
+    song_ids: list[int],
+) -> list[dict[str, object]]:
+    if not song_ids:
+        return []
+
+    placeholders = ", ".join("?" for _ in song_ids)
+    with get_connection() as connection:
+        rows = connection.execute(
+            f"""
+            SELECT DISTINCT blindtests.id, blindtests.title
+            FROM blindtests
+            INNER JOIN blindtest_songs ON blindtest_songs.blindtest_id = blindtests.id
+            WHERE blindtest_songs.song_id IN ({placeholders})
+            ORDER BY blindtests.updated_at DESC, blindtests.id DESC;
+            """,
+            tuple(song_ids),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def normalize_blindtest_media(blindtest_id: int) -> int:
     updated = 0
     with get_connection() as connection:

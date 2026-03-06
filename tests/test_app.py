@@ -1,6 +1,7 @@
 import asyncio
 import importlib
 import sqlite3
+import time
 from pathlib import Path
 
 import httpx
@@ -15,6 +16,16 @@ from app.services.library_scan_service import ScanSummary
 def _table_columns(connection: sqlite3.Connection, table_name: str) -> list[str]:
     rows = connection.execute(f"PRAGMA table_info({table_name});").fetchall()
     return [row["name"] for row in rows]
+
+
+def _wait_for_scan_controller(controller: object) -> None:
+    deadline = time.time() + 2
+    while time.time() < deadline:
+        snapshot = controller.snapshot()
+        if snapshot["status"] not in {"running", "stopping"}:
+            return
+        time.sleep(0.01)
+    raise AssertionError("scan controller did not settle")
 
 
 def test_config_defaults(monkeypatch) -> None:
@@ -427,16 +438,32 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         ) as client:
             return await client.get("/health")
 
-    async def post_scan_response() -> httpx.Response:
+    async def post_scan_start_response() -> httpx.Response:
         transport = httpx.ASGITransport(app=main_module.app)
         async with httpx.AsyncClient(
             transport=transport,
             base_url="http://testserver",
         ) as client:
             return await client.post(
-                "/api/library/scan",
+                "/api/library/scan/start",
                 json={"root_path": "/music"},
             )
+
+    async def post_scan_stop_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.post("/api/library/scan/stop")
+
+    async def get_scan_status_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.get("/api/library/scan/status")
 
     async def get_songs_response() -> httpx.Response:
         transport = httpx.ASGITransport(app=main_module.app)
@@ -505,11 +532,13 @@ def test_fastapi_routes_serve_expected_responses() -> None:
             return None
 
     asyncio.run(run_startup())
-    original_scan_library = main_module.scan_library
     original_list_songs = main_module.song_repository.list_songs
     original_normalize_song_media_paths = (
         main_module.song_repository.normalize_song_media_paths
     )
+    original_scan_start = main_module.library_scan_controller.start
+    original_scan_stop = main_module.library_scan_controller.stop
+    original_scan_snapshot = main_module.library_scan_controller.snapshot
     original_list_blindtests = main_module.blindtest_repository.list_blindtests
     original_get_blindtest = main_module.blindtest_repository.get_blindtest
     original_normalize_blindtest_media = (
@@ -519,16 +548,23 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         main_module.blindtest_repository.validate_blindtest_links
     )
     original_save_blindtest = main_module.blindtest_repository.save_blindtest
-    main_module.scan_library = lambda _: ScanSummary(
-        root_path="/music",
-        scanned_files=1,
-        added=1,
-        updated=0,
-        removed=0,
-        broken_slots=0,
-        skipped=0,
-        errors=0,
-    )
+    main_module.library_scan_controller.start = lambda _: {"status": "running"}
+    main_module.library_scan_controller.stop = lambda: {"status": "stopping"}
+    main_module.library_scan_controller.snapshot = lambda: {
+        "status": "idle",
+        "summary": {
+            "root_path": "/music",
+            "scanned_files": 1,
+            "added": 1,
+            "updated": 0,
+            "removed": 0,
+            "broken_slots": 0,
+            "impacted_blindtests": [],
+            "skipped": 0,
+            "errors": 0,
+        },
+        "error": None,
+    }
     main_module.song_repository.list_songs = lambda: [
         {
             "id": 1,
@@ -611,7 +647,9 @@ def test_fastapi_routes_serve_expected_responses() -> None:
     root_response = asyncio.run(main_module.root())
     health_payload = asyncio.run(main_module.health())
     health_response = asyncio.run(get_health_response())
-    scan_response = asyncio.run(post_scan_response())
+    scan_start_response = asyncio.run(post_scan_start_response())
+    scan_stop_response = asyncio.run(post_scan_stop_response())
+    scan_status_response = asyncio.run(get_scan_status_response())
     songs_response = asyncio.run(get_songs_response())
     blindtests_response = asyncio.run(get_blindtests_response())
     blindtest_response = asyncio.run(get_blindtest_response())
@@ -625,7 +663,13 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         assert any(route.name == "static" for route in main_module.app.routes)
         assert any(route.name == "media" for route in main_module.app.routes)
         assert any(
-            route.path == "/api/library/scan" for route in main_module.app.routes
+            route.path == "/api/library/scan/start" for route in main_module.app.routes
+        )
+        assert any(
+            route.path == "/api/library/scan/stop" for route in main_module.app.routes
+        )
+        assert any(
+            route.path == "/api/library/scan/status" for route in main_module.app.routes
         )
         assert any(route.path == "/api/blindtests" for route in main_module.app.routes)
         assert any(
@@ -637,9 +681,13 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         assert health_payload == {"status": "ok"}
         assert health_response.status_code == 200
         assert health_response.json() == {"status": "ok"}
-        assert scan_response.status_code == 200
-        assert scan_response.json() == {
-            "status": "ok",
+        assert scan_start_response.status_code == 200
+        assert scan_start_response.json() == {"status": "running"}
+        assert scan_stop_response.status_code == 200
+        assert scan_stop_response.json() == {"status": "stopping"}
+        assert scan_status_response.status_code == 200
+        assert scan_status_response.json() == {
+            "status": "idle",
             "summary": {
                 "root_path": "/music",
                 "scanned_files": 1,
@@ -647,9 +695,11 @@ def test_fastapi_routes_serve_expected_responses() -> None:
                 "updated": 0,
                 "removed": 0,
                 "broken_slots": 0,
+                "impacted_blindtests": [],
                 "skipped": 0,
                 "errors": 0,
             },
+            "error": None,
         }
         assert songs_response.status_code == 200
         assert songs_response.json() == {
@@ -740,6 +790,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         index_text = static_index.read_text(encoding="utf-8")
         assert "BlindUp" in index_text
         assert "Home panel" in index_text
+        assert "Library scan panel" in index_text
         assert "New blindtest" in index_text
         assert "Blindtest editor" in index_text
         assert "Blindtest player" in index_text
@@ -748,6 +799,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         assert static_styles.exists()
         styles_text = static_styles.read_text(encoding="utf-8")
         assert "background" in styles_text
+        assert ".scan-layout" in styles_text
         assert ".waveform-region" in styles_text
         assert ".song-card.active" in styles_text
         assert ".player-layout" in styles_text
@@ -755,6 +807,8 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         assert static_script.exists()
         script_text = static_script.read_text(encoding="utf-8")
         assert "blindUpReady" in script_text
+        assert "handleScanToggle" in script_text
+        assert "showScanView" in script_text
         assert "openBlindtest" in script_text
         assert "showHomeView" in script_text
         assert "saveBlindtest" in script_text
@@ -764,11 +818,13 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         assert "Round 3 — Escalation" in script_text
         assert "Schrouunntch" in script_text
     finally:
-        main_module.scan_library = original_scan_library
         main_module.song_repository.list_songs = original_list_songs
         main_module.song_repository.normalize_song_media_paths = (
             original_normalize_song_media_paths
         )
+        main_module.library_scan_controller.start = original_scan_start
+        main_module.library_scan_controller.stop = original_scan_stop
+        main_module.library_scan_controller.snapshot = original_scan_snapshot
         main_module.blindtest_repository.list_blindtests = original_list_blindtests
         main_module.blindtest_repository.get_blindtest = original_get_blindtest
         main_module.blindtest_repository.normalize_blindtest_media = (
@@ -780,7 +836,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         main_module.blindtest_repository.save_blindtest = original_save_blindtest
 
 
-def test_library_scan_route_returns_400_for_invalid_root(monkeypatch) -> None:
+def test_library_scan_start_route_returns_409_when_running(monkeypatch) -> None:
     async def post_scan_response() -> httpx.Response:
         transport = httpx.ASGITransport(app=main_module.app)
         async with httpx.AsyncClient(
@@ -788,19 +844,19 @@ def test_library_scan_route_returns_400_for_invalid_root(monkeypatch) -> None:
             base_url="http://testserver",
         ) as client:
             return await client.post(
-                "/api/library/scan",
+                "/api/library/scan/start",
                 json={"root_path": "/missing"},
             )
 
-    def raise_missing(_: str) -> ScanSummary:
-        raise FileNotFoundError("/missing")
+    def raise_running(_: str) -> dict[str, object]:
+        raise RuntimeError("Scan already running")
 
-    monkeypatch.setattr(main_module, "scan_library", raise_missing)
+    monkeypatch.setattr(main_module.library_scan_controller, "start", raise_running)
 
     response = asyncio.run(post_scan_response())
 
-    assert response.status_code == 400
-    assert response.json() == {"detail": "Invalid root path: /missing"}
+    assert response.status_code == 409
+    assert response.json() == {"detail": "Scan already running"}
 
 
 def test_blindtest_route_returns_404_for_missing_blindtest(monkeypatch) -> None:
@@ -827,6 +883,107 @@ def test_blindtest_route_returns_404_for_missing_blindtest(monkeypatch) -> None:
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Blindtest not found"}
+
+
+def test_library_scan_controller_tracks_success(monkeypatch) -> None:
+    controller = main_module.LibraryScanController()
+
+    monkeypatch.setattr(
+        main_module,
+        "scan_library",
+        lambda root_path, _: ScanSummary(
+            root_path=root_path,
+            scanned_files=2,
+            added=1,
+            updated=1,
+            removed=0,
+            broken_slots=0,
+            impacted_blindtests=[],
+            skipped=0,
+            errors=0,
+        ),
+    )
+
+    assert controller.start("/music") == {"status": "running"}
+    _wait_for_scan_controller(controller)
+
+    assert controller.snapshot() == {
+        "status": "idle",
+        "summary": {
+            "root_path": "/music",
+            "scanned_files": 2,
+            "added": 1,
+            "updated": 1,
+            "removed": 0,
+            "broken_slots": 0,
+            "impacted_blindtests": [],
+            "skipped": 0,
+            "errors": 0,
+        },
+        "error": None,
+    }
+    assert controller.stop() == {"status": "idle"}
+
+
+def test_library_scan_controller_handles_stop_and_conflict(monkeypatch) -> None:
+    controller = main_module.LibraryScanController()
+
+    def fake_scan_library(_: str, cancel_event) -> ScanSummary:
+        while not cancel_event.is_set():
+            pass
+        raise main_module.ScanCancelled()
+
+    monkeypatch.setattr(main_module, "scan_library", fake_scan_library)
+
+    assert controller.start("/music") == {"status": "running"}
+    with pytest.raises(RuntimeError):
+        controller.start("/music-again")
+    assert controller.stop() == {"status": "stopping"}
+    controller._worker.join(timeout=2)
+
+    assert controller.snapshot() == {
+        "status": "idle",
+        "summary": None,
+        "error": "Scan stopped",
+    }
+
+
+def test_library_scan_controller_handles_file_not_found(monkeypatch) -> None:
+    controller = main_module.LibraryScanController()
+
+    monkeypatch.setattr(
+        main_module,
+        "scan_library",
+        lambda *_: (_ for _ in ()).throw(FileNotFoundError("/missing")),
+    )
+
+    assert controller.start("/missing") == {"status": "running"}
+    _wait_for_scan_controller(controller)
+
+    assert controller.snapshot() == {
+        "status": "error",
+        "summary": None,
+        "error": "Invalid root path: /missing",
+    }
+
+
+def test_library_scan_controller_handles_unexpected_error(monkeypatch) -> None:
+    controller = main_module.LibraryScanController()
+
+    monkeypatch.setattr(
+        main_module,
+        "scan_library",
+        lambda *_: (_ for _ in ()).throw(ValueError("broken scan")),
+    )
+
+    assert controller.start("/music") == {"status": "running"}
+    _wait_for_scan_controller(controller)
+
+    assert controller.snapshot() == {
+        "status": "error",
+        "summary": None,
+        "error": "broken scan",
+    }
 
 
 def test_audio_route_serves_existing_file(monkeypatch, tmp_path) -> None:

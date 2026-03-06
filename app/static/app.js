@@ -491,7 +491,18 @@
         homeLayout: document.getElementById("home-layout"),
         homeEmpty: document.getElementById("home-empty"),
         homeBlindtestList: document.getElementById("home-blindtest-list"),
+        openScanButton: document.getElementById("open-scan-button"),
         newBlindtestButton: document.getElementById("new-blindtest-button"),
+        scanLayout: document.getElementById("scan-layout"),
+        scanRootPath: document.getElementById("scan-root-path"),
+        scanToggleButton: document.getElementById("scan-toggle-button"),
+        scanBackButton: document.getElementById("scan-back-button"),
+        scanStatus: document.getElementById("scan-status"),
+        scanError: document.getElementById("scan-error"),
+        scanAddedCount: document.getElementById("scan-added-count"),
+        scanRemovedCount: document.getElementById("scan-removed-count"),
+        scanImpactEmpty: document.getElementById("scan-impact-empty"),
+        scanImpactList: document.getElementById("scan-impact-list"),
         title: document.getElementById("blindtest-title"),
         saveButton: document.getElementById("save-button"),
         launchButton: document.getElementById("launch-button"),
@@ -561,6 +572,9 @@
       };
       this.currentView = "home";
       this.homeBlindtests = [];
+      this.scanState = { status: "idle", summary: null, error: null };
+      this.scanPollInterval = null;
+      this.latestScanSummaryKey = "";
       this.librarySongs = [];
       this.librarySongMap = new Map();
       this.blindtest = this.createDefaultBlindtest();
@@ -616,8 +630,18 @@
     }
 
     bindHome() {
+      this.elements.openScanButton.addEventListener("click", () => {
+        this.showScanView();
+      });
       this.elements.newBlindtestButton.addEventListener("click", () => {
         this.startNewBlindtest();
+      });
+      this.elements.scanToggleButton.addEventListener("click", () => {
+        this.handleScanToggle().catch(() => {});
+      });
+      this.elements.scanBackButton.addEventListener("click", () => {
+        this.stopScanPolling();
+        this.showHomeView();
       });
     }
 
@@ -705,6 +729,7 @@
       this.librarySongs = songsPayload.songs || [];
       this.librarySongMap = new Map(this.librarySongs.map((song) => [song.id, song]));
       this.homeBlindtests = blindtestsPayload.blindtests || [];
+      await this.refreshScanStatus();
       this.renderAll();
     }
 
@@ -796,6 +821,7 @@
 
     renderAll() {
       this.renderHome();
+      this.renderScan();
       this.renderSettings();
       this.renderSongList();
       this.renderLibrary();
@@ -825,6 +851,27 @@
           this.openBlindtest(blindtest.id).catch(() => {});
         });
         list.appendChild(item);
+      }
+    }
+
+    renderScan() {
+      const state = this.scanState || { status: "idle", summary: null, error: null };
+      const summary = state.summary || null;
+      const isRunning = state.status === "running" || state.status === "stopping";
+      this.elements.scanToggleButton.textContent = isRunning ? "Stop scan" : "Start scan";
+      this.elements.scanStatus.textContent = this.formatScanStatus(state.status);
+      this.elements.scanError.hidden = !normalizeText(state.error);
+      this.elements.scanError.textContent = normalizeText(state.error);
+      this.elements.scanAddedCount.textContent = String((summary && summary.added) || 0);
+      this.elements.scanRemovedCount.textContent = String((summary && summary.removed) || 0);
+      this.elements.scanImpactList.innerHTML = "";
+      const impactedBlindtests = (summary && summary.impacted_blindtests) || [];
+      this.elements.scanImpactEmpty.hidden = impactedBlindtests.length > 0;
+      for (const blindtest of impactedBlindtests) {
+        const item = document.createElement("div");
+        item.className = "scan-impact-item";
+        item.textContent = blindtest.title || `Blindtest ${blindtest.id}`;
+        this.elements.scanImpactList.appendChild(item);
       }
     }
 
@@ -1432,6 +1479,19 @@
       this.elements.mark.textContent = "Mark";
     }
 
+    formatScanStatus(status) {
+      if (status === "running") {
+        return "Scan running";
+      }
+      if (status === "stopping") {
+        return "Scan stopping";
+      }
+      if (status === "error") {
+        return "Scan error";
+      }
+      return "Idle";
+    }
+
     formatUpdatedAt(value) {
       const normalized = normalizeText(value);
       if (!normalized) {
@@ -1449,6 +1509,83 @@
       const payload = await response.json();
       this.homeBlindtests = payload.blindtests || [];
       this.renderHome();
+    }
+
+    async refreshSongs() {
+      const response = await fetch("/api/songs");
+      const payload = await response.json();
+      this.librarySongs = payload.songs || [];
+      this.librarySongMap = new Map(this.librarySongs.map((song) => [song.id, song]));
+      this.renderLibrary();
+    }
+
+    async handleScanToggle() {
+      const status = this.scanState.status;
+      if (status === "running" || status === "stopping") {
+        await fetch("/api/library/scan/stop", {
+          method: "POST",
+        });
+        await this.refreshScanStatus();
+        this.startScanPolling();
+        return;
+      }
+
+      await fetch("/api/library/scan/start", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          root_path: this.elements.scanRootPath.value,
+        }),
+      });
+      await this.refreshScanStatus();
+      this.startScanPolling();
+    }
+
+    async refreshScanStatus() {
+      const response = await fetch("/api/library/scan/status");
+      const payload = await response.json();
+      this.scanState = {
+        status: payload.status || "idle",
+        summary: payload.summary || null,
+        error: payload.error || null,
+      };
+      const summaryKey = JSON.stringify(this.scanState.summary || {});
+      if (
+        this.scanState.status === "idle" &&
+        this.scanState.summary !== null &&
+        summaryKey !== this.latestScanSummaryKey
+      ) {
+        this.latestScanSummaryKey = summaryKey;
+        await this.refreshSongs();
+      }
+      this.renderScan();
+    }
+
+    startScanPolling() {
+      this.stopScanPolling();
+      this.scanPollInterval = window.setInterval(() => {
+        this.refreshScanStatus()
+          .then(() => {
+            if (
+              this.scanState.status !== "running" &&
+              this.scanState.status !== "stopping"
+            ) {
+              this.stopScanPolling();
+            }
+          })
+          .catch(() => {
+            this.stopScanPolling();
+          });
+      }, 600);
+    }
+
+    stopScanPolling() {
+      if (this.scanPollInterval !== null) {
+        window.clearInterval(this.scanPollInterval);
+        this.scanPollInterval = null;
+      }
     }
 
     async openBlindtest(blindtestId) {
@@ -1518,11 +1655,34 @@
       this.playerHistory = [];
       this.stopPlayerPlayback();
       this.destroyWaveform();
+      this.stopScanPolling();
       this.currentLoadedSongId = null;
       this.elements.pageTitle.textContent = "Home";
       this.elements.homeLayout.hidden = false;
+      this.elements.scanLayout.hidden = true;
       this.elements.editorLayout.hidden = true;
       this.playerElements.layout.hidden = true;
+    }
+
+    showScanView() {
+      this.currentView = "scan";
+      this.playerState = null;
+      this.playerHistory = [];
+      this.stopPlayerPlayback();
+      this.destroyWaveform();
+      this.currentLoadedSongId = null;
+      this.elements.pageTitle.textContent = "Library scan";
+      this.elements.homeLayout.hidden = true;
+      this.elements.scanLayout.hidden = false;
+      this.elements.editorLayout.hidden = true;
+      this.playerElements.layout.hidden = true;
+      this.renderScan();
+      if (
+        this.scanState.status === "running" ||
+        this.scanState.status === "stopping"
+      ) {
+        this.startScanPolling();
+      }
     }
 
     showEditorView() {
@@ -1530,8 +1690,10 @@
       this.playerState = null;
       this.playerHistory = [];
       this.stopPlayerPlayback();
+      this.stopScanPolling();
       this.elements.pageTitle.textContent = "Blindtest editor";
       this.elements.homeLayout.hidden = true;
+      this.elements.scanLayout.hidden = true;
       this.elements.editorLayout.hidden = false;
       this.playerElements.layout.hidden = true;
     }
@@ -1540,6 +1702,7 @@
       this.currentView = "player";
       this.elements.pageTitle.textContent = "Blindtest player";
       this.elements.homeLayout.hidden = true;
+      this.elements.scanLayout.hidden = true;
       this.elements.editorLayout.hidden = true;
       this.playerElements.layout.hidden = false;
     }

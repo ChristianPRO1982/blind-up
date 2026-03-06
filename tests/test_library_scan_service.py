@@ -1,3 +1,4 @@
+import threading
 from pathlib import Path
 
 import pytest
@@ -92,6 +93,7 @@ def test_scan_library_syncs_database_and_removes_missing_files(
         "updated": 0,
         "removed": 0,
         "broken_slots": 0,
+        "impacted_blindtests": [],
         "skipped": 0,
         "errors": 0,
     }
@@ -107,6 +109,7 @@ def test_scan_library_syncs_database_and_removes_missing_files(
         "updated": 1,
         "removed": 1,
         "broken_slots": 0,
+        "impacted_blindtests": [],
         "skipped": 0,
         "errors": 0,
     }
@@ -154,6 +157,7 @@ def test_scan_library_skips_broken_files_and_continues(monkeypatch, tmp_path) ->
         "updated": 0,
         "removed": 0,
         "broken_slots": 0,
+        "impacted_blindtests": [],
         "skipped": 1,
         "errors": 1,
     }
@@ -217,6 +221,12 @@ def test_scan_library_breaks_referenced_slots_before_deleting_song(
         "updated": 0,
         "removed": 1,
         "broken_slots": 1,
+        "impacted_blindtests": [
+            {
+                "id": 1,
+                "title": "Broken slots",
+            }
+        ],
         "skipped": 0,
         "errors": 0,
     }
@@ -234,3 +244,30 @@ def test_scan_library_breaks_referenced_slots_before_deleting_song(
 def test_scan_library_rejects_missing_root() -> None:
     with pytest.raises(FileNotFoundError):
         scan_service.scan_library("/missing/blindup")
+
+
+def test_scan_library_can_be_cancelled_before_cleanup(monkeypatch, tmp_path) -> None:
+    _configure_scan_settings(monkeypatch, tmp_path)
+    root = tmp_path / "music"
+    root.mkdir()
+    song_path = root / "stop.mp3"
+    song_path.write_bytes(b"stop")
+
+    def fake_extract_metadata(path: Path, file_hash: str, covers_dir: Path):
+        return audio_metadata_service.AudioMetadata(
+            duration_sec=1.0,
+            title=path.stem,
+            artist=None,
+            album=None,
+            year=None,
+            genre=None,
+            cover_path=None,
+        )
+
+    monkeypatch.setattr(scan_service, "extract_audio_metadata", fake_extract_metadata)
+
+    cancel_event = threading.Event()
+    cancel_event.set()
+
+    with pytest.raises(scan_service.ScanCancelled):
+        scan_service.scan_library(str(root), cancel_event)
