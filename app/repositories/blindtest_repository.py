@@ -25,6 +25,7 @@ class BlindtestSongRecord:
 class BlindtestRecord:
     id: int | None = None
     title: str = ""
+    background_image: str | None = None
     game_mode: str = "blind_test"
     pre_play_delay_sec: float = 0.0
     auto_enabled_default: bool = False
@@ -112,7 +113,7 @@ def save_blindtest(record: BlindtestRecord) -> dict[str, object]:
                 """,
                 (
                     record.title,
-                    None,
+                    record.background_image,
                     record.game_mode,
                     record.pre_play_delay_sec,
                     int(record.auto_enabled_default),
@@ -132,6 +133,7 @@ def save_blindtest(record: BlindtestRecord) -> dict[str, object]:
                 """
                 UPDATE blindtests
                 SET title = ?,
+                    background_image = ?,
                     game_mode = ?,
                     pre_play_delay_sec = ?,
                     auto_enabled_default = ?,
@@ -146,6 +148,7 @@ def save_blindtest(record: BlindtestRecord) -> dict[str, object]:
                 """,
                 (
                     record.title,
+                    record.background_image,
                     record.game_mode,
                     record.pre_play_delay_sec,
                     int(record.auto_enabled_default),

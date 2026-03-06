@@ -315,6 +315,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
                 "/api/blindtest",
                 json={
                     "title": "Friday night",
+                    "background_image": "/backgrounds/friday-night.jpg",
                     "game_mode": "blindup",
                     "pre_play_delay_sec": 1.5,
                     "auto_enabled_default": True,
@@ -375,6 +376,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
     main_module.blindtest_repository.get_first_blindtest = lambda: {
         "id": 1,
         "title": "Stored blindtest",
+        "background_image": "/backgrounds/stored.jpg",
         "game_mode": "blind_test",
         "pre_play_delay_sec": 0.0,
         "auto_enabled_default": 0,
@@ -389,6 +391,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
     main_module.blindtest_repository.save_blindtest = lambda record: {
         "id": 2,
         "title": record.title,
+        "background_image": record.background_image,
         "game_mode": record.game_mode,
         "pre_play_delay_sec": record.pre_play_delay_sec,
         "auto_enabled_default": int(record.auto_enabled_default),
@@ -472,6 +475,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
             "blindtest": {
                 "id": 1,
                 "title": "Stored blindtest",
+                "background_image": "/backgrounds/stored.jpg",
                 "game_mode": "blind_test",
                 "pre_play_delay_sec": 0.0,
                 "auto_enabled_default": 0,
@@ -490,6 +494,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
             "blindtest": {
                 "id": 2,
                 "title": "Friday night",
+                "background_image": "/backgrounds/friday-night.jpg",
                 "game_mode": "blindup",
                 "pre_play_delay_sec": 1.5,
                 "auto_enabled_default": 1,
@@ -522,6 +527,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         index_text = static_index.read_text(encoding="utf-8")
         assert "BlindUp" in index_text
         assert "Blindtest editor" in index_text
+        assert "Blindtest player" in index_text
         assert "Reset selection" in index_text
         assert "Library" in index_text
         assert static_styles.exists()
@@ -529,12 +535,17 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         assert "background" in styles_text
         assert ".waveform-region" in styles_text
         assert ".song-card.active" in styles_text
+        assert ".player-layout" in styles_text
+        assert ".player-stage" in styles_text
         assert static_script.exists()
         script_text = static_script.read_text(encoding="utf-8")
         assert "blindUpReady" in script_text
         assert "saveBlindtest" in script_text
         assert "replaceSlotSong" in script_text
-        assert "Audio unavailable" in script_text
+        assert "launchPlayer" in script_text
+        assert "Round 2 — Reverse" in script_text
+        assert "Round 3 — Escalation" in script_text
+        assert "Schrouunntch" in script_text
     finally:
         main_module.scan_library = original_scan_library
         main_module.song_repository.list_songs = original_list_songs

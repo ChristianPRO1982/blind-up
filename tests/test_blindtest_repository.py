@@ -50,6 +50,7 @@ def test_save_blindtest_inserts_then_updates(monkeypatch, tmp_path) -> None:
     inserted = blindtest_repository.save_blindtest(
         blindtest_repository.BlindtestRecord(
             title="Round one",
+            background_image="/backgrounds/round-one.jpg",
             game_mode="blindup",
             pre_play_delay_sec=2.5,
             auto_enabled_default=True,
@@ -77,6 +78,7 @@ def test_save_blindtest_inserts_then_updates(monkeypatch, tmp_path) -> None:
         blindtest_repository.BlindtestRecord(
             id=int(inserted["id"]),
             title="Round two",
+            background_image="/backgrounds/round-two.jpg",
             game_mode="blind_test",
             pre_play_delay_sec=1,
             auto_enabled_default=False,
@@ -102,6 +104,7 @@ def test_save_blindtest_inserts_then_updates(monkeypatch, tmp_path) -> None:
     )
 
     assert inserted["title"] == "Round one"
+    assert inserted["background_image"] == "/backgrounds/round-one.jpg"
     assert inserted["created_at"] == "2026-03-06T10:00:00+00:00"
     assert inserted["updated_at"] == "2026-03-06T10:00:00+00:00"
     assert inserted["songs"] == [
@@ -122,6 +125,7 @@ def test_save_blindtest_inserts_then_updates(monkeypatch, tmp_path) -> None:
         }
     ]
     assert updated["title"] == "Round two"
+    assert updated["background_image"] == "/backgrounds/round-two.jpg"
     assert updated["created_at"] == "2026-03-06T10:00:00+00:00"
     assert updated["updated_at"] == "2026-03-06T10:05:00+00:00"
     assert updated["songs"] == [

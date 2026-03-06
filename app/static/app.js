@@ -3,6 +3,10 @@
   const ZOOM_STEP = 30;
   const MIN_ZOOM = 10;
   const MIN_REGION_SPAN = 0.1;
+  const ROUND_TRANSITION_TITLES = {
+    2: "Round 2 — Reverse",
+    3: "Round 3 — Escalation",
+  };
 
   function clamp(value, minimum, maximum) {
     return Math.min(Math.max(value, minimum), maximum);
@@ -30,6 +34,10 @@
 
   function formatCardDuration(start, duration) {
     return `Start: ${formatTime(start)}  Duration: ${formatDuration(duration)}`;
+  }
+
+  function formatCountdown(value) {
+    return `${Math.max(0, value).toFixed(1)}s`;
   }
 
   function normalizeText(value) {
@@ -60,6 +68,15 @@
         }
       },
     };
+  }
+
+  function shuffleList(items) {
+    const shuffled = items.slice();
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+    }
+    return shuffled;
   }
 
   function createWaveSurferFallback() {
@@ -287,7 +304,8 @@
 
           this.pointerState = {
             mode,
-            startX: event.clientX,
+            pointerId: event.pointerId,
+            originX: event.clientX,
             initialStart: this.start,
             initialEnd: this.end,
           };
@@ -298,21 +316,23 @@
       }
 
       handlePointerMove(event) {
-        if (this.pointerState === null) {
+        if (this.pointerState === null || event.pointerId !== this.pointerState.pointerId) {
           return;
         }
 
         const track = this.plugin.wavesurfer.getTrackElement();
-        const duration = this.plugin.wavesurfer.getDuration();
-        const pixelsPerSecond = track.getBoundingClientRect().width / duration;
-        const deltaSec = (event.clientX - this.pointerState.startX) / pixelsPerSecond;
+        const rect = track.getBoundingClientRect();
+        const duration = this.plugin.wavesurfer.getDuration() || 1;
+        if (rect.width === 0) {
+          return;
+        }
 
+        const deltaSec = ((event.clientX - this.pointerState.originX) / rect.width) * duration;
         if (this.pointerState.mode === "move") {
-          const span = this.pointerState.initialEnd - this.pointerState.initialStart;
           this.setOptions(
             {
               start: this.pointerState.initialStart + deltaSec,
-              end: this.pointerState.initialStart + deltaSec + span,
+              end: this.pointerState.initialEnd + deltaSec,
             },
             true
           );
@@ -464,11 +484,13 @@
   const WaveSurfer = window.WaveSurfer || createWaveSurferFallback();
   const Regions = window.Regions || createRegionsFallback();
 
-  class BlindtestEditorApp {
+  class BlindUpApp {
     constructor() {
       this.elements = {
+        pageTitle: document.getElementById("page-title"),
         title: document.getElementById("blindtest-title"),
         saveButton: document.getElementById("save-button"),
+        launchButton: document.getElementById("launch-button"),
         gameMode: Array.from(document.querySelectorAll('input[name="game-mode"]')),
         prePlayDelay: document.getElementById("pre-play-delay"),
         autoEnabledDefault: document.getElementById("auto-enabled-default"),
@@ -480,6 +502,7 @@
         round3ProgressionMode: Array.from(
           document.querySelectorAll('input[name="round3-progression-mode"]')
         ),
+        editorLayout: document.querySelector(".editor-layout"),
         songList: document.getElementById("song-list"),
         songEditorEmpty: document.getElementById("song-editor-empty"),
         songEditorContent: document.getElementById("song-editor-content"),
@@ -506,6 +529,32 @@
         endTime: document.getElementById("end-time"),
         duration: document.getElementById("selection-duration"),
       };
+      this.playerElements = {
+        layout: document.getElementById("player-layout"),
+        backButton: document.getElementById("player-back-button"),
+        autoButton: document.getElementById("player-auto-button"),
+        hintsButton: document.getElementById("player-hints-button"),
+        prevButton: document.getElementById("player-prev-button"),
+        nextButton: document.getElementById("player-next-button"),
+        stepButton: document.getElementById("player-step-button"),
+        background: document.getElementById("player-background"),
+        roundLabel: document.getElementById("player-round-label"),
+        position: document.getElementById("player-position"),
+        panelLabel: document.getElementById("player-panel-label"),
+        mainTitle: document.getElementById("player-main-title"),
+        subtitle: document.getElementById("player-subtitle"),
+        countdown: document.getElementById("player-countdown"),
+        error: document.getElementById("player-error"),
+        hints: document.getElementById("player-hints"),
+        answer: document.getElementById("player-answer"),
+        cover: document.getElementById("player-cover"),
+        answerTitle: document.getElementById("player-answer-title"),
+        answerArtist: document.getElementById("player-answer-artist"),
+        answerAlbum: document.getElementById("player-answer-album"),
+        answerYear: document.getElementById("player-answer-year"),
+        answerGenre: document.getElementById("player-answer-genre"),
+      };
+      this.currentView = "editor";
       this.librarySongs = [];
       this.librarySongMap = new Map();
       this.blindtest = this.createDefaultBlindtest();
@@ -517,8 +566,26 @@
       this.currentLoadedSongId = null;
       this.wavesurfer = null;
       this.regions = null;
+      this.playerState = null;
+      this.playerHistory = [];
+      this.playerSongs = [];
+      this.playerOrders = { 1: [], 2: [], 3: [] };
+      this.playerPanelToken = 0;
+      this.playerHintDefinitions = [];
+      this.playerHintRevealCount = 0;
+      this.playerCountdownInterval = null;
+      this.playerHintInterval = null;
+      this.playerPrePlayTimeout = null;
+      this.playerAutoTimeout = null;
+      this.playerAudio = new Audio();
+      this.playerAudio.preload = "auto";
+      this.playerAudioCleanup = null;
+      this.playerReverseSource = null;
+      this.playerAudioContext = null;
       this.bindForm();
+      this.bindPlayerControls();
       this.showEditorEmpty();
+      this.showEditorView();
       this.setWaveformControlsDisabled(true);
       this.showPlaceholder("Select a song card");
     }
@@ -527,6 +594,7 @@
       return {
         id: null,
         title: "",
+        background_image: null,
         game_mode: "blind_test",
         pre_play_delay_sec: 0,
         auto_enabled_default: false,
@@ -582,6 +650,9 @@
       this.elements.saveButton.addEventListener("click", () => {
         this.saveBlindtest().catch(() => {});
       });
+      this.elements.launchButton.addEventListener("click", () => {
+        this.launchPlayer();
+      });
       this.elements.librarySearch.addEventListener("input", () => this.renderLibrary());
       this.elements.metadataForm.addEventListener("input", (event) => {
         this.handleMetadataInput(event);
@@ -596,6 +667,16 @@
       this.elements.zoomReset.addEventListener("click", () => this.setZoom(DEFAULT_ZOOM));
       this.elements.mark.addEventListener("click", () => this.handleMark());
       this.elements.reset.addEventListener("click", () => this.resetSelection());
+    }
+
+    bindPlayerControls() {
+      this.playerElements.backButton.addEventListener("click", () => this.showEditorView());
+      this.playerElements.autoButton.addEventListener("click", () => this.togglePlayerAuto());
+      this.playerElements.hintsButton.addEventListener("click", () => this.togglePlayerHints());
+      this.playerElements.prevButton.addEventListener("click", () => this.handlePlayerPrevious());
+      this.playerElements.nextButton.addEventListener("click", () => this.handlePlayerNext());
+      this.playerElements.stepButton.addEventListener("click", () => this.advanceRound3Step());
+      document.addEventListener("keydown", (event) => this.handlePlayerKeydown(event));
     }
 
     async init() {
@@ -616,6 +697,7 @@
       if (data !== null && data !== undefined) {
         this.blindtest.id = data.id;
         this.blindtest.title = data.title || "";
+        this.blindtest.background_image = normalizeText(data.background_image) || null;
         this.blindtest.game_mode = data.game_mode || "blind_test";
         this.blindtest.pre_play_delay_sec = data.pre_play_delay_sec ?? 0;
         this.blindtest.auto_enabled_default = Boolean(data.auto_enabled_default);
@@ -766,12 +848,7 @@
         if (!query) {
           return true;
         }
-        return [
-          song.title,
-          song.artist,
-          song.album,
-          song.year,
-        ]
+        return [song.title, song.artist, song.album, song.year]
           .join(" ")
           .toLowerCase()
           .includes(query);
@@ -784,10 +861,7 @@
         item.dataset.songId = String(song.id);
         const cover = this.createCoverThumb(song);
         const body = document.createElement("div");
-        const details = [
-          normalizeText(song.album),
-          song.year === null || song.year === undefined ? "" : String(song.year),
-        ]
+        const details = [normalizeText(song.album), song.year === null || song.year === undefined ? "" : String(song.year)]
           .filter(Boolean)
           .join(" • ");
         body.innerHTML = `
@@ -1239,29 +1313,7 @@
     }
 
     updateMarkLabel() {
-      let label = "Mark";
-
-      if (this.pendingStart === null) {
-        this.elements.mark.textContent = label;
-        return;
-      }
-
-      if (this.selectionEnd === null || this.wavesurfer === null) {
-        this.elements.mark.textContent = label;
-        return;
-      }
-
-      const current = this.wavesurfer.getCurrentTime();
-      if (current < this.pendingStart) {
-        label = "Mark";
-      } else if (current > this.selectionEnd) {
-        label = "Mark";
-      } else {
-        const relative = (current - this.pendingStart) / (this.selectionEnd - this.pendingStart);
-        label = relative <= 0.25 ? "Mark" : "Mark";
-      }
-
-      this.elements.mark.textContent = label;
+      this.elements.mark.textContent = "Mark";
     }
 
     async saveBlindtest() {
@@ -1273,6 +1325,7 @@
         body: JSON.stringify({
           id: this.blindtest.id,
           title: this.blindtest.title,
+          background_image: this.blindtest.background_image,
           game_mode: this.blindtest.game_mode,
           pre_play_delay_sec: this.blindtest.pre_play_delay_sec,
           auto_enabled_default: this.blindtest.auto_enabled_default,
@@ -1302,6 +1355,846 @@
       this.renderAll();
     }
 
+    showEditorView() {
+      this.currentView = "editor";
+      this.playerState = null;
+      this.playerHistory = [];
+      this.stopPlayerPlayback();
+      this.elements.pageTitle.textContent = "Blindtest editor";
+      this.elements.editorLayout.hidden = false;
+      this.playerElements.layout.hidden = true;
+    }
+
+    showPlayerView() {
+      this.currentView = "player";
+      this.elements.pageTitle.textContent = "Blindtest player";
+      this.elements.editorLayout.hidden = true;
+      this.playerElements.layout.hidden = false;
+    }
+
+    launchPlayer() {
+      this.playerSongs = this.buildPlayerSongs();
+      this.playerOrders = {
+        1: this.playerSongs.slice(),
+        2: shuffleList(this.playerSongs),
+        3: shuffleList(this.playerSongs),
+      };
+      this.playerHistory = [];
+      this.playerHintDefinitions = [];
+      this.playerHintRevealCount = 0;
+      this.playerState = {
+        blindtest_id: this.blindtest.id,
+        mode: this.blindtest.game_mode,
+        current_round: 1,
+        current_song_index: 0,
+        panel: "waiting",
+        auto_enabled: this.blindtest.auto_enabled_default,
+        hints_visible: this.blindtest.hints_enabled_default,
+        round3_step_index: 0,
+      };
+      this.showPlayerView();
+      this.enterCurrentPlayerPanel();
+    }
+
+    buildPlayerSongs() {
+      return this.blindtest.songs.map((slot) => {
+        const source = this.librarySongMap.get(slot.song_id) || {};
+        return {
+          ...slot,
+          source,
+        };
+      });
+    }
+
+    handlePlayerKeydown(event) {
+      if (this.currentView !== "player" || this.playerState === null) {
+        return;
+      }
+      if (event.altKey || event.ctrlKey || event.metaKey) {
+        return;
+      }
+
+      const key = event.key;
+      if (key === " " || key === "ArrowRight" || key === "ArrowDown") {
+        event.preventDefault();
+        this.handlePlayerNext();
+        return;
+      }
+      if (key === "ArrowLeft" || key === "ArrowUp" || key === "Backspace") {
+        event.preventDefault();
+        this.handlePlayerPrevious();
+        return;
+      }
+      if (key === "Escape" || key.toLowerCase() === "i") {
+        event.preventDefault();
+        this.togglePlayerHints();
+        return;
+      }
+      if (key.toLowerCase() === "a") {
+        event.preventDefault();
+        this.togglePlayerAuto();
+        return;
+      }
+      if (key.toLowerCase() === "d") {
+        event.preventDefault();
+        this.advanceRound3Step();
+      }
+    }
+
+    togglePlayerAuto() {
+      if (this.playerState === null) {
+        return;
+      }
+      this.playerState.auto_enabled = !this.playerState.auto_enabled;
+      this.updatePlayerControls();
+    }
+
+    togglePlayerHints() {
+      if (this.playerState === null) {
+        return;
+      }
+      this.playerState.hints_visible = !this.playerState.hints_visible;
+      this.updatePlayerControls();
+      this.renderPlayerHints();
+    }
+
+    handlePlayerPrevious() {
+      if (this.playerHistory.length === 0) {
+        return;
+      }
+      this.playerState = this.playerHistory.pop();
+      this.enterCurrentPlayerPanel();
+    }
+
+    handlePlayerNext() {
+      if (this.playerState === null) {
+        return;
+      }
+
+      if (this.playerState.panel === "waiting") {
+        this.pushPlayerHistory();
+        if (this.getSongsForRound(1).length === 0) {
+          this.playerState.panel = "end";
+        } else {
+          this.playerState.panel = "teaser";
+        }
+        this.playerState.current_round = 1;
+        this.playerState.current_song_index = 0;
+        this.playerState.round3_step_index = 0;
+        this.enterCurrentPlayerPanel();
+        return;
+      }
+
+      if (this.playerState.panel === "round_transition") {
+        this.pushPlayerHistory();
+        this.playerState.panel = "teaser";
+        this.playerState.current_song_index = 0;
+        this.playerState.round3_step_index = 0;
+        this.enterCurrentPlayerPanel();
+        return;
+      }
+
+      if (this.playerState.panel === "teaser") {
+        this.pushPlayerHistory();
+        this.playerState.panel = "answer";
+        this.enterCurrentPlayerPanel();
+        return;
+      }
+
+      if (this.playerState.panel === "answer") {
+        this.pushPlayerHistory();
+        this.advanceAfterAnswer();
+      }
+    }
+
+    pushPlayerHistory() {
+      if (this.playerState === null) {
+        return;
+      }
+      this.playerHistory.push(JSON.parse(JSON.stringify(this.playerState)));
+    }
+
+    advanceAfterAnswer() {
+      if (this.playerState === null) {
+        return;
+      }
+
+      const roundSongs = this.getSongsForRound(this.playerState.current_round);
+      if (this.playerState.current_song_index + 1 < roundSongs.length) {
+        this.playerState.current_song_index += 1;
+        this.playerState.panel = "teaser";
+        this.playerState.round3_step_index = 0;
+        this.enterCurrentPlayerPanel();
+        return;
+      }
+
+      if (this.playerState.mode === "blindup" && this.playerState.current_round < 3) {
+        this.playerState.current_round += 1;
+        this.playerState.current_song_index = 0;
+        this.playerState.round3_step_index = 0;
+        this.playerState.panel = "round_transition";
+        this.enterCurrentPlayerPanel();
+        return;
+      }
+
+      this.playerState.panel = "end";
+      this.enterCurrentPlayerPanel();
+    }
+
+    advanceRound3Step() {
+      if (
+        this.playerState === null ||
+        this.playerState.panel !== "teaser" ||
+        this.playerState.current_round !== 3
+      ) {
+        return;
+      }
+
+      const steps = this.getRound3Steps();
+      if (this.playerState.round3_step_index >= steps.length - 1) {
+        return;
+      }
+
+      this.playerState.round3_step_index += 1;
+      this.enterCurrentPlayerPanel();
+    }
+
+    enterCurrentPlayerPanel() {
+      this.stopPlayerPlayback();
+      this.playerPanelToken += 1;
+      this.playerHintDefinitions = [];
+      this.playerHintRevealCount = 0;
+      this.clearPlayerError();
+      this.renderPlayerBase();
+      this.updatePlayerControls();
+
+      if (this.playerState === null) {
+        return;
+      }
+
+      const song = this.getCurrentPlayerSong();
+      if (this.playerState.panel === "waiting") {
+        this.setPlayerBackground(this.blindtest.background_image);
+        this.playerElements.panelLabel.textContent = "Waiting";
+        this.playerElements.mainTitle.textContent = this.blindtest.title || "BLINDUP";
+        this.playerElements.subtitle.textContent = "";
+        return;
+      }
+
+      if (this.playerState.panel === "round_transition") {
+        this.setPlayerBackground(this.blindtest.background_image);
+        this.playerElements.panelLabel.textContent = "Round transition";
+        this.playerElements.mainTitle.textContent =
+          ROUND_TRANSITION_TITLES[this.playerState.current_round] || "Round";
+        this.playerElements.subtitle.textContent = "";
+        return;
+      }
+
+      if (this.playerState.panel === "teaser") {
+        this.setPlayerBackground(song ? this.getSongCover(song) : this.blindtest.background_image);
+        this.playerElements.panelLabel.textContent = "Teaser";
+        this.playerElements.mainTitle.textContent = "BLINDUP";
+        this.playerElements.subtitle.textContent =
+          this.playerState.current_round === 3
+            ? `Step ${this.playerState.round3_step_index + 1} / ${this.getRound3Steps().length}`
+            : "";
+        if (song !== null) {
+          this.startTeaserPanel(this.playerPanelToken, song);
+        }
+        return;
+      }
+
+      if (this.playerState.panel === "answer") {
+        this.setPlayerBackground(song ? this.getSongCover(song) : this.blindtest.background_image);
+        this.playerElements.panelLabel.textContent = "Answer";
+        if (song !== null) {
+          this.fillPlayerAnswer(song);
+          this.startAnswerPanel(this.playerPanelToken, song);
+        }
+        return;
+      }
+
+      this.setPlayerBackground(this.blindtest.background_image);
+      this.playerElements.panelLabel.textContent = "End";
+      this.playerElements.mainTitle.textContent = "BLINDUP";
+      this.playerElements.subtitle.textContent = "";
+    }
+
+    renderPlayerBase() {
+      this.playerElements.answer.hidden = true;
+      this.playerElements.hints.hidden = true;
+      this.playerElements.hints.innerHTML = "";
+      this.playerElements.countdown.hidden = true;
+      this.playerElements.countdown.textContent = "";
+      this.playerElements.subtitle.hidden = false;
+      this.playerElements.error.hidden = true;
+      this.playerElements.roundLabel.textContent = "Blindtest player";
+      this.playerElements.position.textContent = this.getPlayerPositionText();
+    }
+
+    updatePlayerControls() {
+      const autoEnabled = this.playerState !== null && this.playerState.auto_enabled;
+      const hintsVisible = this.playerState !== null && this.playerState.hints_visible;
+      this.playerElements.autoButton.textContent = `Auto: ${autoEnabled ? "on" : "off"}`;
+      this.playerElements.hintsButton.textContent = `Hints: ${hintsVisible ? "shown" : "hidden"}`;
+      this.playerElements.prevButton.disabled = this.playerHistory.length === 0;
+      const showStep =
+        this.playerState !== null &&
+        this.playerState.panel === "teaser" &&
+        this.playerState.current_round === 3;
+      this.playerElements.stepButton.hidden = !showStep;
+      this.playerElements.stepButton.disabled =
+        !showStep ||
+        this.playerState.round3_step_index >= this.getRound3Steps().length - 1;
+    }
+
+    getPlayerPositionText() {
+      if (this.playerState === null) {
+        return "";
+      }
+
+      if (this.playerState.panel === "waiting" || this.playerState.panel === "end") {
+        return "";
+      }
+
+      const roundSongs = this.getSongsForRound(this.playerState.current_round);
+      const totalSongs = roundSongs.length;
+      const songIndex = Math.min(this.playerState.current_song_index + 1, totalSongs);
+      return `Round ${this.playerState.current_round} • Song ${songIndex} / ${totalSongs}`;
+    }
+
+    getSongsForRound(roundNumber) {
+      if (roundNumber === 1) {
+        return this.playerOrders[1];
+      }
+      if (this.playerState !== null && this.playerState.mode !== "blindup") {
+        return [];
+      }
+      return this.playerOrders[roundNumber] || [];
+    }
+
+    getCurrentPlayerSong() {
+      if (this.playerState === null) {
+        return null;
+      }
+
+      return this.getSongsForRound(this.playerState.current_round)[
+        this.playerState.current_song_index
+      ] || null;
+    }
+
+    getSongDisplay(song) {
+      return {
+        title:
+          normalizeText(song.override_title) ||
+          normalizeText(song.source.title) ||
+          `Song ${song.song_id}`,
+        artist:
+          normalizeText(song.override_artist) ||
+          normalizeText(song.source.artist) ||
+          "",
+        album:
+          normalizeText(song.override_album) ||
+          normalizeText(song.source.album) ||
+          "",
+        year:
+          song.override_year !== "" && song.override_year !== null && song.override_year !== undefined
+            ? String(song.override_year)
+            : song.source.year === null || song.source.year === undefined
+              ? ""
+              : String(song.source.year),
+        genre:
+          normalizeText(song.override_genre) ||
+          normalizeText(song.source.genre) ||
+          "",
+      };
+    }
+
+    getSongCover(song) {
+      return normalizeText(song.override_cover) || normalizeText(song.source.cover_path) || "";
+    }
+
+    setPlayerBackground(imagePath) {
+      const background = this.playerElements.background;
+      const normalizedPath = normalizeText(imagePath);
+      if (normalizedPath) {
+        background.style.backgroundImage = `url("${normalizedPath}"), radial-gradient(circle at top, rgba(247, 224, 186, 0.8), transparent 35%), linear-gradient(180deg, rgba(36, 28, 19, 0.9), rgba(70, 45, 26, 0.82))`;
+        background.classList.add("has-image");
+        return;
+      }
+      background.style.backgroundImage = "";
+      background.classList.remove("has-image");
+    }
+
+    getRound3Steps() {
+      const parsed = `${this.blindtest.round3_step_durations || ""}`
+        .split(",")
+        .map((value) => Number(value.trim()))
+        .filter((value) => Number.isFinite(value) && value > 0);
+      return parsed.length > 0 ? parsed : [0.5];
+    }
+
+    getTeaserPlayback(song) {
+      const start = Number.isFinite(song.start_sec) ? song.start_sec : 0;
+      const duration = Number.isFinite(song.duration_sec) ? song.duration_sec : 0;
+      if (this.playerState.current_round === 1) {
+        return { start, duration, reverse: false };
+      }
+      if (this.playerState.current_round === 2) {
+        return { start, duration, reverse: true };
+      }
+
+      const steps = this.getRound3Steps();
+      const index = clamp(this.playerState.round3_step_index, 0, steps.length - 1);
+      const stepDuration = steps[index];
+      if (this.blindtest.round3_progression_mode === "continuous") {
+        const offset = steps.slice(0, index).reduce((sum, value) => sum + value, 0);
+        return {
+          start: start + offset,
+          duration: stepDuration,
+          reverse: false,
+        };
+      }
+
+      return { start, duration: stepDuration, reverse: false };
+    }
+
+    getPrePlayDelay() {
+      if (
+        this.playerState !== null &&
+        this.playerState.current_round === 3 &&
+        this.playerState.round3_step_index > 0
+      ) {
+        return Math.max(0, this.blindtest.round3_step_gap_sec || 0);
+      }
+      return Math.max(0, this.blindtest.pre_play_delay_sec || 0);
+    }
+
+    startTeaserPanel(token, song) {
+      const playback = this.getTeaserPlayback(song);
+      this.playerHintDefinitions = this.buildPlayerHints(song);
+      this.playerHintRevealCount = 0;
+      this.renderPlayerHints();
+      const delay = this.getPrePlayDelay();
+
+      if (delay > 0) {
+        this.startCountdown(delay, token);
+      }
+
+      this.playerPrePlayTimeout = window.setTimeout(() => {
+        if (token !== this.playerPanelToken) {
+          return;
+        }
+        this.startCountdown(playback.duration, token);
+        this.startHintTracking(playback.duration, token);
+        if (playback.duration <= 0) {
+          this.handleTeaserPlaybackComplete(token);
+          return;
+        }
+        if (playback.reverse) {
+          this.playReverseSegment(song.song_id, playback.start, playback.duration, token, () => {
+            this.handleTeaserPlaybackComplete(token);
+          });
+          return;
+        }
+        this.playNormalAudio(
+          song.song_id,
+          playback.start,
+          playback.start + playback.duration,
+          token,
+          () => {
+            this.handleTeaserPlaybackComplete(token);
+          }
+        );
+      }, delay * 1000);
+    }
+
+    handleTeaserPlaybackComplete(token) {
+      if (token !== this.playerPanelToken || this.playerState === null) {
+        return;
+      }
+
+      if (!this.playerState.auto_enabled) {
+        return;
+      }
+
+      if (
+        this.playerState.current_round === 3 &&
+        this.playerState.round3_step_index < this.getRound3Steps().length - 1
+      ) {
+        return;
+      }
+
+      this.pushPlayerHistory();
+      this.playerState.panel = "answer";
+      this.enterCurrentPlayerPanel();
+    }
+
+    buildPlayerHints(song) {
+      if (this.playerState === null) {
+        return [];
+      }
+
+      const display = this.getSongDisplay(song);
+      const cover = this.getSongCover(song);
+      if (this.playerState.current_round === 3) {
+        return [];
+      }
+
+      if (this.playerState.current_round === 2) {
+        return normalizeText(song.custom_hint)
+          ? [{ label: "Hint", type: "text", value: normalizeText(song.custom_hint) }]
+          : [];
+      }
+
+      const hints = [];
+      if (normalizeText(song.custom_hint)) {
+        hints.push({ label: "Hint", type: "text", value: normalizeText(song.custom_hint) });
+      }
+      if (display.year) {
+        hints.push({ label: "Year", type: "text", value: display.year });
+      }
+      if (display.genre) {
+        hints.push({ label: "Genre", type: "text", value: display.genre });
+      }
+      if (display.album) {
+        hints.push({ label: "Album", type: "text", value: display.album });
+      }
+      if (cover) {
+        hints.push({ label: "Cover", type: "cover", value: cover });
+      }
+      if (display.artist) {
+        hints.push({ label: "Artist", type: "text", value: display.artist });
+      }
+      return hints;
+    }
+
+    renderPlayerHints() {
+      if (
+        this.playerState === null ||
+        !this.playerState.hints_visible ||
+        this.playerHintRevealCount === 0
+      ) {
+        this.playerElements.hints.hidden = true;
+        this.playerElements.hints.innerHTML = "";
+        return;
+      }
+
+      const hints = this.playerHintDefinitions.slice(0, this.playerHintRevealCount);
+      if (hints.length === 0) {
+        this.playerElements.hints.hidden = true;
+        this.playerElements.hints.innerHTML = "";
+        return;
+      }
+
+      this.playerElements.hints.hidden = false;
+      this.playerElements.hints.innerHTML = "";
+      for (const hint of hints) {
+        const hintNode = document.createElement("div");
+        hintNode.className = "player-hint";
+        const label = document.createElement("span");
+        label.className = "player-hint-label";
+        label.textContent = hint.label;
+        hintNode.appendChild(label);
+        if (hint.type === "cover") {
+          const image = document.createElement("img");
+          image.alt = hint.label;
+          image.src = hint.value;
+          hintNode.appendChild(image);
+        } else {
+          const value = document.createElement("div");
+          value.textContent = hint.value;
+          hintNode.appendChild(value);
+        }
+        this.playerElements.hints.appendChild(hintNode);
+      }
+    }
+
+    startHintTracking(durationSec, token) {
+      const startedAt = Date.now();
+      if (this.playerHintInterval !== null) {
+        window.clearInterval(this.playerHintInterval);
+      }
+      this.playerHintInterval = window.setInterval(() => {
+        if (token !== this.playerPanelToken) {
+          return;
+        }
+        const elapsedSec = Math.min(durationSec, (Date.now() - startedAt) / 1000);
+        const revealCount = Math.min(
+          this.playerHintDefinitions.length,
+          Math.floor(elapsedSec / 5)
+        );
+        if (revealCount !== this.playerHintRevealCount) {
+          this.playerHintRevealCount = revealCount;
+          this.renderPlayerHints();
+        }
+      }, 150);
+    }
+
+    fillPlayerAnswer(song) {
+      const display = this.getSongDisplay(song);
+      this.playerElements.answer.hidden = false;
+      this.playerElements.mainTitle.textContent = display.title;
+      this.playerElements.subtitle.textContent = display.artist;
+      this.playerElements.answerTitle.textContent = display.title;
+      this.playerElements.answerArtist.textContent = display.artist || " ";
+      this.playerElements.answerAlbum.textContent = display.album || " ";
+      this.playerElements.answerYear.textContent = display.year || " ";
+      this.playerElements.answerGenre.textContent = display.genre || " ";
+      this.playerElements.cover.innerHTML = "";
+      const coverPath = this.getSongCover(song);
+      if (coverPath) {
+        const image = document.createElement("img");
+        image.src = coverPath;
+        image.alt = display.title;
+        this.playerElements.cover.appendChild(image);
+        return;
+      }
+      this.playerElements.cover.appendChild(
+        this.createCoverThumb({ title: display.title || "Song" })
+      );
+    }
+
+    startAnswerPanel(token, song) {
+      if (this.playerState === null) {
+        return;
+      }
+
+      if (this.playerState.current_round === 1) {
+        this.playNormalAudio(song.song_id, 0, null, token, () => {});
+      } else if (this.playerState.current_round === 2) {
+        const playback = this.getTeaserPlayback(song);
+        this.playNormalAudio(
+          song.song_id,
+          playback.start,
+          playback.start + playback.duration,
+          token,
+          () => {}
+        );
+      }
+
+      const answerDuration = Math.max(0, this.blindtest.answer_duration_sec || 0);
+      if (this.blindtest.answer_timer_enabled) {
+        this.startCountdown(answerDuration, token);
+      }
+
+      if (this.playerState.auto_enabled) {
+        this.playerAutoTimeout = window.setTimeout(() => {
+          if (token !== this.playerPanelToken) {
+            return;
+          }
+          this.pushPlayerHistory();
+          this.advanceAfterAnswer();
+        }, answerDuration * 1000);
+      }
+    }
+
+    startCountdown(durationSec, token) {
+      this.playerElements.countdown.hidden = false;
+      const startedAt = Date.now();
+      const updateCountdown = () => {
+        if (token !== this.playerPanelToken) {
+          return;
+        }
+        const elapsed = (Date.now() - startedAt) / 1000;
+        const remaining = Math.max(0, durationSec - elapsed);
+        this.playerElements.countdown.textContent = formatCountdown(remaining);
+      };
+      updateCountdown();
+      const intervalId = window.setInterval(() => {
+        updateCountdown();
+        if (Date.now() - startedAt >= durationSec * 1000) {
+          window.clearInterval(intervalId);
+          if (this.playerCountdownInterval === intervalId) {
+            this.playerCountdownInterval = null;
+          }
+        }
+      }, 100);
+
+      if (this.playerCountdownInterval !== null) {
+        window.clearInterval(this.playerCountdownInterval);
+      }
+      this.playerCountdownInterval = intervalId;
+    }
+
+    clearCountdown() {
+      if (this.playerCountdownInterval !== null) {
+        window.clearInterval(this.playerCountdownInterval);
+        this.playerCountdownInterval = null;
+      }
+      this.playerElements.countdown.hidden = true;
+      this.playerElements.countdown.textContent = "";
+    }
+
+    clearPlayerError() {
+      this.playerElements.error.hidden = true;
+    }
+
+    showPlayerError() {
+      this.playerElements.error.hidden = false;
+      this.playerElements.error.textContent = "Schrouunntch";
+    }
+
+    stopPlayerPlayback() {
+      if (this.playerPrePlayTimeout !== null) {
+        window.clearTimeout(this.playerPrePlayTimeout);
+        this.playerPrePlayTimeout = null;
+      }
+      if (this.playerAutoTimeout !== null) {
+        window.clearTimeout(this.playerAutoTimeout);
+        this.playerAutoTimeout = null;
+      }
+      this.clearCountdown();
+      if (this.playerHintInterval !== null) {
+        window.clearInterval(this.playerHintInterval);
+        this.playerHintInterval = null;
+      }
+      if (this.playerAudioCleanup !== null) {
+        this.playerAudioCleanup();
+        this.playerAudioCleanup = null;
+      }
+      this.playerAudio.pause();
+      if (this.playerReverseSource !== null) {
+        try {
+          this.playerReverseSource.stop();
+        } catch (error) {
+          void error;
+        } finally {
+          this.playerReverseSource.disconnect();
+          this.playerReverseSource = null;
+        }
+      }
+    }
+
+    playNormalAudio(songId, startSec, endSec, token, onComplete) {
+      if (this.playerAudioCleanup !== null) {
+        this.playerAudioCleanup();
+        this.playerAudioCleanup = null;
+      }
+
+      const audio = this.playerAudio;
+      let finished = false;
+      let resolvedEnd = endSec;
+      const finish = () => {
+        if (finished) {
+          return;
+        }
+        finished = true;
+        cleanup();
+        if (token === this.playerPanelToken) {
+          onComplete();
+        }
+      };
+      const handleError = () => {
+        cleanup();
+        if (token === this.playerPanelToken) {
+          this.showPlayerError();
+        }
+      };
+      const handleLoadedMetadata = () => {
+        if (token !== this.playerPanelToken) {
+          cleanup();
+          return;
+        }
+        const duration = Number.isFinite(audio.duration) ? audio.duration : 0;
+        const safeStart = clamp(startSec || 0, 0, duration || 0);
+        resolvedEnd =
+          Number.isFinite(endSec) && duration > 0 ? clamp(endSec, safeStart, duration) : endSec;
+        audio.currentTime = safeStart;
+        audio.play().catch(handleError);
+        if (Number.isFinite(resolvedEnd) && resolvedEnd <= safeStart + 0.01) {
+          audio.pause();
+          finish();
+        }
+      };
+      const handleTimeUpdate = () => {
+        if (Number.isFinite(resolvedEnd) && audio.currentTime >= resolvedEnd - 0.05) {
+          audio.pause();
+          finish();
+        }
+      };
+      const cleanup = () => {
+        audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
+        audio.removeEventListener("timeupdate", handleTimeUpdate);
+        audio.removeEventListener("ended", finish);
+        audio.removeEventListener("error", handleError);
+      };
+
+      this.playerAudioCleanup = cleanup;
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+      audio.addEventListener("loadedmetadata", handleLoadedMetadata);
+      audio.addEventListener("timeupdate", handleTimeUpdate);
+      audio.addEventListener("ended", finish);
+      audio.addEventListener("error", handleError);
+      audio.src = `/api/audio/${songId}`;
+      audio.load();
+    }
+
+    async getPlayerAudioContext() {
+      if (this.playerAudioContext === null) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) {
+          throw new Error("AudioContext unavailable");
+        }
+        this.playerAudioContext = new AudioContextClass();
+      }
+      if (this.playerAudioContext.state === "suspended") {
+        await this.playerAudioContext.resume();
+      }
+      return this.playerAudioContext;
+    }
+
+    async playReverseSegment(songId, startSec, durationSec, token, onComplete) {
+      try {
+        const response = await fetch(`/api/audio/${songId}`);
+        if (!response.ok) {
+          throw new Error("Audio unavailable");
+        }
+        const audioContext = await this.getPlayerAudioContext();
+        const arrayBuffer = await response.arrayBuffer();
+        const decoded = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+        if (token !== this.playerPanelToken) {
+          return;
+        }
+
+        const sampleRate = decoded.sampleRate;
+        const startFrame = Math.max(0, Math.floor(startSec * sampleRate));
+        const endFrame = Math.min(
+          decoded.length,
+          Math.max(startFrame + 1, Math.floor((startSec + durationSec) * sampleRate))
+        );
+        const frameCount = Math.max(1, endFrame - startFrame);
+        const buffer = audioContext.createBuffer(decoded.numberOfChannels, frameCount, sampleRate);
+        for (let channelIndex = 0; channelIndex < decoded.numberOfChannels; channelIndex += 1) {
+          const sourceData = decoded.getChannelData(channelIndex);
+          const targetData = buffer.getChannelData(channelIndex);
+          for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
+            targetData[frameIndex] = sourceData[endFrame - 1 - frameIndex];
+          }
+        }
+
+        const source = audioContext.createBufferSource();
+        source.buffer = buffer;
+        source.connect(audioContext.destination);
+        source.onended = () => {
+          if (this.playerReverseSource === source) {
+            this.playerReverseSource = null;
+          }
+          if (token === this.playerPanelToken) {
+            onComplete();
+          }
+        };
+        this.playerReverseSource = source;
+        source.start();
+      } catch (error) {
+        if (token === this.playerPanelToken) {
+          this.showPlayerError();
+        }
+      }
+    }
+
     createCoverThumb(song) {
       const cover = document.createElement("div");
       cover.className = "cover-thumb";
@@ -1321,11 +2214,11 @@
   }
 
   document.addEventListener("DOMContentLoaded", async () => {
-    const editor = new BlindtestEditorApp();
+    const app = new BlindUpApp();
     try {
-      await editor.init();
+      await app.init();
     } catch (error) {
-      editor.showAudioError();
+      app.showAudioError();
     }
     window.blindUpReady = true;
   });

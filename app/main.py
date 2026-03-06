@@ -53,6 +53,7 @@ class BlindtestSongPayload(BaseModel):
 class BlindtestPayload(BaseModel):
     id: int | None = None
     title: str = ""
+    background_image: str | None = None
     game_mode: str = "blind_test"
     pre_play_delay_sec: float = 0.0
     auto_enabled_default: bool = False
@@ -122,6 +123,7 @@ async def save_blindtest(payload: BlindtestPayload) -> dict[str, object]:
         blindtest_repository.BlindtestRecord(
             id=payload.id,
             title=payload.title,
+            background_image=payload.background_image,
             game_mode=payload.game_mode,
             pre_play_delay_sec=payload.pre_play_delay_sec,
             auto_enabled_default=payload.auto_enabled_default,
