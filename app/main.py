@@ -121,14 +121,21 @@ async def audio(song_id: int) -> FileResponse:
     return FileResponse(file_path)
 
 
-@app.get("/api/blindtest")
-async def get_blindtest() -> dict[str, object]:
+@app.get("/api/blindtests")
+async def blindtests() -> dict[str, list[dict[str, object]]]:
+    return {"blindtests": blindtest_repository.list_blindtests()}
+
+
+@app.get("/api/blindtest/{blindtest_id}")
+async def get_blindtest(blindtest_id: int) -> dict[str, object]:
     song_repository.normalize_song_media_paths()
-    blindtest = blindtest_repository.get_first_blindtest()
-    if blindtest is not None:
-        blindtest_repository.normalize_blindtest_media(int(blindtest["id"]))
-        blindtest_repository.validate_blindtest_links(int(blindtest["id"]))
-        blindtest = blindtest_repository.get_blindtest(int(blindtest["id"]))
+    blindtest = blindtest_repository.get_blindtest(blindtest_id)
+    if blindtest is None:
+        raise HTTPException(status_code=404, detail="Blindtest not found")
+
+    blindtest_repository.normalize_blindtest_media(blindtest_id)
+    blindtest_repository.validate_blindtest_links(blindtest_id)
+    blindtest = blindtest_repository.get_blindtest(blindtest_id)
     return {"blindtest": blindtest}
 
 

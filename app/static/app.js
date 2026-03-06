@@ -488,9 +488,14 @@
     constructor() {
       this.elements = {
         pageTitle: document.getElementById("page-title"),
+        homeLayout: document.getElementById("home-layout"),
+        homeEmpty: document.getElementById("home-empty"),
+        homeBlindtestList: document.getElementById("home-blindtest-list"),
+        newBlindtestButton: document.getElementById("new-blindtest-button"),
         title: document.getElementById("blindtest-title"),
         saveButton: document.getElementById("save-button"),
         launchButton: document.getElementById("launch-button"),
+        backButton: document.getElementById("back-button"),
         gameMode: Array.from(document.querySelectorAll('input[name="game-mode"]')),
         prePlayDelay: document.getElementById("pre-play-delay"),
         autoEnabledDefault: document.getElementById("auto-enabled-default"),
@@ -554,7 +559,8 @@
         answerYear: document.getElementById("player-answer-year"),
         answerGenre: document.getElementById("player-answer-genre"),
       };
-      this.currentView = "editor";
+      this.currentView = "home";
+      this.homeBlindtests = [];
       this.librarySongs = [];
       this.librarySongMap = new Map();
       this.blindtest = this.createDefaultBlindtest();
@@ -582,10 +588,11 @@
       this.playerAudioCleanup = null;
       this.playerReverseSource = null;
       this.playerAudioContext = null;
+      this.bindHome();
       this.bindForm();
       this.bindPlayerControls();
       this.showEditorEmpty();
-      this.showEditorView();
+      this.showHomeView();
       this.setWaveformControlsDisabled(true);
       this.showPlaceholder("Select a song card");
     }
@@ -606,6 +613,12 @@
         round3_progression_mode: "fixed_start",
         songs: [],
       };
+    }
+
+    bindHome() {
+      this.elements.newBlindtestButton.addEventListener("click", () => {
+        this.startNewBlindtest();
+      });
     }
 
     bindForm() {
@@ -653,6 +666,9 @@
       this.elements.launchButton.addEventListener("click", () => {
         this.launchPlayer();
       });
+      this.elements.backButton.addEventListener("click", () => {
+        this.showHomeView();
+      });
       this.elements.librarySearch.addEventListener("input", () => this.renderLibrary());
       this.elements.metadataForm.addEventListener("input", (event) => {
         this.handleMetadataInput(event);
@@ -680,15 +696,15 @@
     }
 
     async init() {
-      const [songsResponse, blindtestResponse] = await Promise.all([
+      const [songsResponse, blindtestsResponse] = await Promise.all([
         fetch("/api/songs"),
-        fetch("/api/blindtest"),
+        fetch("/api/blindtests"),
       ]);
       const songsPayload = await songsResponse.json();
-      const blindtestPayload = await blindtestResponse.json();
+      const blindtestsPayload = await blindtestsResponse.json();
       this.librarySongs = songsPayload.songs || [];
       this.librarySongMap = new Map(this.librarySongs.map((song) => [song.id, song]));
-      this.hydrateBlindtest(blindtestPayload.blindtest);
+      this.homeBlindtests = blindtestsPayload.blindtests || [];
       this.renderAll();
     }
 
@@ -779,10 +795,37 @@
     }
 
     renderAll() {
+      this.renderHome();
       this.renderSettings();
       this.renderSongList();
       this.renderLibrary();
       this.renderEditor();
+    }
+
+    renderHome() {
+      const list = this.elements.homeBlindtestList;
+      list.innerHTML = "";
+      this.elements.homeEmpty.hidden = this.homeBlindtests.length > 0;
+      if (this.homeBlindtests.length === 0) {
+        return;
+      }
+
+      for (const blindtest of this.homeBlindtests) {
+        const item = document.createElement("article");
+        item.className = "home-blindtest-card";
+        item.innerHTML = `
+          <div class="home-blindtest-meta">
+            <div class="home-blindtest-title">${this.escapeHtml(blindtest.title || "Untitled blindtest")}</div>
+            <div class="home-blindtest-updated">${this.escapeHtml(this.formatUpdatedAt(blindtest.updated_at))}</div>
+          </div>
+          <button type="button">Open</button>
+        `;
+        const button = item.querySelector("button");
+        button.addEventListener("click", () => {
+          this.openBlindtest(blindtest.id).catch(() => {});
+        });
+        list.appendChild(item);
+      }
     }
 
     renderSettings() {
@@ -1389,6 +1432,39 @@
       this.elements.mark.textContent = "Mark";
     }
 
+    formatUpdatedAt(value) {
+      const normalized = normalizeText(value);
+      if (!normalized) {
+        return "Updated date unavailable";
+      }
+      const parsed = new Date(normalized);
+      if (Number.isNaN(parsed.getTime())) {
+        return normalized;
+      }
+      return `Updated ${parsed.toLocaleString()}`;
+    }
+
+    async refreshBlindtests() {
+      const response = await fetch("/api/blindtests");
+      const payload = await response.json();
+      this.homeBlindtests = payload.blindtests || [];
+      this.renderHome();
+    }
+
+    async openBlindtest(blindtestId) {
+      const response = await fetch(`/api/blindtest/${blindtestId}`);
+      const payload = await response.json();
+      this.hydrateBlindtest(payload.blindtest);
+      this.renderAll();
+      this.showEditorView();
+    }
+
+    startNewBlindtest() {
+      this.hydrateBlindtest(null);
+      this.renderAll();
+      this.showEditorView();
+    }
+
     async saveBlindtest() {
       const response = await fetch("/api/blindtest", {
         method: "POST",
@@ -1432,7 +1508,21 @@
       });
       const payload = await response.json();
       this.hydrateBlindtest(payload.blindtest);
+      await this.refreshBlindtests();
       this.renderAll();
+    }
+
+    showHomeView() {
+      this.currentView = "home";
+      this.playerState = null;
+      this.playerHistory = [];
+      this.stopPlayerPlayback();
+      this.destroyWaveform();
+      this.currentLoadedSongId = null;
+      this.elements.pageTitle.textContent = "Home";
+      this.elements.homeLayout.hidden = false;
+      this.elements.editorLayout.hidden = true;
+      this.playerElements.layout.hidden = true;
     }
 
     showEditorView() {
@@ -1441,6 +1531,7 @@
       this.playerHistory = [];
       this.stopPlayerPlayback();
       this.elements.pageTitle.textContent = "Blindtest editor";
+      this.elements.homeLayout.hidden = true;
       this.elements.editorLayout.hidden = false;
       this.playerElements.layout.hidden = true;
     }
@@ -1448,6 +1539,7 @@
     showPlayerView() {
       this.currentView = "player";
       this.elements.pageTitle.textContent = "Blindtest player";
+      this.elements.homeLayout.hidden = true;
       this.elements.editorLayout.hidden = true;
       this.playerElements.layout.hidden = false;
     }

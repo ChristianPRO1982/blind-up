@@ -71,6 +71,59 @@ h2 {
     "songs editor library";
 }
 
+.home-layout {
+  display: grid;
+  gap: 1rem;
+}
+
+.home-hero {
+  display: flex;
+  gap: 1rem;
+  align-items: end;
+  justify-content: space-between;
+}
+
+.home-subtitle {
+  color: var(--muted);
+}
+
+.home-blindtest-list {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.home-blindtest-card {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.95rem;
+  background: var(--panel-strong);
+}
+
+.home-blindtest-meta {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.home-blindtest-title {
+  font-weight: 700;
+}
+
+.home-blindtest-updated {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.home-blindtest-card button {
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
 .panel,
 .topbar {
   border: 1px solid var(--line);
@@ -675,6 +728,12 @@ input:not(:disabled):focus-visible,
   }
 
   .topbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .home-hero,
+  .home-blindtest-card {
     align-items: stretch;
     flex-direction: column;
   }

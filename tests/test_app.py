@@ -446,13 +446,21 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         ) as client:
             return await client.get("/api/songs")
 
+    async def get_blindtests_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.get("/api/blindtests")
+
     async def get_blindtest_response() -> httpx.Response:
         transport = httpx.ASGITransport(app=main_module.app)
         async with httpx.AsyncClient(
             transport=transport,
             base_url="http://testserver",
         ) as client:
-            return await client.get("/api/blindtest")
+            return await client.get("/api/blindtest/1")
 
     async def post_blindtest_response() -> httpx.Response:
         transport = httpx.ASGITransport(app=main_module.app)
@@ -502,7 +510,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
     original_normalize_song_media_paths = (
         main_module.song_repository.normalize_song_media_paths
     )
-    original_get_first_blindtest = main_module.blindtest_repository.get_first_blindtest
+    original_list_blindtests = main_module.blindtest_repository.list_blindtests
     original_get_blindtest = main_module.blindtest_repository.get_blindtest
     original_normalize_blindtest_media = (
         main_module.blindtest_repository.normalize_blindtest_media
@@ -534,21 +542,13 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         }
     ]
     main_module.song_repository.normalize_song_media_paths = lambda: 0
-    main_module.blindtest_repository.get_first_blindtest = lambda: {
-        "id": 1,
-        "title": "Stored blindtest",
-        "background_image": "/backgrounds/stored.jpg",
-        "game_mode": "blind_test",
-        "pre_play_delay_sec": 0.0,
-        "auto_enabled_default": 0,
-        "hints_enabled_default": 1,
-        "answer_timer_enabled": 0,
-        "answer_duration_sec": 10.0,
-        "round3_step_durations": "0.5,1,1.5,2,3,4,5",
-        "round3_step_gap_sec": 3.0,
-        "round3_progression_mode": "fixed_start",
-        "songs": [],
-    }
+    main_module.blindtest_repository.list_blindtests = lambda: [
+        {
+            "id": 1,
+            "title": "Stored blindtest",
+            "updated_at": "2026-03-06T12:00:00+00:00",
+        }
+    ]
     main_module.blindtest_repository.get_blindtest = lambda _: {
         "id": 1,
         "title": "Stored blindtest",
@@ -613,6 +613,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
     health_response = asyncio.run(get_health_response())
     scan_response = asyncio.run(post_scan_response())
     songs_response = asyncio.run(get_songs_response())
+    blindtests_response = asyncio.run(get_blindtests_response())
     blindtest_response = asyncio.run(get_blindtest_response())
     save_blindtest_response = asyncio.run(post_blindtest_response())
     static_index = main_module.settings.static_dir / "index.html"
@@ -625,6 +626,11 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         assert any(route.name == "media" for route in main_module.app.routes)
         assert any(
             route.path == "/api/library/scan" for route in main_module.app.routes
+        )
+        assert any(route.path == "/api/blindtests" for route in main_module.app.routes)
+        assert any(
+            route.path == "/api/blindtest/{blindtest_id}"
+            for route in main_module.app.routes
         )
         assert root_response.status_code == 307
         assert root_response.headers["location"] == "/static/index.html"
@@ -657,6 +663,16 @@ def test_fastapi_routes_serve_expected_responses() -> None:
                     "genre": "Rock",
                     "cover_path": "/covers/song-1.jpg",
                     "duration_sec": 10.0,
+                }
+            ]
+        }
+        assert blindtests_response.status_code == 200
+        assert blindtests_response.json() == {
+            "blindtests": [
+                {
+                    "id": 1,
+                    "title": "Stored blindtest",
+                    "updated_at": "2026-03-06T12:00:00+00:00",
                 }
             ]
         }
@@ -723,6 +739,8 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         assert static_index.exists()
         index_text = static_index.read_text(encoding="utf-8")
         assert "BlindUp" in index_text
+        assert "Home panel" in index_text
+        assert "New blindtest" in index_text
         assert "Blindtest editor" in index_text
         assert "Blindtest player" in index_text
         assert "Reset selection" in index_text
@@ -737,6 +755,8 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         assert static_script.exists()
         script_text = static_script.read_text(encoding="utf-8")
         assert "blindUpReady" in script_text
+        assert "openBlindtest" in script_text
+        assert "showHomeView" in script_text
         assert "saveBlindtest" in script_text
         assert "replaceSlotSong" in script_text
         assert "launchPlayer" in script_text
@@ -749,9 +769,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         main_module.song_repository.normalize_song_media_paths = (
             original_normalize_song_media_paths
         )
-        main_module.blindtest_repository.get_first_blindtest = (
-            original_get_first_blindtest
-        )
+        main_module.blindtest_repository.list_blindtests = original_list_blindtests
         main_module.blindtest_repository.get_blindtest = original_get_blindtest
         main_module.blindtest_repository.normalize_blindtest_media = (
             original_normalize_blindtest_media
@@ -783,6 +801,32 @@ def test_library_scan_route_returns_400_for_invalid_root(monkeypatch) -> None:
 
     assert response.status_code == 400
     assert response.json() == {"detail": "Invalid root path: /missing"}
+
+
+def test_blindtest_route_returns_404_for_missing_blindtest(monkeypatch) -> None:
+    async def get_blindtest_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.get("/api/blindtest/999")
+
+    monkeypatch.setattr(
+        main_module.song_repository,
+        "normalize_song_media_paths",
+        lambda: 0,
+    )
+    monkeypatch.setattr(
+        main_module.blindtest_repository,
+        "get_blindtest",
+        lambda _: None,
+    )
+
+    response = asyncio.run(get_blindtest_response())
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Blindtest not found"}
 
 
 def test_audio_route_serves_existing_file(monkeypatch, tmp_path) -> None:

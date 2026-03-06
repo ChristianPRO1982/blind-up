@@ -10,10 +10,32 @@
     <main class="app-shell">
       <header class="page-header">
         <p class="eyebrow">BlindUp</p>
-        <h1 id="page-title">Blindtest editor</h1>
+        <h1 id="page-title">Home</h1>
       </header>
 
-      <section class="editor-layout" aria-label="Blindtest editor">
+      <section id="home-layout" class="home-layout" aria-label="Home panel">
+        <section class="home-hero panel" aria-labelledby="home-title">
+          <div class="panel-heading">
+            <h2 id="home-title">Blindtests</h2>
+            <p class="home-subtitle">Choose a blindtest or create a new one.</p>
+          </div>
+          <div class="header-actions">
+            <button id="new-blindtest-button" type="button">New blindtest</button>
+          </div>
+        </section>
+
+        <section class="home-list-panel panel" aria-labelledby="home-list-title">
+          <div class="panel-heading">
+            <h2 id="home-list-title">Local blindtests</h2>
+          </div>
+          <div id="home-empty" class="empty-state" hidden>
+            No blindtest yet. Create one to start editing.
+          </div>
+          <div id="home-blindtest-list" class="home-blindtest-list"></div>
+        </section>
+      </section>
+
+      <section class="editor-layout" aria-label="Blindtest editor" hidden>
         <header class="topbar">
           <label class="title-field" for="blindtest-title">
             Title

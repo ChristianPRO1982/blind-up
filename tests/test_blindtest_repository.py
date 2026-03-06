@@ -10,7 +10,10 @@ def test_blindtest_timestamp_returns_iso_string() -> None:
     assert "T" in blindtest_repository._timestamp()
 
 
-def test_get_first_blindtest_returns_none_when_empty(monkeypatch, tmp_path) -> None:
+def test_list_blindtests_returns_empty_when_database_is_empty(
+    monkeypatch,
+    tmp_path,
+) -> None:
     database_path = tmp_path / "blindup.db"
     monkeypatch.setattr(
         db_module,
@@ -20,7 +23,7 @@ def test_get_first_blindtest_returns_none_when_empty(monkeypatch, tmp_path) -> N
 
     db_module.init_db()
 
-    assert blindtest_repository.get_first_blindtest() is None
+    assert blindtest_repository.list_blindtests() == []
 
 
 def test_save_blindtest_inserts_then_updates(monkeypatch, tmp_path) -> None:
@@ -163,8 +166,46 @@ def test_save_blindtest_inserts_then_updates(monkeypatch, tmp_path) -> None:
         }
     ]
     assert blindtest_repository.get_blindtest(int(inserted["id"])) == updated
-    assert blindtest_repository.get_first_blindtest() == updated
     assert blindtest_repository.get_blindtest(9999) is None
+
+
+def test_list_blindtests_orders_by_last_update_desc(monkeypatch, tmp_path) -> None:
+    database_path = tmp_path / "blindup.db"
+    monkeypatch.setattr(
+        db_module,
+        "settings",
+        config_module.Settings(database_path=database_path),
+    )
+
+    db_module.init_db()
+    with db_module.get_connection() as connection:
+        connection.execute(
+            """
+            INSERT INTO blindtests (id, title, updated_at)
+            VALUES (?, ?, ?);
+            """,
+            (1, "Older", "2026-03-06T10:00:00+00:00"),
+        )
+        connection.execute(
+            """
+            INSERT INTO blindtests (id, title, updated_at)
+            VALUES (?, ?, ?);
+            """,
+            (2, "Newer", "2026-03-06T11:00:00+00:00"),
+        )
+
+    assert blindtest_repository.list_blindtests() == [
+        {
+            "id": 2,
+            "title": "Newer",
+            "updated_at": "2026-03-06T11:00:00+00:00",
+        },
+        {
+            "id": 1,
+            "title": "Older",
+            "updated_at": "2026-03-06T10:00:00+00:00",
+        },
+    ]
 
 
 def test_save_blindtest_preserves_missing_slot_snapshot(monkeypatch, tmp_path) -> None:

@@ -100,21 +100,16 @@ def get_blindtest(blindtest_id: int) -> dict[str, object] | None:
     return blindtest
 
 
-def get_first_blindtest() -> dict[str, object] | None:
+def list_blindtests() -> list[dict[str, object]]:
     with get_connection() as connection:
-        row = connection.execute(
+        rows = connection.execute(
             """
-            SELECT id
+            SELECT id, title, updated_at
             FROM blindtests
-            ORDER BY id
-            LIMIT 1;
+            ORDER BY updated_at DESC, id DESC;
             """
-        ).fetchone()
-
-    if row is None:
-        return None
-
-    return get_blindtest(int(row["id"]))
+        ).fetchall()
+    return [dict(row) for row in rows]
 
 
 def normalize_blindtest_media(blindtest_id: int) -> int:
