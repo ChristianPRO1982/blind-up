@@ -125,13 +125,22 @@ If the file contains an embedded cover image:
 
 * extract it
 * save it to an application-managed covers folder
-* store the resulting path in `songs.cover_path`
+* expose it through a backend-served HTTP path
+* store that public path in `songs.cover_path`
 
 If no cover exists:
 
 * `cover_path` remains null or empty
 
 The scan must not modify the original audio file.
+
+Example public cover path:
+
+```text
+/media/covers/{file_hash}.jpg
+```
+
+The scan must not store a raw local filesystem path as a UI-facing image source.
 
 ---
 
@@ -267,6 +276,14 @@ Example:
 
 ```text
 POST /api/library/scan
+```
+
+The backend should also expose read-only media routes for extracted covers.
+
+Example:
+
+```text
+GET /media/covers/{filename}
 ```
 
 Possible request body:

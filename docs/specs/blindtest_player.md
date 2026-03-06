@@ -116,6 +116,10 @@ Elements:
 * control buttons
 * optional countdown
 
+Any image displayed by the player must already be exposed through a backend-served URL.
+
+The player must not try to render raw local filesystem paths.
+
 Audio playback starts after the **pre_play_delay_sec**.
 
 The teaser audio plays **once**.
@@ -140,6 +144,8 @@ Content:
 * year
 * genre
 * cover
+
+Cover and background images are expected to be browser-loadable HTTP paths served by the application.
 
 Playback behavior depends on the round.
 

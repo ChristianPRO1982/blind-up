@@ -104,6 +104,31 @@ Example:
 
 ---
 
+# Image Handling
+
+The browser must load images only through **HTTP URLs served by the backend**.
+
+This applies to:
+
+* extracted song covers
+* blindtest background images
+* metadata override covers used in gameplay
+
+The frontend must **not** use raw local filesystem paths as image sources.
+
+Instead, the backend exposes public local routes.
+
+Examples:
+
+```text
+/media/covers/{file_hash}.jpg
+/media/backgrounds/{filename}
+```
+
+The database may store these public app-relative paths, but never paths that are only meaningful on the host filesystem.
+
+---
+
 # Waveform Editing
 
 Waveform rendering and teaser editing are handled using:
@@ -236,6 +261,8 @@ Static assets include:
 * icons
 
 These assets are served by the backend.
+
+Application-managed media such as extracted covers must also be served by the backend through dedicated HTTP routes.
 
 ---
 

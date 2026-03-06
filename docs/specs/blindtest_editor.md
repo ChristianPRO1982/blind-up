@@ -196,12 +196,20 @@ Cover
 Custom hint
 ```
 
+Image-related fields must use backend-served URLs or app-relative HTTP paths.
+
 Rules:
 
 ```
 if field empty → use source metadata
 if field filled → use override
 ```
+
+For image fields:
+
+* placeholders may show backend-served paths
+* overrides must remain directly loadable by the browser
+* raw local filesystem paths must not be used as UI image sources
 
 If the slot is broken:
 

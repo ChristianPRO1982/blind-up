@@ -69,7 +69,7 @@ CREATE TABLE songs (
 | album        | extracted tag                  |
 | year         | extracted tag                  |
 | genre        | extracted tag                  |
-| cover_path   | optional extracted cover       |
+| cover_path   | optional backend-served cover path |
 | created_at   | creation timestamp             |
 | updated_at   | update timestamp               |
 
@@ -109,7 +109,7 @@ CREATE TABLE blindtests (
 | Field                   | Description               |
 | ----------------------- | ------------------------- |
 | title                   | blindtest name            |
-| background_image        | selected background       |
+| background_image        | backend-served image path |
 | game_mode               | blindtest or blindup      |
 | pre_play_delay_sec      | delay before teaser       |
 | auto_enabled_default    | default auto mode         |
@@ -205,8 +205,20 @@ CREATE TABLE blindtest_songs (
 | start_sec     | teaser start                                 |
 | duration_sec  | teaser duration                              |
 | source_*      | last known library metadata snapshot         |
-| override_*    | metadata overrides                           |
+| override_*    | metadata overrides, including image URLs     |
 | custom_hint   | optional hint                                |
+
+### Image Path Rules
+
+Any image-related field stored in the database must be usable directly by the browser.
+
+This means:
+
+* `songs.cover_path` must be a backend-served URL or app-relative HTTP path
+* `blindtests.background_image` must be a backend-served URL or app-relative HTTP path
+* `override_cover` and `source_cover` follow the same rule
+
+Raw filesystem-only paths must not be stored as UI-facing values.
 
 ### Broken Slot Rules
 

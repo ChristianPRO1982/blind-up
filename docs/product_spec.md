@@ -40,6 +40,10 @@ Each song contains metadata extracted from audio tags:
 
 Songs are identified internally using a **file hash**.
 
+If a song cover is displayed in the UI, it must be accessible through a URL served by the application.
+
+The browser must never receive a raw filesystem path as an image source.
+
 ---
 
 ## Blindtest
@@ -54,6 +58,8 @@ A blindtest defines:
 * gameplay parameters
 
 Blindtests are stored in the application database.
+
+If a blindtest uses a background image, that image must also be referenced through a backend-served URL.
 
 ---
 
