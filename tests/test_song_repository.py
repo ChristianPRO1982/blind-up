@@ -56,6 +56,49 @@ def test_upsert_song_inserts_then_updates(monkeypatch, tmp_path) -> None:
     assert updated["cover_path"] is None
     assert updated["created_at"] == "2026-03-06T10:00:00+00:00"
     assert updated["updated_at"] == "2026-03-06T10:05:00+00:00"
+    assert song_repository.get_song_by_id(int(updated["id"])) == updated
+
+
+def test_list_songs_returns_rows_in_display_order(monkeypatch, tmp_path) -> None:
+    database_path = tmp_path / "blindup.db"
+    monkeypatch.setattr(
+        db_module,
+        "settings",
+        config_module.Settings(database_path=database_path),
+    )
+
+    db_module.init_db()
+    song_repository.upsert_song(
+        song_repository.SongRecord(
+            file_hash="hash-b",
+            file_path="/music/b.mp3",
+            duration_sec=12.0,
+            title="Bravo",
+            artist="Artist B",
+            album=None,
+            year=None,
+            genre=None,
+            cover_path=None,
+        )
+    )
+    song_repository.upsert_song(
+        song_repository.SongRecord(
+            file_hash="hash-a",
+            file_path="/music/a.mp3",
+            duration_sec=10.0,
+            title="Alpha",
+            artist="Artist A",
+            album=None,
+            year=None,
+            genre=None,
+            cover_path=None,
+        )
+    )
+
+    songs = song_repository.list_songs()
+
+    assert [song["title"] for song in songs] == ["Alpha", "Bravo"]
+    assert song_repository.get_song_by_id(9999) is None
 
 
 def test_delete_songs_missing_from_removes_absent_rows(monkeypatch, tmp_path) -> None:

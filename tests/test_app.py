@@ -289,12 +289,21 @@ def test_fastapi_routes_serve_expected_responses() -> None:
                 json={"root_path": "/music"},
             )
 
+    async def get_songs_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.get("/api/songs")
+
     async def run_startup() -> None:
         async with main_module.lifespan(main_module.app):
             return None
 
     asyncio.run(run_startup())
     original_scan_library = main_module.scan_library
+    original_list_songs = main_module.song_repository.list_songs
     main_module.scan_library = lambda _: ScanSummary(
         root_path="/music",
         scanned_files=1,
@@ -304,10 +313,19 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         skipped=0,
         errors=0,
     )
+    main_module.song_repository.list_songs = lambda: [
+        {
+            "id": 1,
+            "title": "Song 1",
+            "artist": "Artist 1",
+            "duration_sec": 10.0,
+        }
+    ]
     root_response = asyncio.run(main_module.root())
     health_payload = asyncio.run(main_module.health())
     health_response = asyncio.run(get_health_response())
     scan_response = asyncio.run(post_scan_response())
+    songs_response = asyncio.run(get_songs_response())
     static_index = main_module.settings.static_dir / "index.html"
     static_styles = main_module.settings.static_dir / "styles.css"
     static_script = main_module.settings.static_dir / "app.js"
@@ -336,14 +354,34 @@ def test_fastapi_routes_serve_expected_responses() -> None:
                 "errors": 0,
             },
         }
+        assert songs_response.status_code == 200
+        assert songs_response.json() == {
+            "songs": [
+                {
+                    "id": 1,
+                    "title": "Song 1",
+                    "artist": "Artist 1",
+                    "duration_sec": 10.0,
+                }
+            ]
+        }
         assert static_index.exists()
-        assert "BlindUp" in static_index.read_text(encoding="utf-8")
+        index_text = static_index.read_text(encoding="utf-8")
+        assert "BlindUp" in index_text
+        assert "Waveform editor" in index_text
+        assert "Reset Selection" in index_text
         assert static_styles.exists()
-        assert "background" in static_styles.read_text(encoding="utf-8")
+        styles_text = static_styles.read_text(encoding="utf-8")
+        assert "background" in styles_text
+        assert ".waveform-region" in styles_text
         assert static_script.exists()
-        assert "blindUpReady" in static_script.read_text(encoding="utf-8")
+        script_text = static_script.read_text(encoding="utf-8")
+        assert "blindUpReady" in script_text
+        assert "Mark → Start" in script_text
+        assert "Audio unavailable" in script_text
     finally:
         main_module.scan_library = original_scan_library
+        main_module.song_repository.list_songs = original_list_songs
 
 
 def test_library_scan_route_returns_400_for_invalid_root(monkeypatch) -> None:
@@ -367,3 +405,67 @@ def test_library_scan_route_returns_400_for_invalid_root(monkeypatch) -> None:
 
     assert response.status_code == 400
     assert response.json() == {"detail": "Invalid root path: /missing"}
+
+
+def test_audio_route_serves_existing_file(monkeypatch, tmp_path) -> None:
+    audio_path = tmp_path / "song.mp3"
+    audio_path.write_bytes(b"ID3")
+
+    async def get_audio_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.get("/api/audio/1")
+
+    monkeypatch.setattr(
+        main_module.song_repository,
+        "get_song_by_id",
+        lambda song_id: {"id": song_id, "file_path": str(audio_path)},
+    )
+
+    response = asyncio.run(get_audio_response())
+
+    assert response.status_code == 200
+    assert response.content == b"ID3"
+
+
+def test_audio_route_returns_404_for_missing_song(monkeypatch) -> None:
+    async def get_audio_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.get("/api/audio/999")
+
+    monkeypatch.setattr(main_module.song_repository, "get_song_by_id", lambda _: None)
+
+    response = asyncio.run(get_audio_response())
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Song not found"}
+
+
+def test_audio_route_returns_404_for_missing_file(monkeypatch, tmp_path) -> None:
+    missing_audio = tmp_path / "missing.mp3"
+
+    async def get_audio_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.get("/api/audio/1")
+
+    monkeypatch.setattr(
+        main_module.song_repository,
+        "get_song_by_id",
+        lambda song_id: {"id": song_id, "file_path": str(missing_audio)},
+    )
+
+    response = asyncio.run(get_audio_response())
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Audio unavailable"}

@@ -7,9 +7,55 @@
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body>
-    <main>
-      <h1>BlindUp</h1>
-      <p>Local-first blind test foundation</p>
+    <main class="app-shell">
+      <header class="hero">
+        <p class="eyebrow">BlindUp</p>
+        <h1>Waveform editor</h1>
+      </header>
+
+      <section class="editor" aria-labelledby="editor-title">
+        <div class="editor-header">
+          <h2 id="editor-title">Song waveform editor</h2>
+          <label class="song-picker" for="song-select">
+            Song
+            <select id="song-select"></select>
+          </label>
+        </div>
+
+        <p id="audio-error" class="status" hidden>Audio unavailable</p>
+
+        <div class="waveform-frame">
+          <div id="waveform" aria-label="Waveform view"></div>
+        </div>
+
+        <div class="controls">
+          <button id="play-pause-button" type="button">Play / Pause</button>
+          <button id="zoom-out-button" type="button">Zoom -</button>
+          <button id="zoom-in-button" type="button">Zoom +</button>
+          <button id="zoom-reset-button" type="button">Zoom Reset</button>
+          <button id="mark-button" type="button">Mark → Start</button>
+          <button id="reset-selection-button" type="button">Reset Selection</button>
+        </div>
+
+        <dl class="time-grid">
+          <div>
+            <dt>Current</dt>
+            <dd id="current-time">00:00.0</dd>
+          </div>
+          <div>
+            <dt>Start</dt>
+            <dd id="start-time">--:--.-</dd>
+          </div>
+          <div>
+            <dt>End</dt>
+            <dd id="end-time">--:--.-</dd>
+          </div>
+          <div>
+            <dt>Duration</dt>
+            <dd id="selection-duration">--.-s</dd>
+          </div>
+        </dl>
+      </section>
     </main>
     <script src="/static/app.js"></script>
   </body>

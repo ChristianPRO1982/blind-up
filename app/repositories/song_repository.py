@@ -32,6 +32,27 @@ def get_song_by_hash(file_hash: str) -> dict[str, object] | None:
     return dict(row) if row is not None else None
 
 
+def get_song_by_id(song_id: int) -> dict[str, object] | None:
+    with get_connection() as connection:
+        row = connection.execute(
+            "SELECT * FROM songs WHERE id = ?;",
+            (song_id,),
+        ).fetchone()
+    return dict(row) if row is not None else None
+
+
+def list_songs() -> list[dict[str, object]]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT *
+            FROM songs
+            ORDER BY COALESCE(title, file_path), id;
+            """
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def upsert_song(song: SongRecord) -> str:
     now = _timestamp()
     existing = get_song_by_hash(song.file_hash)
