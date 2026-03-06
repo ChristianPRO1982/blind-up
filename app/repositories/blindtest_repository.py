@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from app.db import get_connection
+from app.services.media_path_service import import_image_reference
 
 
 @dataclass(frozen=True)
@@ -114,6 +115,66 @@ def get_first_blindtest() -> dict[str, object] | None:
         return None
 
     return get_blindtest(int(row["id"]))
+
+
+def normalize_blindtest_media(blindtest_id: int) -> int:
+    updated = 0
+    with get_connection() as connection:
+        blindtest_row = connection.execute(
+            """
+            SELECT id, background_image
+            FROM blindtests
+            WHERE id = ?;
+            """,
+            (blindtest_id,),
+        ).fetchone()
+        if blindtest_row is not None:
+            normalized_background = import_image_reference(
+                blindtest_row["background_image"],
+                "backgrounds",
+            )
+            if normalized_background != blindtest_row["background_image"]:
+                connection.execute(
+                    """
+                    UPDATE blindtests
+                    SET background_image = ?,
+                        updated_at = ?
+                    WHERE id = ?;
+                    """,
+                    (normalized_background, _timestamp(), blindtest_id),
+                )
+                updated += 1
+
+        slot_rows = connection.execute(
+            """
+            SELECT id, source_cover, override_cover
+            FROM blindtest_songs
+            WHERE blindtest_id = ?;
+            """,
+            (blindtest_id,),
+        ).fetchall()
+        for row in slot_rows:
+            normalized_source = import_image_reference(row["source_cover"], "covers")
+            normalized_override = import_image_reference(
+                row["override_cover"],
+                "covers",
+            )
+            if (
+                normalized_source == row["source_cover"]
+                and normalized_override == row["override_cover"]
+            ):
+                continue
+            connection.execute(
+                """
+                UPDATE blindtest_songs
+                SET source_cover = ?,
+                    override_cover = ?
+                WHERE id = ?;
+                """,
+                (normalized_source, normalized_override, row["id"]),
+            )
+            updated += 1
+    return updated
 
 
 def validate_blindtest_links(blindtest_id: int) -> dict[str, int]:
@@ -236,6 +297,10 @@ def save_blindtest(record: BlindtestRecord) -> dict[str, object]:
     now = _timestamp()
     with get_connection() as connection:
         blindtest_id = record.id
+        normalized_background = import_image_reference(
+            record.background_image,
+            "backgrounds",
+        )
         if blindtest_id is None:
             cursor = connection.execute(
                 """
@@ -258,7 +323,7 @@ def save_blindtest(record: BlindtestRecord) -> dict[str, object]:
                 """,
                 (
                     record.title,
-                    record.background_image,
+                    normalized_background,
                     record.game_mode,
                     record.pre_play_delay_sec,
                     int(record.auto_enabled_default),
@@ -293,7 +358,7 @@ def save_blindtest(record: BlindtestRecord) -> dict[str, object]:
                 """,
                 (
                     record.title,
-                    record.background_image,
+                    normalized_background,
                     record.game_mode,
                     record.pre_play_delay_sec,
                     int(record.auto_enabled_default),
@@ -331,6 +396,11 @@ def save_blindtest(record: BlindtestRecord) -> dict[str, object]:
             )
             song_id = song.song_id if source_song is not None else None
             slot_status = "ok" if song_id is not None else "missing"
+            source_cover = import_image_reference(
+                (song.source_cover if song_id is None else snapshot["source_cover"]),
+                "covers",
+            )
+            override_cover = import_image_reference(song.override_cover, "covers")
             connection.execute(
                 """
                 INSERT INTO blindtest_songs (
@@ -384,17 +454,13 @@ def save_blindtest(record: BlindtestRecord) -> dict[str, object]:
                         if song_id is None
                         else snapshot["source_genre"]
                     ),
-                    (
-                        song.source_cover
-                        if song_id is None
-                        else snapshot["source_cover"]
-                    ),
+                    (source_cover),
                     song.override_title,
                     song.override_artist,
                     song.override_album,
                     song.override_year,
                     song.override_genre,
-                    song.override_cover,
+                    override_cover,
                     song.custom_hint,
                 ),
             )

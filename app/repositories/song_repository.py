@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from app.db import get_connection
+from app.services.media_path_service import import_image_reference
 
 
 @dataclass(frozen=True)
@@ -51,6 +52,33 @@ def list_songs() -> list[dict[str, object]]:
             """
         ).fetchall()
     return [dict(row) for row in rows]
+
+
+def normalize_song_media_paths() -> int:
+    updated = 0
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT id, cover_path
+            FROM songs
+            WHERE cover_path IS NOT NULL AND cover_path != '';
+            """
+        ).fetchall()
+        for row in rows:
+            normalized = import_image_reference(str(row["cover_path"]), "covers")
+            if normalized == row["cover_path"]:
+                continue
+            connection.execute(
+                """
+                UPDATE songs
+                SET cover_path = ?,
+                    updated_at = ?
+                WHERE id = ?;
+                """,
+                (normalized, _timestamp(), row["id"]),
+            )
+            updated += 1
+    return updated
 
 
 def upsert_song(song: SongRecord) -> str:

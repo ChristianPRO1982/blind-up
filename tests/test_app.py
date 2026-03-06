@@ -499,8 +499,14 @@ def test_fastapi_routes_serve_expected_responses() -> None:
     asyncio.run(run_startup())
     original_scan_library = main_module.scan_library
     original_list_songs = main_module.song_repository.list_songs
+    original_normalize_song_media_paths = (
+        main_module.song_repository.normalize_song_media_paths
+    )
     original_get_first_blindtest = main_module.blindtest_repository.get_first_blindtest
     original_get_blindtest = main_module.blindtest_repository.get_blindtest
+    original_normalize_blindtest_media = (
+        main_module.blindtest_repository.normalize_blindtest_media
+    )
     original_validate_blindtest_links = (
         main_module.blindtest_repository.validate_blindtest_links
     )
@@ -527,6 +533,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
             "duration_sec": 10.0,
         }
     ]
+    main_module.song_repository.normalize_song_media_paths = lambda: 0
     main_module.blindtest_repository.get_first_blindtest = lambda: {
         "id": 1,
         "title": "Stored blindtest",
@@ -557,6 +564,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         "round3_progression_mode": "fixed_start",
         "songs": [],
     }
+    main_module.blindtest_repository.normalize_blindtest_media = lambda _: 0
     main_module.blindtest_repository.validate_blindtest_links = lambda _: {
         "validated_slots": 0,
         "missing_slots": 0,
@@ -614,6 +622,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
     try:
         assert main_module.app.title == main_module.settings.project_name
         assert any(route.name == "static" for route in main_module.app.routes)
+        assert any(route.name == "media" for route in main_module.app.routes)
         assert any(
             route.path == "/api/library/scan" for route in main_module.app.routes
         )
@@ -737,10 +746,16 @@ def test_fastapi_routes_serve_expected_responses() -> None:
     finally:
         main_module.scan_library = original_scan_library
         main_module.song_repository.list_songs = original_list_songs
+        main_module.song_repository.normalize_song_media_paths = (
+            original_normalize_song_media_paths
+        )
         main_module.blindtest_repository.get_first_blindtest = (
             original_get_first_blindtest
         )
         main_module.blindtest_repository.get_blindtest = original_get_blindtest
+        main_module.blindtest_repository.normalize_blindtest_media = (
+            original_normalize_blindtest_media
+        )
         main_module.blindtest_repository.validate_blindtest_links = (
             original_validate_blindtest_links
         )

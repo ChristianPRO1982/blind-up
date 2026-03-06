@@ -1,6 +1,7 @@
 import app.config as config_module
 import app.db as db_module
 from app.repositories import song_repository
+from app.services import media_path_service
 
 
 def test_upsert_song_inserts_then_updates(monkeypatch, tmp_path) -> None:
@@ -194,3 +195,82 @@ def test_list_songs_missing_from_and_delete_songs_by_ids(monkeypatch, tmp_path) 
     assert [song["file_hash"] for song in missing] == ["remove"]
     assert removed == 1
     assert [song["file_hash"] for song in song_repository.list_songs()] == ["keep"]
+
+
+def test_normalize_song_media_paths_updates_raw_cover_path(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    database_path = tmp_path / "blindup.db"
+    storage_dir = tmp_path / "storage"
+    monkeypatch.setattr(
+        db_module,
+        "settings",
+        config_module.Settings(database_path=database_path, storage_dir=storage_dir),
+    )
+    monkeypatch.setattr(
+        media_path_service,
+        "settings",
+        config_module.Settings(database_path=database_path, storage_dir=storage_dir),
+    )
+
+    db_module.init_db()
+    raw_cover = tmp_path / "cover.jpg"
+    raw_cover.write_bytes(b"cover")
+    song_repository.upsert_song(
+        song_repository.SongRecord(
+            file_hash="hash-1",
+            file_path="/music/song.mp3",
+            duration_sec=None,
+            title="Song",
+            artist=None,
+            album=None,
+            year=None,
+            genre=None,
+            cover_path=str(raw_cover),
+        )
+    )
+
+    updated = song_repository.normalize_song_media_paths()
+    song = song_repository.get_song_by_hash("hash-1")
+
+    assert updated == 1
+    assert song is not None
+    assert song["cover_path"].startswith("/media/covers/")
+
+
+def test_normalize_song_media_paths_leaves_public_path_unchanged(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    database_path = tmp_path / "blindup.db"
+    storage_dir = tmp_path / "storage"
+    monkeypatch.setattr(
+        db_module,
+        "settings",
+        config_module.Settings(database_path=database_path, storage_dir=storage_dir),
+    )
+    monkeypatch.setattr(
+        media_path_service,
+        "settings",
+        config_module.Settings(database_path=database_path, storage_dir=storage_dir),
+    )
+
+    db_module.init_db()
+    song_repository.upsert_song(
+        song_repository.SongRecord(
+            file_hash="hash-1",
+            file_path="/music/song.mp3",
+            duration_sec=None,
+            title="Song",
+            artist=None,
+            album=None,
+            year=None,
+            genre=None,
+            cover_path="/media/covers/existing.jpg",
+        )
+    )
+
+    updated = song_repository.normalize_song_media_paths()
+
+    assert updated == 0

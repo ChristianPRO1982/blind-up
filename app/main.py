@@ -18,8 +18,10 @@ async def lifespan(_: FastAPI):
     yield
 
 
+settings.storage_dir.mkdir(parents=True, exist_ok=True)
 app = FastAPI(title=settings.project_name, lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")
+app.mount("/media", StaticFiles(directory=settings.storage_dir), name="media")
 
 
 @app.get("/", include_in_schema=False)
@@ -88,6 +90,7 @@ async def library_scan(payload: LibraryScanRequest) -> dict[str, object]:
 
 @app.get("/api/songs")
 async def songs() -> dict[str, list[dict[str, object]]]:
+    song_repository.normalize_song_media_paths()
     return {
         "songs": [
             {
@@ -120,8 +123,10 @@ async def audio(song_id: int) -> FileResponse:
 
 @app.get("/api/blindtest")
 async def get_blindtest() -> dict[str, object]:
+    song_repository.normalize_song_media_paths()
     blindtest = blindtest_repository.get_first_blindtest()
     if blindtest is not None:
+        blindtest_repository.normalize_blindtest_media(int(blindtest["id"]))
         blindtest_repository.validate_blindtest_links(int(blindtest["id"]))
         blindtest = blindtest_repository.get_blindtest(int(blindtest["id"]))
     return {"blindtest": blindtest}

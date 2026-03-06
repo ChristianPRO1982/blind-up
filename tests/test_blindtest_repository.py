@@ -3,6 +3,7 @@ import sqlite3
 import app.config as config_module
 import app.db as db_module
 from app.repositories import blindtest_repository
+from app.services import media_path_service
 
 
 def test_blindtest_timestamp_returns_iso_string() -> None:
@@ -457,3 +458,112 @@ def test_validate_blindtest_links_handles_existing_missing_and_valid_slots(
     assert blindtest["songs"][0]["song_id"] == 1
     assert blindtest["songs"][1]["slot_status"] == "missing"
     assert blindtest["songs"][1]["song_id"] is None
+
+
+def test_normalize_blindtest_media_updates_raw_image_paths(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    database_path = tmp_path / "blindup.db"
+    storage_dir = tmp_path / "storage"
+    monkeypatch.setattr(
+        db_module,
+        "settings",
+        config_module.Settings(database_path=database_path, storage_dir=storage_dir),
+    )
+    monkeypatch.setattr(
+        media_path_service,
+        "settings",
+        config_module.Settings(database_path=database_path, storage_dir=storage_dir),
+    )
+
+    background = tmp_path / "background.jpg"
+    background.write_bytes(b"background")
+    cover = tmp_path / "cover.jpg"
+    cover.write_bytes(b"cover")
+
+    db_module.init_db()
+    with db_module.get_connection() as connection:
+        connection.execute(
+            """
+            INSERT INTO blindtests (id, title, background_image)
+            VALUES (?, ?, ?);
+            """,
+            (1, "Media", str(background)),
+        )
+        connection.execute(
+            """
+            INSERT INTO blindtest_songs (
+                blindtest_id,
+                song_id,
+                order_index,
+                slot_status,
+                source_cover,
+                override_cover
+            )
+            VALUES (?, ?, ?, ?, ?, ?);
+            """,
+            (1, None, 0, "missing", str(cover), str(cover)),
+        )
+
+    updated = blindtest_repository.normalize_blindtest_media(1)
+    blindtest = blindtest_repository.get_blindtest(1)
+
+    assert updated == 2
+    assert blindtest is not None
+    assert blindtest["background_image"].startswith("/media/backgrounds/")
+    assert blindtest["songs"][0]["source_cover"].startswith("/media/covers/")
+    assert blindtest["songs"][0]["override_cover"].startswith("/media/covers/")
+
+
+def test_normalize_blindtest_media_leaves_public_paths_unchanged(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    database_path = tmp_path / "blindup.db"
+    storage_dir = tmp_path / "storage"
+    monkeypatch.setattr(
+        db_module,
+        "settings",
+        config_module.Settings(database_path=database_path, storage_dir=storage_dir),
+    )
+    monkeypatch.setattr(
+        media_path_service,
+        "settings",
+        config_module.Settings(database_path=database_path, storage_dir=storage_dir),
+    )
+
+    db_module.init_db()
+    with db_module.get_connection() as connection:
+        connection.execute(
+            """
+            INSERT INTO blindtests (id, title, background_image)
+            VALUES (?, ?, ?);
+            """,
+            (1, "Media", "/media/backgrounds/existing.jpg"),
+        )
+        connection.execute(
+            """
+            INSERT INTO blindtest_songs (
+                blindtest_id,
+                song_id,
+                order_index,
+                slot_status,
+                source_cover,
+                override_cover
+            )
+            VALUES (?, ?, ?, ?, ?, ?);
+            """,
+            (
+                1,
+                None,
+                0,
+                "missing",
+                "/media/covers/source.jpg",
+                "/media/covers/override.jpg",
+            ),
+        )
+
+    updated = blindtest_repository.normalize_blindtest_media(1)
+
+    assert updated == 0

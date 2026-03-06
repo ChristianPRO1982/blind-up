@@ -18,6 +18,7 @@ from app.services.audio_metadata_service import (
     extract_audio_metadata,
     is_supported_audio_file,
 )
+from app.services.media_path_service import build_media_url
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +74,11 @@ def scan_library(root_path: str) -> ScanSummary:
                     album=metadata.album,
                     year=metadata.year,
                     genre=metadata.genre,
-                    cover_path=metadata.cover_path,
+                    cover_path=(
+                        build_media_url("covers", Path(metadata.cover_path).name)
+                        if metadata.cover_path
+                        else None
+                    ),
                 )
             )
             seen_hashes.add(file_hash)
