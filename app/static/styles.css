@@ -172,6 +172,7 @@ input:disabled {
 
 .button-secondary,
 #toggle-library-button,
+#toggle-cover-panel-button,
 #save-button,
 #open-scan-button,
 #player-auto-button,
@@ -188,6 +189,8 @@ input:disabled {
 .button-secondary:focus-visible:not(:disabled),
 #toggle-library-button:hover:not(:disabled),
 #toggle-library-button:focus-visible:not(:disabled),
+#toggle-cover-panel-button:hover:not(:disabled),
+#toggle-cover-panel-button:focus-visible:not(:disabled),
 #save-button:hover:not(:disabled),
 #save-button:focus-visible:not(:disabled),
 #open-scan-button:hover:not(:disabled),
@@ -247,6 +250,7 @@ input:disabled {
 
 .is-active,
 #toggle-library-button.is-active,
+#toggle-cover-panel-button.is-active,
 #player-auto-button.is-active,
 #player-hints-button.is-active {
   border-color: rgba(103, 232, 249, 0.58);
@@ -645,6 +649,7 @@ h3 {
 .home-blindtest-list,
 .song-list,
 .library-list,
+.cover-gallery,
 .scan-impact-list {
   display: grid;
   gap: 0.85rem;
@@ -654,6 +659,7 @@ h3 {
 .home-blindtest-card,
 .song-card,
 .library-item,
+.cover-choice,
 .scan-summary-grid div,
 .scan-impact-block,
 .scan-impact-item,
@@ -673,6 +679,7 @@ h3 {
 .home-blindtest-card::before,
 .song-card::before,
 .library-item::before,
+.cover-choice::before,
 .scan-summary-grid div::before,
 .scan-impact-block::before,
 .scan-impact-item::before,
@@ -732,7 +739,7 @@ h3 {
     "editor songs";
 }
 
-.editor-layout.library-open {
+.editor-layout.sidebar-open {
   grid-template-columns: 3fr 1fr 1fr;
   grid-template-areas:
     "topbar topbar topbar"
@@ -755,14 +762,16 @@ h3 {
   min-width: 0;
 }
 
-.library-panel {
+.library-panel,
+.covers-panel {
   grid-area: library;
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
 
-.library-panel[hidden] {
+.library-panel[hidden],
+.covers-panel[hidden] {
   display: none;
 }
 
@@ -776,6 +785,21 @@ h3 {
   display: grid;
   gap: 0.9rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.cover-field-row {
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+}
+
+.cover-field-row input {
+  flex: 1 1 auto;
+}
+
+#toggle-cover-panel-button {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .settings-grid label,
@@ -895,6 +919,70 @@ h3 {
 .song-card.is-dragging,
 .library-item.is-dragging {
   opacity: 0.55;
+}
+
+.cover-gallery {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  overflow: auto;
+  padding-right: 0.2rem;
+}
+
+.cover-gallery-empty {
+  display: grid;
+  place-items: center;
+  min-height: 160px;
+  border: 1px dashed rgba(129, 180, 255, 0.24);
+  border-radius: 1.05rem;
+  color: var(--text-muted);
+  background: rgba(10, 17, 30, 0.62);
+}
+
+.cover-choice {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.7rem;
+  text-align: left;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease;
+}
+
+.cover-choice:hover:not(:disabled),
+.cover-choice:focus-visible:not(:disabled) {
+  border-color: rgba(103, 232, 249, 0.46);
+  box-shadow: var(--glow-primary), 0 16px 30px rgba(4, 28, 52, 0.3);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.cover-choice.is-active {
+  border-color: rgba(103, 232, 249, 0.62);
+  box-shadow: var(--glow-primary), 0 16px 30px rgba(4, 28, 52, 0.34);
+  background:
+    linear-gradient(180deg, rgba(15, 57, 86, 0.94), rgba(10, 31, 52, 0.92)),
+    linear-gradient(135deg, rgba(103, 232, 249, 0.16), rgba(255, 79, 184, 0.06));
+}
+
+.cover-choice:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.cover-choice img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 0.85rem;
+  border: 1px solid rgba(129, 180, 255, 0.16);
+  background: rgba(10, 17, 30, 0.8);
+}
+
+.cover-choice span {
+  color: var(--text-soft);
+  font-size: 0.88rem;
+  word-break: break-word;
 }
 
 .song-card-header,
@@ -1408,6 +1496,10 @@ body[data-page="player"] .app-shell {
     min-height: 0;
   }
 
+  .covers-panel {
+    min-height: 0;
+  }
+
   .settings-grid,
   .metadata-grid,
   .player-answer-grid {
@@ -1466,6 +1558,11 @@ body[data-page="player"] .app-shell {
   .song-card,
   .library-item {
     grid-template-columns: 1fr;
+  }
+
+  .cover-field-row {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .cover-thumb {

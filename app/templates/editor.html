@@ -100,10 +100,6 @@
         <h2 id="song-editor-title">Song editor</h2>
       </div>
 
-      <div id="song-editor-empty" class="empty-state">
-        Select a song card or click a library song to create one.
-      </div>
-
       <div id="song-editor-content" hidden>
         <form id="song-metadata-form" class="metadata-grid">
           <label>
@@ -126,9 +122,14 @@
             Genre
             <input id="override-genre" name="override_genre" type="text" />
           </label>
-          <label>
+          <label class="cover-field">
             Cover
-            <input id="override-cover" name="override_cover" type="text" />
+            <div class="cover-field-row">
+              <input id="override-cover" name="override_cover" type="text" />
+              <button id="toggle-cover-panel-button" class="button-secondary button-compact" type="button">
+                Show covers
+              </button>
+            </div>
           </label>
           <label class="wide-field">
             Custom hint
@@ -187,5 +188,16 @@
       </label>
       <div id="library-list" class="library-list"></div>
     </aside>
+
+    <aside class="covers-panel panel" aria-labelledby="covers-title" hidden>
+      <div class="panel-heading panel-heading-split">
+        <h2 id="covers-title">Covers</h2>
+        <button id="close-cover-panel-button" class="panel-close-button" type="button" aria-label="Hide covers">
+          ×
+        </button>
+      </div>
+      <div id="cover-gallery" class="cover-gallery"></div>
+    </aside>
   </section>
+  <script id="cover-gallery-data" type="application/json">{{ cover_gallery | tojson }}</script>
 {% endblock %}

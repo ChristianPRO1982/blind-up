@@ -29,6 +29,25 @@ templates = Jinja2Templates(directory=settings.templates_dir)
 app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")
 app.mount("/media", StaticFiles(directory=settings.storage_dir), name="media")
 
+EDITOR_COVER_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+
+
+def get_editor_cover_gallery() -> list[dict[str, str]]:
+    gallery_dir = settings.static_dir / "editor-covers"
+    if not gallery_dir.exists():
+        return []
+    gallery = []
+    for file_path in sorted(gallery_dir.iterdir(), key=lambda path: path.name.lower()):
+        if not file_path.is_file() or file_path.suffix.lower() not in EDITOR_COVER_EXTENSIONS:
+            continue
+        gallery.append(
+            {
+                "name": file_path.stem.replace("_", " ").strip() or file_path.name,
+                "url": f"/static/editor-covers/{file_path.name}",
+            }
+        )
+    return gallery
+
 
 @app.get("/", include_in_schema=False)
 async def root() -> RedirectResponse:
@@ -70,6 +89,7 @@ async def editor_new_page(request: Request):
             "page_title": "Blindtest editor",
             "editor_mode": "new",
             "blindtest_id": None,
+            "cover_gallery": get_editor_cover_gallery(),
         },
     )
 
@@ -84,6 +104,7 @@ async def editor_page(request: Request, blindtest_id: int):
             "page_title": "Blindtest editor",
             "editor_mode": "existing",
             "blindtest_id": blindtest_id,
+            "cover_gallery": get_editor_cover_gallery(),
         },
     )
 
