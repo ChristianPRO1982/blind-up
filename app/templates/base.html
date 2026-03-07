@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BlindUp</title>
+    <link rel="icon" type="image/png" href="/static/brand/blindup-dark.png" />
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body
@@ -16,9 +17,16 @@
     {% endif %}
   >
     <main class="app-shell">
-      <header class="page-header">
-        <p class="eyebrow">BlindUp</p>
-        <h1 id="page-title">{{ page_title }}</h1>
+      <header class="page-header{% if page_id == 'home' %} page-header-logo-only{% endif %}">
+        {% if page_id == "home" %}
+          <a class="brand-mark" href="/home" aria-label="BlindUp home">
+            <img src="/static/brand/blindup-dark.png" alt="BlindUp" />
+          </a>
+          <h1 id="page-title" class="visually-hidden">{{ page_title }}</h1>
+        {% else %}
+          <p class="eyebrow">BlindUp</p>
+          <h1 id="page-title">{{ page_title }}</h1>
+        {% endif %}
       </header>
 
       {% block content %}{% endblock %}
