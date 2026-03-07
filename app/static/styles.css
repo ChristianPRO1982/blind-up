@@ -543,6 +543,7 @@ h2 {
     );
 }
 
+#waveWrap,
 .wave-wrap {
   min-width: 0;
   overflow: hidden;

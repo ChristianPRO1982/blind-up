@@ -155,6 +155,7 @@
 
         const progress = clamp((event.clientX - rect.left) / rect.width, 0, 1);
         this.seekTo(progress);
+        this.emitter.emit("interaction");
       }
 
       handleTimeUpdate() {
@@ -499,8 +500,8 @@
     };
   }
 
-  const WaveSurfer = window.WaveSurfer || createWaveSurferFallback();
-  const Regions = window.Regions || createRegionsFallback();
+  const WaveSurferFallback = createWaveSurferFallback();
+  const RegionsFallback = createRegionsFallback();
 
   class BlindUpApp {
     constructor() {
@@ -555,7 +556,7 @@
         libraryList: document.getElementById("library-list"),
         error: document.getElementById("audio-error"),
         waveform: document.getElementById("waveform"),
-        waveWrap: document.querySelector(".wave-wrap"),
+        waveWrap: document.getElementById("waveWrap"),
         playPause: document.getElementById("play-pause-button"),
         zoomOut: document.getElementById("zoom-out-button"),
         zoomIn: document.getElementById("zoom-in-button"),
@@ -612,6 +613,9 @@
       this.currentLoadedSongId = null;
       this.wavesurfer = null;
       this.regions = null;
+      this.waveSurferLib = window.WaveSurfer || WaveSurferFallback;
+      this.regionsLib = window.Regions || RegionsFallback;
+      this.waveLibraryPromise = null;
       this.playerState = null;
       this.playerHistory = [];
       this.playerSongs = [];
@@ -628,6 +632,11 @@
       this.playerAudioCleanup = null;
       this.playerReverseSource = null;
       this.playerAudioContext = null;
+      window.addEventListener("resize", () => {
+        if (this.page === "editor" && this.wavesurfer !== null) {
+          this.resetZoom();
+        }
+      });
       this.bindHome();
       this.bindForm();
       this.bindPlayerControls();
@@ -655,6 +664,35 @@
         round3_progression_mode: "fixed_start",
         songs: [],
       };
+    }
+
+    async ensureWaveLibraries() {
+      if (
+        this.waveSurferLib !== WaveSurferFallback &&
+        this.regionsLib !== RegionsFallback
+      ) {
+        return;
+      }
+
+      if (this.waveLibraryPromise === null) {
+        this.waveLibraryPromise = Promise.all([
+          import("https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.esm.js").catch(
+            () => null
+          ),
+          import(
+            "https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.esm.js"
+          ).catch(() => null),
+        ]).then(([waveModule, regionsModule]) => {
+          if (waveModule && waveModule.default) {
+            this.waveSurferLib = waveModule.default;
+          }
+          if (regionsModule && regionsModule.default) {
+            this.regionsLib = regionsModule.default;
+          }
+        });
+      }
+
+      await this.waveLibraryPromise;
     }
 
     bindHome() {
@@ -1213,7 +1251,9 @@
       this.elements.songEditorEmpty.hidden = true;
       this.elements.songEditorContent.hidden = false;
       this.fillMetadataForm(slot);
-      this.loadSlotWaveform(slot);
+      this.loadSlotWaveform(slot).catch(() => {
+        this.showAudioError();
+      });
     }
 
     fillMetadataForm(slot) {
@@ -1234,7 +1274,7 @@
       this.elements.overrideCover.placeholder = normalizeText(source.cover_path);
     }
 
-    loadSlotWaveform(slot) {
+    async loadSlotWaveform(slot) {
       if (this.isSlotMissing(slot)) {
         this.currentLoadedSongId = null;
         this.destroyWaveform();
@@ -1262,6 +1302,7 @@
       }
 
       this.currentLoadedSongId = slot.song_id;
+      const requestedSongId = slot.song_id;
       this.destroyWaveform();
       this.pendingStart = slot.start_sec;
       this.selectionEnd =
@@ -1274,18 +1315,27 @@
       this.showPlaceholder("Loading audio...");
       this.setWaveformControlsDisabled(true);
 
-      this.wavesurfer = WaveSurfer.create({
-        container: this.elements.waveform,
-        waveColor: "#999",
-        progressColor: "#333",
+      await this.ensureWaveLibraries();
+      if (this.currentLoadedSongId !== requestedSongId) {
+        return;
+      }
+
+      this.regions = this.regionsLib.create();
+      this.wavesurfer = this.waveSurferLib.create({
+        container: "#waveform",
         height: 120,
+        mediaControls: true,
+        url: `/api/audio/${slot.song_id}`,
+        plugins: [this.regions],
       });
-      this.regions = this.wavesurfer.registerPlugin(Regions.create());
       this.regions.on("region-updated", (region) => this.syncSelectionFromRegion(region));
       this.regions.on("region-update-end", (region) => this.syncSelectionFromRegion(region));
       this.wavesurfer.on("timeupdate", () => {
         this.updateDisplays();
         this.updateMarkLabel();
+      });
+      this.wavesurfer.on("interaction", () => {
+        this.handleWaveInteraction();
       });
       this.wavesurfer.on("ready", () => {
         this.hideError();
@@ -1296,7 +1346,6 @@
         this.updateMarkLabel();
       });
       this.wavesurfer.on("error", () => this.showAudioError());
-      this.wavesurfer.load(`/api/audio/${slot.song_id}`);
     }
 
     destroyWaveform() {
@@ -1491,44 +1540,71 @@
 
       const duration = this.wavesurfer.getDuration();
       const current = clamp(this.wavesurfer.getCurrentTime(), 0, duration || 0);
+      this.applyMarkAtTime(current);
+    }
+
+    handleWaveInteraction() {
+      if (this.wavesurfer === null) {
+        return;
+      }
+
+      const duration = this.wavesurfer.getDuration();
+      const current = clamp(this.wavesurfer.getCurrentTime(), 0, duration || 0);
+      this.applyMarkAtTime(current);
+    }
+
+    applyMarkAtTime(timeSec) {
       if (this.pendingStart === null) {
-        this.pendingStart = current;
+        this.pendingStart = timeSec;
         this.selectionEnd = null;
         this.renderPendingRegion();
         return;
       }
 
       if (this.selectionEnd === null) {
-        if (current < this.pendingStart) {
-          this.pendingStart = current;
+        if (timeSec < this.pendingStart) {
+          this.pendingStart = timeSec;
           this.renderPendingRegion();
           return;
         }
 
-        this.selectionEnd = current;
+        this.selectionEnd = timeSec;
         if (this.selectionEnd <= this.pendingStart) {
-          this.selectionEnd = Math.min(duration, this.pendingStart + MIN_REGION_SPAN);
+          this.selectionEnd = this.pendingStart + MIN_REGION_SPAN;
         }
         this.renderSelectionRegion();
         return;
       }
 
-      if (current < this.pendingStart) {
-        this.pendingStart = current;
-      } else if (current > this.selectionEnd) {
-        this.selectionEnd = current;
+      const boundary = this.pickBoundaryToMove(timeSec);
+      if (boundary === "start") {
+        this.pendingStart = timeSec;
       } else {
-        const relative =
-          (current - this.pendingStart) / (this.selectionEnd - this.pendingStart);
-        if (relative <= 0.25) {
-          this.pendingStart = current;
-        } else {
-          this.selectionEnd = current;
-        }
+        this.selectionEnd = timeSec;
       }
 
       this.correctSelection();
       this.renderSelectionRegion();
+    }
+
+    pickBoundaryToMove(timeSec) {
+      if (
+        this.pendingStart === null ||
+        this.selectionEnd === null ||
+        this.selectionEnd <= this.pendingStart
+      ) {
+        return "end";
+      }
+
+      if (timeSec <= this.pendingStart) {
+        return "start";
+      }
+      if (timeSec >= this.selectionEnd) {
+        return "end";
+      }
+
+      const relative = (timeSec - this.pendingStart) / (this.selectionEnd - this.pendingStart);
+      return relative <= 1 / 3 ? "start" : "end";
     }
 
     correctSelection() {
