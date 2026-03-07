@@ -393,6 +393,13 @@ h2 {
   line-height: 1;
 }
 
+.panel-action-button {
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
 .song-list,
 .library-list {
   display: grid;
@@ -432,6 +439,11 @@ h2 {
 .song-card.missing {
   border-color: rgba(181, 104, 10, 0.55);
   background: linear-gradient(180deg, rgba(255, 240, 220, 0.95), rgba(255, 248, 239, 0.88));
+}
+
+.song-card.pending {
+  border-style: dashed;
+  background: rgba(255, 255, 255, 0.7);
 }
 
 .song-card.drag-over,

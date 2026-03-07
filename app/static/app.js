@@ -539,6 +539,7 @@
           document.querySelectorAll('input[name="round3-progression-mode"]')
         ),
         editorLayout: document.querySelector(".editor-layout"),
+        addSongButton: document.getElementById("add-song-button"),
         songList: document.getElementById("song-list"),
         songEditorEmpty: document.getElementById("song-editor-empty"),
         songEditorContent: document.getElementById("song-editor-content"),
@@ -774,6 +775,9 @@
       this.elements.backButton.addEventListener("click", () => {
         this.showHomeView();
       });
+      this.elements.addSongButton.addEventListener("click", () => {
+        this.appendPendingSlot();
+      });
       this.elements.closeLibraryButton.addEventListener("click", () => {
         this.setLibraryVisible(false);
       });
@@ -974,7 +978,11 @@
     }
 
     isSlotMissing(slot) {
-      return slot.song_id === null || slot.slot_status === "missing";
+      return slot.slot_status === "missing";
+    }
+
+    isSlotPending(slot) {
+      return slot.song_id === null && slot.slot_status === "pending";
     }
 
     getSlotSource(slot) {
@@ -1092,6 +1100,7 @@
       for (const slot of this.blindtest.songs) {
         const source = this.getSlotSource(slot);
         const missing = this.isSlotMissing(slot);
+        const pending = this.isSlotPending(slot);
         const card = document.createElement("article");
         card.className = "song-card";
         card.draggable = true;
@@ -1099,20 +1108,27 @@
         if (missing) {
           card.classList.add("missing");
         }
+        if (pending) {
+          card.classList.add("pending");
+        }
         if (slot.slot_id === this.activeSlotId) {
           card.classList.add("active");
         }
 
-        const cover = this.createCoverThumb(source);
+        const cover = this.createCoverThumb(pending ? { title: "+" } : source);
         const body = document.createElement("div");
         const title =
-          normalizeText(slot.override_title) ||
-          normalizeText(source.title) ||
-          "Missing song";
+          pending
+            ? "New song slot"
+            : normalizeText(slot.override_title) ||
+              normalizeText(source.title) ||
+              "Missing song";
         const artist =
-          normalizeText(slot.override_artist) || normalizeText(source.artist);
+          pending
+            ? "Open the library to add songs."
+            : normalizeText(slot.override_artist) || normalizeText(source.artist);
         const statusLine = missing
-          ? '<div class="song-card-status">🚧 Missing audio</div>'
+          ? '<div class="song-card-status">Missing audio</div>'
           : "";
         body.innerHTML = `
           <div class="song-card-header">
@@ -1247,6 +1263,10 @@
         this.showEditorEmpty();
         return;
       }
+      if (this.isSlotPending(slot)) {
+        this.showEditorEmpty("Open the library to add songs.", false);
+        return;
+      }
 
       this.elements.songEditorEmpty.hidden = true;
       this.elements.songEditorContent.hidden = false;
@@ -1356,9 +1376,12 @@
       this.regions = null;
     }
 
-    showEditorEmpty() {
-      this.activeSlotId = null;
+    showEditorEmpty(message = "Select a song card", clearSelection = true) {
+      if (clearSelection) {
+        this.activeSlotId = null;
+      }
       this.currentLoadedSongId = null;
+      this.elements.songEditorEmpty.textContent = message;
       this.elements.songEditorEmpty.hidden = false;
       this.elements.songEditorContent.hidden = true;
       this.destroyWaveform();
@@ -1366,7 +1389,7 @@
       this.selectionEnd = null;
       this.updateDisplays();
       this.updateMarkLabel();
-      this.showPlaceholder("Select a song card");
+      this.showPlaceholder(message);
       this.hideError();
     }
 
@@ -1434,6 +1457,17 @@
       this.renderEditor();
     }
 
+    appendPendingSlot() {
+      const slot = this.createSlot(null, this.blindtest.songs.length);
+      this.blindtest.songs.push(slot);
+      this.reindexSongs();
+      this.setActiveSlot(slot.slot_id);
+      this.setLibraryVisible(true);
+      if (this.elements.librarySearch !== null) {
+        this.elements.librarySearch.focus();
+      }
+    }
+
     appendSlot(songId) {
       const slot = this.createSlot(songId, this.blindtest.songs.length);
       this.blindtest.songs.push(slot);
@@ -1446,7 +1480,7 @@
         slot_id: this.nextSlotId++,
         song_id: songId,
         order_index: orderIndex,
-        slot_status: "ok",
+        slot_status: songId === null ? "pending" : "ok",
         start_sec: null,
         duration_sec: null,
         ...this.snapshotFromLibrarySong(songId),
