@@ -64,7 +64,7 @@ h2 {
 .editor-layout {
   display: grid;
   gap: 1rem;
-  grid-template-columns: 1.05fr 1fr;
+  grid-template-columns: 3fr 1fr;
   grid-template-areas:
     "topbar topbar"
     "settings settings"
@@ -72,7 +72,7 @@ h2 {
 }
 
 .editor-layout.library-open {
-  grid-template-columns: 1.05fr 1fr 0.92fr;
+  grid-template-columns: 3fr 1fr 1fr;
   grid-template-areas:
     "topbar topbar topbar"
     "settings settings library"
