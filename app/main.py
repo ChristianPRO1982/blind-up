@@ -38,7 +38,10 @@ def get_editor_cover_gallery() -> list[dict[str, str]]:
         return []
     gallery = []
     for file_path in sorted(gallery_dir.iterdir(), key=lambda path: path.name.lower()):
-        if not file_path.is_file() or file_path.suffix.lower() not in EDITOR_COVER_EXTENSIONS:
+        if (
+            not file_path.is_file()
+            or file_path.suffix.lower() not in EDITOR_COVER_EXTENSIONS
+        ):
             continue
         gallery.append(
             {
