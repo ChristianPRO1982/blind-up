@@ -923,6 +923,7 @@
         this.elements.toggleLibraryButton.textContent = this.isLibraryVisible
           ? "Hide library"
           : "Show library";
+        this.elements.toggleLibraryButton.classList.toggle("is-active", this.isLibraryVisible);
       }
       if (this.wavesurfer !== null) {
         window.requestAnimationFrame(() => this.resetZoom());
@@ -1047,7 +1048,7 @@
             <div class="home-blindtest-title">${this.escapeHtml(blindtest.title || "Untitled blindtest")}</div>
             <div class="home-blindtest-updated">${this.escapeHtml(this.formatUpdatedAt(blindtest.updated_at))}</div>
           </div>
-          <button type="button">Open</button>
+          <button class="button-secondary button-compact" type="button">Open</button>
         `;
         const button = item.querySelector("button");
         button.addEventListener("click", () => {
@@ -1062,7 +1063,12 @@
       const summary = state.summary || null;
       const isRunning = state.status === "running" || state.status === "stopping";
       this.elements.scanToggleButton.textContent = isRunning ? "Stop scan" : "Start scan";
+      this.elements.scanToggleButton.classList.toggle("button-danger", isRunning);
+      this.elements.scanToggleButton.classList.toggle("button-primary", !isRunning);
       this.elements.scanStatus.textContent = this.formatScanStatus(state.status);
+      this.elements.scanStatus.dataset.state = normalizeText(state.error)
+        ? "error"
+        : state.status || "idle";
       this.elements.scanError.hidden = !normalizeText(state.error);
       this.elements.scanError.textContent = normalizeText(state.error);
       this.elements.scanAddedCount.textContent = String((summary && summary.added) || 0);
@@ -1142,8 +1148,8 @@
             formatCardDuration(slot.start_sec, slot.duration_sec)
           )}</div>
           <div class="song-card-actions">
-            <button type="button" data-action="edit">Edit</button>
-            <button type="button" data-action="remove">Remove</button>
+            <button class="button-secondary button-compact" type="button" data-action="edit">Edit</button>
+            <button class="button-danger button-compact" type="button" data-action="remove">Remove</button>
           </div>
         `;
         card.appendChild(cover);
@@ -2249,6 +2255,8 @@
       const hintsVisible = this.playerState !== null && this.playerState.hints_visible;
       this.playerElements.autoButton.textContent = `Auto: ${autoEnabled ? "on" : "off"}`;
       this.playerElements.hintsButton.textContent = `Hints: ${hintsVisible ? "shown" : "hidden"}`;
+      this.playerElements.autoButton.classList.toggle("is-active", autoEnabled);
+      this.playerElements.hintsButton.classList.toggle("is-active", hintsVisible);
       this.playerElements.prevButton.disabled = this.playerHistory.length === 0;
       const showStep =
         this.playerState !== null &&
