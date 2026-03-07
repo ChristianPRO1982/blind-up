@@ -1604,7 +1604,7 @@
       }
 
       const relative = (timeSec - this.pendingStart) / (this.selectionEnd - this.pendingStart);
-      return relative <= 1 / 3 ? "start" : "end";
+      return relative <= 1 / 4 ? "start" : "end";
     }
 
     correctSelection() {
@@ -1631,6 +1631,7 @@
         duration > 0
           ? Math.min(duration, this.pendingStart + MIN_REGION_SPAN)
           : this.pendingStart + MIN_REGION_SPAN;
+      this.regions.clearRegions();
       this.regions.addRegion({
         start: this.pendingStart,
         end,
@@ -1654,6 +1655,7 @@
       }
 
       this.correctSelection();
+      this.regions.clearRegions();
       this.regions.addRegion({
         start: this.pendingStart,
         end: this.selectionEnd,
