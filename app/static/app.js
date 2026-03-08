@@ -1325,15 +1325,24 @@
       for (const cover of this.coverGallery) {
         const button = document.createElement("button");
         button.type = "button";
-        button.className = "cover-choice";
+        button.className = "library-item cover-choice";
         if (normalizeText(cover.url) === currentCover) {
           button.classList.add("is-active");
         }
         button.disabled = !canAssignCover;
-        button.innerHTML = `
-          <img src="${this.escapeHtml(cover.url)}" alt="${this.escapeHtml(cover.name || "Cover")}" />
-          <span>${this.escapeHtml(cover.name || "Cover")}</span>
+        const thumb = this.createImageThumb(cover.url, cover.name || "Cover");
+        const body = document.createElement("div");
+        body.innerHTML = `
+          <div class="library-item-header">
+            <div class="library-item-meta">
+              <div class="library-item-title">${this.escapeHtml(cover.name || "Cover")}</div>
+              <div class="library-item-subtitle">Preset cover</div>
+              <div class="library-item-details">Click to use this image</div>
+            </div>
+          </div>
         `;
+        button.appendChild(thumb);
+        button.appendChild(body);
         button.addEventListener("click", () => this.applyCoverSelection(cover.url));
         this.elements.coverGallery.appendChild(button);
       }
@@ -1448,6 +1457,16 @@
         this.updateMarkLabel();
       });
       this.wavesurfer.on("error", () => this.showAudioError());
+    }
+
+    createImageThumb(imageUrl, label = "Cover") {
+      const thumb = document.createElement("div");
+      thumb.className = "cover-thumb cover-thumb-image";
+      const image = document.createElement("img");
+      image.src = imageUrl;
+      image.alt = label;
+      thumb.appendChild(image);
+      return thumb;
     }
 
     destroyWaveform() {
