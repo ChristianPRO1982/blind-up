@@ -84,6 +84,40 @@ def test_config_uses_environment_override(monkeypatch, tmp_path) -> None:
     importlib.reload(config_module)
 
 
+def test_get_editor_cover_gallery_handles_missing_and_unsupported_files(
+    monkeypatch, tmp_path
+) -> None:
+    static_dir = tmp_path / "static"
+    static_dir.mkdir()
+    monkeypatch.setattr(
+        main_module,
+        "settings",
+        config_module.Settings(
+            database_path=main_module.settings.database_path,
+            static_dir=static_dir,
+            templates_dir=main_module.settings.templates_dir,
+            library_root_path=main_module.settings.library_root_path,
+            storage_dir=main_module.settings.storage_dir,
+            covers_dir=main_module.settings.covers_dir,
+        ),
+    )
+
+    assert main_module.get_editor_cover_gallery() == []
+
+    gallery_dir = static_dir / "editor-covers"
+    gallery_dir.mkdir()
+    (gallery_dir / "ignore.txt").write_text("skip", encoding="utf-8")
+    (gallery_dir / "nested").mkdir()
+    (gallery_dir / "usable_cover.png").write_bytes(b"png")
+
+    assert main_module.get_editor_cover_gallery() == [
+        {
+            "name": "usable cover",
+            "url": "/static/editor-covers/usable_cover.png",
+        }
+    ]
+
+
 def test_get_connection_creates_database_and_enables_foreign_keys(
     monkeypatch,
     tmp_path,
