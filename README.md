@@ -1,4 +1,4 @@
-# BlindUp 
+# BlindUp
 
 [![Release](https://img.shields.io/github/v/release/ChristianPRO1982/blind-up?display_name=tag)](https://github.com/ChristianPRO1982/blind-up/releases)
 ![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
