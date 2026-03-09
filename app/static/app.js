@@ -2903,7 +2903,7 @@
     }
 
     getSongHintCover(song) {
-      return this.getSongArtwork(song);
+      return normalizeText(song.source.cover_path) || "";
     }
 
     getPlayerModeLabel() {
