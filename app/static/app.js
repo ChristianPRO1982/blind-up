@@ -2465,6 +2465,11 @@
         return;
       }
 
+      if (this.playerState.panel === "end") {
+        this.openPlayerExitModal();
+        return;
+      }
+
       if (this.playerState.panel === "waiting") {
         this.pushPlayerHistory();
         if (this.getSongsForRound(1).length === 0) {
@@ -2576,22 +2581,23 @@
       if (this.playerState.panel === "waiting") {
         this.setPlayerBackground(this.blindtest.background_image);
         this.playerElements.panelLabel.textContent = "Waiting";
-        this.playerElements.mainTitle.textContent = this.blindtest.title || "BLINDUP";
+        this.setPlayerMainTitleText(this.blindtest.title || "BLINDUP");
         return;
       }
 
       if (this.playerState.panel === "round_transition") {
         this.setPlayerBackground(this.blindtest.background_image);
         this.playerElements.panelLabel.textContent = "Round transition";
-        this.playerElements.mainTitle.textContent =
-          ROUND_TRANSITION_TITLES[this.playerState.current_round] || "Round";
+        this.setPlayerMainTitleText(
+          ROUND_TRANSITION_TITLES[this.playerState.current_round] || "Round"
+        );
         return;
       }
 
       if (this.playerState.panel === "La la la...") {
         this.setPlayerBackground(song ? this.getSongCover(song) : this.blindtest.background_image);
         this.playerElements.panelLabel.textContent = "La la la...";
-        this.playerElements.mainTitle.textContent = this.getPlayerModeLabel();
+        this.setPlayerMainTitleText(this.getPlayerModeLabel());
         if (this.playerState.current_round === 3) {
           this.renderPlayerStageMeta(
             `Step ${this.playerState.round3_step_index + 1} / ${this.getRound3Steps().length}`
@@ -2615,7 +2621,7 @@
 
       this.setPlayerBackground(this.blindtest.background_image);
       this.playerElements.panelLabel.textContent = "End";
-      this.playerElements.mainTitle.textContent = "BLINDUP";
+      this.renderPlayerMainLogo();
     }
 
     renderPlayerBase() {
@@ -2644,6 +2650,19 @@
       if (this.playerElements.stageMetaHost !== null) {
         this.playerElements.stageMetaHost.replaceChildren();
       }
+    }
+
+    setPlayerMainTitleText(text) {
+      this.playerElements.mainTitle.classList.remove("is-logo");
+      this.playerElements.mainTitle.textContent = text;
+    }
+
+    renderPlayerMainLogo() {
+      const image = document.createElement("img");
+      image.src = "/static/brand/blindup-dark.png";
+      image.alt = "BlindUp";
+      this.playerElements.mainTitle.classList.add("is-logo");
+      this.playerElements.mainTitle.replaceChildren(image);
     }
 
     updatePlayerControls() {

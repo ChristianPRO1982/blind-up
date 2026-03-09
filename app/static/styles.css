@@ -1458,6 +1458,20 @@ body[data-page="player"] .app-shell {
     0 0 42px rgba(255, 79, 184, 0.12);
 }
 
+.player-main-title.is-logo {
+  max-width: min(72rem, 92vw);
+}
+
+.player-main-title.is-logo img {
+  display: block;
+  width: min(100%, 34rem);
+  height: auto;
+  margin: 0 auto;
+  filter:
+    drop-shadow(0 0 18px rgba(103, 232, 249, 0.14))
+    drop-shadow(0 0 34px rgba(255, 79, 184, 0.1));
+}
+
 .player-stage-meta {
   max-width: 48rem;
   font-size: clamp(0.98rem, 1.8vw, 1.18rem);
