@@ -20,52 +20,70 @@
         <h2 id="settings-title">Blindtest settings</h2>
       </div>
       <div class="settings-grid">
-        <fieldset class="inline-options">
+        <fieldset class="settings-field inline-options">
           <legend>Game mode</legend>
           <label><input type="radio" name="game-mode" value="blind_test" /> Blind Test</label>
           <label><input type="radio" name="game-mode" value="blindup" /> BlindUp</label>
         </fieldset>
 
-        <label>
-          Pre-play delay (seconds)
+        <fieldset class="settings-field">
+          <legend>Pre-play delay (seconds)</legend>
           <input id="pre-play-delay" type="number" min="0" step="0.1" />
-        </label>
+        </fieldset>
 
-        <label class="toggle-field">
-          <input id="auto-enabled-default" type="checkbox" />
-          Auto enabled by default
-        </label>
+        <fieldset class="settings-field toggle-field">
+          <legend>Auto enabled by default</legend>
+          <div class="toggle-control">
+            <input
+              id="auto-enabled-default"
+              type="checkbox"
+              aria-label="Auto enabled by default"
+            />
+          </div>
+        </fieldset>
 
-        <label class="toggle-field">
-          <input id="hints-enabled-default" type="checkbox" />
-          Indices enabled by default
-        </label>
+        <fieldset class="settings-field toggle-field">
+          <legend>Indices enabled by default</legend>
+          <div class="toggle-control">
+            <input
+              id="hints-enabled-default"
+              type="checkbox"
+              aria-label="Indices enabled by default"
+            />
+          </div>
+        </fieldset>
 
-        <label class="toggle-field">
-          <input id="answer-timer-enabled" type="checkbox" />
-          Answer timer enabled
-        </label>
+        <fieldset class="settings-field toggle-field">
+          <legend>Answer timer enabled</legend>
+          <div class="toggle-control">
+            <input
+              id="answer-timer-enabled"
+              type="checkbox"
+              aria-label="Answer timer enabled"
+            />
+          </div>
+        </fieldset>
 
-        <label>
-          Answer duration seconds
+        <fieldset class="settings-field">
+          <legend>Answer duration seconds</legend>
           <input id="answer-duration" type="number" min="0" step="0.1" />
-        </label>
+        </fieldset>
 
-        <label>
-          Step durations preset
+        <fieldset class="settings-field">
+          <legend>Step durations preset</legend>
           <input
             id="round3-step-durations"
             type="text"
             placeholder="0.5,1,1.5,2,3,4,5"
           />
-        </label>
+        </fieldset>
 
-        <label>
-          Step gap seconds
+        <fieldset class="settings-field">
+          <legend>Step gap seconds</legend>
           <input id="round3-step-gap" type="number" min="0" step="0.1" />
-        </label>
+        </fieldset>
 
-        <fieldset class="inline-options">
+        <fieldset class="settings-field inline-options">
           <legend>Progression mode</legend>
           <label>
             <input

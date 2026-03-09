@@ -742,8 +742,7 @@ body.modal-open {
 .scan-impact-block,
 .scan-impact-item,
 .time-grid div,
-.inline-options,
-.toggle-field {
+.settings-field {
   position: relative;
   overflow: hidden;
   border: 1px solid rgba(129, 180, 255, 0.14);
@@ -761,7 +760,8 @@ body.modal-open {
 .scan-summary-grid div::before,
 .scan-impact-block::before,
 .scan-impact-item::before,
-.time-grid div::before {
+.time-grid div::before,
+.settings-field::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -880,7 +880,6 @@ body.modal-open {
   white-space: nowrap;
 }
 
-.settings-grid label,
 .metadata-grid label {
   display: grid;
   gap: 0.35rem;
@@ -891,21 +890,70 @@ body.modal-open {
   grid-column: 1 / -1;
 }
 
-.inline-options {
-  gap: 0.8rem 1rem;
-  padding: 0.95rem 1rem;
+.settings-field {
+  display: grid;
+  gap: 0.65rem;
+  align-content: start;
+  min-width: 0;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0.95rem 1rem 1rem;
 }
 
-.inline-options legend {
+.settings-field > input,
+.settings-field > textarea,
+.settings-field > .toggle-control {
+  position: relative;
+  z-index: 1;
+}
+
+.settings-field > input,
+.settings-field > textarea {
+  padding: 0.2rem 0 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.settings-field > input::placeholder,
+.settings-field > textarea::placeholder {
+  color: rgba(160, 183, 220, 0.42);
+}
+
+.settings-field:focus-within {
+  border-color: rgba(103, 232, 249, 0.42);
+  box-shadow:
+    0 0 0 1px rgba(103, 232, 249, 0.18),
+    0 0 22px rgba(103, 232, 249, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.settings-field > input:focus-visible,
+.settings-field > textarea:focus-visible {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.inline-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem 1rem;
+}
+
+.settings-field legend {
+  margin-left: 0.15rem;
   padding: 0 0.45rem;
   color: #ffd2ed;
+  background: rgba(9, 17, 30, 0.92);
+  border-radius: 999px;
   font-size: 0.8rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
-.inline-options label,
-.toggle-field {
+.inline-options label {
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
@@ -913,8 +961,20 @@ body.modal-open {
 }
 
 .toggle-field {
-  min-height: 3rem;
-  padding: 0.8rem 0.9rem;
+  display: grid;
+  align-content: center;
+  min-height: 5.35rem;
+}
+
+.toggle-control {
+  display: grid;
+  place-items: center;
+  min-height: 2.8rem;
+}
+
+.toggle-control input[type="checkbox"] {
+  width: 1.2rem;
+  height: 1.2rem;
 }
 
 .panel-close-button {
