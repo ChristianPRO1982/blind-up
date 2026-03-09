@@ -274,3 +274,4 @@ def test_normalize_song_media_paths_leaves_public_path_unchanged(
     updated = song_repository.normalize_song_media_paths()
 
     assert updated == 0
+

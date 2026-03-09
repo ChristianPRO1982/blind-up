@@ -892,6 +892,24 @@ body.modal-open {
   color: var(--text-soft);
 }
 
+.cover-display-field {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--text-soft);
+}
+
+.custom-hint-field > textarea {
+  min-height: 14rem;
+}
+
+.cover-display-field h3 {
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 .wide-field {
   grid-column: 1 / -1;
 }
@@ -1078,6 +1096,35 @@ body.modal-open {
   border-radius: 1.05rem;
   color: var(--text-muted);
   background: rgba(10, 17, 30, 0.62);
+}
+
+.cover-display-card {
+  display: grid;
+  place-items: center;
+  min-height: 14rem;
+  padding: 0.95rem;
+  border: 1px solid rgba(129, 180, 255, 0.14);
+  border-radius: 1.05rem;
+  background:
+    linear-gradient(180deg, rgba(12, 19, 34, 0.72), rgba(9, 15, 28, 0.78)),
+    radial-gradient(circle at top, rgba(103, 232, 249, 0.05), transparent 50%);
+}
+
+.cover-display-status {
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.5;
+}
+
+.cover-display-image {
+  display: block;
+  width: min(100%, 18rem);
+  max-height: 15rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(129, 180, 255, 0.2);
+  background: rgba(7, 14, 28, 0.72);
+  object-fit: contain;
+  box-shadow: 0 20px 34px rgba(0, 0, 0, 0.28);
 }
 
 .cover-choice {

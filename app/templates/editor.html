@@ -165,10 +165,24 @@
               </button>
             </div>
           </label>
-          <label class="wide-field">
+          <label class="custom-hint-field">
             Custom hint
             <textarea id="custom-hint" name="custom_hint" rows="5"></textarea>
           </label>
+          <section class="cover-display-field" aria-labelledby="cover-display-title">
+            <h3 id="cover-display-title">Cover</h3>
+            <div class="cover-display-card">
+              <p id="cover-display-status" class="cover-display-status">
+                No target song selected.
+              </p>
+              <img
+                id="cover-display-image"
+                class="cover-display-image"
+                alt="Extracted cover"
+                hidden
+              />
+            </div>
+          </section>
         </form>
 
         <p id="audio-error" class="status" hidden>Audio unavailable</p>

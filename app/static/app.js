@@ -562,6 +562,8 @@
         previewBackgroundButton: document.getElementById("preview-background-button"),
         toggleBackgroundPanelButton: document.getElementById("toggle-background-panel-button"),
         customHint: document.getElementById("custom-hint"),
+        coverDisplayStatus: document.getElementById("cover-display-status"),
+        coverDisplayImage: document.getElementById("cover-display-image"),
         libraryPanel: document.querySelector(".library-panel"),
         closeLibraryButton: document.getElementById("close-library-button"),
         librarySearch: document.getElementById("library-search"),
@@ -1150,6 +1152,14 @@
       };
     }
 
+    getSlotCoverPath(slot) {
+      if (slot === null || slot.song_id === null) {
+        return "";
+      }
+      const librarySource = this.librarySongMap.get(slot.song_id) || null;
+      return normalizeText(librarySource && librarySource.cover_path) || "";
+    }
+
     snapshotFromLibrarySong(songId) {
       const song = this.librarySongMap.get(songId) || null;
       return {
@@ -1471,6 +1481,7 @@
 
       this.elements.songEditorContent.hidden = false;
       this.fillMetadataForm(slot);
+      this.renderCoverDisplay(slot);
       this.loadSlotWaveform(slot).catch(() => {
         this.showAudioError();
       });
@@ -1494,6 +1505,56 @@
       this.elements.overrideBackground.placeholder = "";
       this.updateClearBackgroundButtonState();
       this.updateBackgroundPreviewButtonState();
+    }
+
+    renderCoverDisplay(slot) {
+      if (slot === null) {
+        this.showCoverDisplayStatus("No target song selected.");
+        return;
+      }
+      if (this.isSlotPending(slot)) {
+        this.showCoverDisplayStatus("Open the library to add a song.");
+        return;
+      }
+      if (this.isSlotMissing(slot) || slot.song_id === null) {
+        this.showCoverDisplayStatus("Cover unavailable.");
+        return;
+      }
+
+      const existingCover = this.getSlotCoverPath(slot);
+      if (existingCover) {
+        this.showCoverDisplayImage(existingCover, slot);
+        return;
+      }
+
+      this.showCoverDisplayStatus("No extracted cover.");
+    }
+
+    showCoverDisplayStatus(message) {
+      if (this.elements.coverDisplayStatus !== null) {
+        this.elements.coverDisplayStatus.hidden = false;
+        this.elements.coverDisplayStatus.textContent = message;
+      }
+      if (this.elements.coverDisplayImage !== null) {
+        this.elements.coverDisplayImage.hidden = true;
+        this.elements.coverDisplayImage.removeAttribute("src");
+      }
+    }
+
+    showCoverDisplayImage(imageUrl, slot) {
+      if (this.elements.coverDisplayStatus !== null) {
+        this.elements.coverDisplayStatus.hidden = true;
+      }
+      if (this.elements.coverDisplayImage !== null) {
+        this.elements.coverDisplayImage.hidden = false;
+        this.elements.coverDisplayImage.src = imageUrl;
+        const source = this.getSlotSource(slot);
+        const title =
+          normalizeText(slot.override_title) ||
+          normalizeText(source.title) ||
+          "target song";
+        this.elements.coverDisplayImage.alt = `Cover for ${title}`;
+      }
     }
 
     async loadSlotWaveform(slot) {
@@ -1602,6 +1663,7 @@
       this.showPlaceholder(message);
       this.hideError();
       this.setWaveformControlsDisabled(true);
+      this.showCoverDisplayStatus(message ? "Cover unavailable." : "No target song selected.");
       this.updateClearBackgroundButtonState();
       this.updateBackgroundPreviewButtonState();
     }
