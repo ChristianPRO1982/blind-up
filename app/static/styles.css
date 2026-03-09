@@ -640,12 +640,19 @@ h3 {
 
 .home-blindtest-list,
 .song-list,
-.library-list,
-.cover-gallery,
 .scan-impact-list {
   display: grid;
   gap: 0.85rem;
   align-content: start;
+}
+
+.library-list,
+.cover-gallery {
+  display: grid;
+  gap: 0.85rem;
+  align-content: start;
+  max-height: 800px;
+  overflow-y: auto;
 }
 
 .home-blindtest-card,
@@ -858,6 +865,7 @@ h3 {
   gap: 0.85rem;
   align-items: start;
   padding: 0.9rem;
+  min-height: 10em;
 }
 
 .song-card {
