@@ -597,6 +597,7 @@
         zoomIn: document.getElementById("zoom-in-button"),
         zoomReset: document.getElementById("zoom-reset-button"),
         mark: document.getElementById("mark-button"),
+        selectAll: document.getElementById("select-all-button"),
         reset: document.getElementById("reset-selection-button"),
         currentTime: document.getElementById("current-time"),
         startTime: document.getElementById("start-time"),
@@ -1016,6 +1017,7 @@
       this.elements.zoomIn.addEventListener("click", () => this.setZoom(this.currentZoom * ZOOM_STEP));
       this.elements.zoomReset.addEventListener("click", () => this.resetZoom());
       this.elements.mark.addEventListener("click", () => this.handleMark());
+      this.elements.selectAll.addEventListener("click", () => this.handleSelectAll());
       this.elements.reset.addEventListener("click", () => this.resetSelection());
     }
 
@@ -1947,6 +1949,7 @@
       this.elements.zoomIn.disabled = disabled;
       this.elements.zoomReset.disabled = disabled;
       this.elements.mark.disabled = disabled;
+      this.elements.selectAll.disabled = disabled;
       this.elements.reset.disabled = disabled;
     }
 
@@ -2243,6 +2246,22 @@
       const duration = this.wavesurfer.getDuration();
       const current = clamp(this.wavesurfer.getCurrentTime(), 0, duration || 0);
       this.applyMarkAtTime(current);
+    }
+
+    handleSelectAll() {
+      if (this.wavesurfer === null) {
+        return;
+      }
+
+      const duration = this.wavesurfer.getDuration();
+      if (!(duration > 0)) {
+        return;
+      }
+
+      this.pendingStart = 0;
+      this.selectionEnd = duration;
+      this.renderSelectionRegion();
+      this.renderSongList();
     }
 
     handleWaveInteraction() {
