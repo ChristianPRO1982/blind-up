@@ -1149,6 +1149,7 @@
         genre:
           normalizeText(slot.source_genre) || normalizeText(librarySource && librarySource.genre),
         background_image: normalizeText(slot.source_background),
+        cover_path: normalizeText(librarySource && librarySource.cover_path),
       };
     }
 
@@ -2892,6 +2893,10 @@
       );
     }
 
+    getSongHintCover(song) {
+      return normalizeText(song.source.cover_path) || "";
+    }
+
     getPlayerModeLabel() {
       return this.blindtest.game_mode === "blindup" ? "BLIND UP" : "BLIND TEST";
     }
@@ -3124,7 +3129,7 @@
       }
 
       const display = this.getSongDisplay(song);
-      const background = this.getSongBackground(song);
+      const cover = this.getSongHintCover(song);
       if (this.playerState.current_round === 3) {
         return [];
       }
@@ -3148,8 +3153,8 @@
       if (display.album) {
         hints.push({ label: "Album", type: "text", value: display.album });
       }
-      if (background) {
-        hints.push({ label: "Background", type: "background", value: background });
+      if (cover) {
+        hints.push({ label: "Cover", type: "cover", value: cover });
       }
       if (display.artist) {
         hints.push({ label: "Artist", type: "text", value: display.artist });
@@ -3179,11 +3184,11 @@
 
       this.playerElements.hints.hidden = false;
       this.playerElements.hints.innerHTML = "";
-      const backgroundHint = hints.find((hint) => hint.type === "background") || null;
-      const textHints = hints.filter((hint) => hint.type !== "background");
+      const coverHint = hints.find((hint) => hint.type === "cover") || null;
+      const textHints = hints.filter((hint) => hint.type !== "cover");
       const textList = document.createElement("div");
       textList.className = "player-hints-list";
-      if (backgroundHint !== null) {
+      if (coverHint !== null) {
         this.playerElements.hints.classList.add("has-background");
       } else {
         this.playerElements.hints.classList.remove("has-background");
@@ -3206,18 +3211,18 @@
         this.playerElements.hints.appendChild(textList);
       }
 
-      if (backgroundHint !== null) {
-        const backgroundNode = document.createElement("div");
-        backgroundNode.className = "player-hint player-hint-background";
+      if (coverHint !== null) {
+        const coverNode = document.createElement("div");
+        coverNode.className = "player-hint player-hint-background";
         const label = document.createElement("span");
         label.className = "player-hint-label";
-        label.textContent = backgroundHint.label;
+        label.textContent = coverHint.label;
         const image = document.createElement("img");
-        image.alt = backgroundHint.label;
-        image.src = backgroundHint.value;
-        backgroundNode.appendChild(label);
-        backgroundNode.appendChild(image);
-        this.playerElements.hints.appendChild(backgroundNode);
+        image.alt = coverHint.label;
+        image.src = coverHint.value;
+        coverNode.appendChild(label);
+        coverNode.appendChild(image);
+        this.playerElements.hints.appendChild(coverNode);
       }
     }
 
