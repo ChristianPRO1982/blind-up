@@ -2362,7 +2362,12 @@
         this.handlePlayerPrevious();
         return;
       }
-      if (key === "Escape" || key.toLowerCase() === "i") {
+      if (key === "Escape") {
+        event.preventDefault();
+        this.handlePlayerEscapeShortcut();
+        return;
+      }
+      if (key.toLowerCase() === "i" || key.toLowerCase() === "h") {
         event.preventDefault();
         this.togglePlayerHints();
         return;
@@ -2372,7 +2377,12 @@
         this.togglePlayerAuto();
         return;
       }
-      if (key.toLowerCase() === "d") {
+      if (key.toLowerCase() === "q") {
+        event.preventDefault();
+        this.openPlayerExitModal();
+        return;
+      }
+      if (key === "Enter" || key.toLowerCase() === "n" || key.toLowerCase() === "d") {
         event.preventDefault();
         this.advanceRound3Step();
       }
@@ -2432,6 +2442,19 @@
       this.playerState.hints_visible = !this.playerState.hints_visible;
       this.updatePlayerControls();
       this.renderPlayerHints();
+    }
+
+    handlePlayerEscapeShortcut() {
+      if (this.playerState === null) {
+        return;
+      }
+
+      if (this.playerState.hints_visible) {
+        this.togglePlayerHints();
+        return;
+      }
+
+      this.openPlayerExitModal();
     }
 
     togglePlayerPlayback() {

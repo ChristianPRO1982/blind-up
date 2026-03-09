@@ -262,9 +262,10 @@ The host can control the game using keyboard shortcuts.
 | Play / Pause `La la la...`     | Space                           |
 | Next panel                     | ArrowRight / ArrowDown          |
 | Previous panel                 | ArrowLeft / ArrowUp / Backspace |
-| Toggle hints                   | Escape / I                      |
+| Toggle hints                   | I / H                           |
 | Toggle auto mode               | A                               |
-| Next escalation step (round 3) | D                               |
+| Next escalation step (round 3) | Enter / N / D                   |
+| Exit / Close modal             | Escape / Q                      |
 
 ---
 

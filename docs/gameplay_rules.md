@@ -300,9 +300,16 @@ The host can control the game using keyboard shortcuts.
 | Play / Pause         | Space                           |
 | Next panel           | ArrowRight / ArrowDown          |
 | Previous panel       | ArrowLeft / ArrowUp / Backspace |
-| Toggle hints         | Escape / I                      |
+| Toggle hints         | I / H                           |
 | Toggle auto mode     | A                               |
-| Next escalation step | D                               |
+| Next escalation step | Enter / N / D                   |
+| Exit / Close modal   | Escape / Q                      |
+
+`Escape` is contextual:
+
+* if the exit modal is open, it closes the modal
+* otherwise, if hints are visible, it hides them
+* otherwise, it opens the exit modal
 
 ---
 

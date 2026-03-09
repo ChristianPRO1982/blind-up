@@ -392,9 +392,10 @@ The player supports keyboard shortcuts.
 | Play / Pause         | Space                           |
 | Next panel           | ArrowRight / ArrowDown          |
 | Previous panel       | ArrowLeft / ArrowUp / Backspace |
-| Toggle hints         | Escape / I                      |
+| Toggle hints         | I / H                           |
 | Toggle auto mode     | A                               |
-| Next escalation step | D                               |
+| Next escalation step | Enter / N / D                   |
+| Exit / Close modal   | Escape / Q                      |
 
 ---
 
@@ -416,6 +417,12 @@ Step
 ```
 
 Buttons must match the keyboard actions.
+
+`Escape` is contextual:
+
+* close the exit modal if open
+* otherwise hide hints if visible
+* otherwise open the exit modal
 
 ---
 
