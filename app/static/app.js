@@ -557,6 +557,13 @@
         coversPanel: document.querySelector(".covers-panel"),
         closeCoverPanelButton: document.getElementById("close-cover-panel-button"),
         coverGallery: document.getElementById("cover-gallery"),
+        removeSongModal: document.getElementById("remove-song-modal"),
+        closeRemoveSongModalButton: document.getElementById(
+          "close-remove-song-modal-button"
+        ),
+        removeSongModalCopy: document.getElementById("remove-song-modal-copy"),
+        cancelRemoveSongButton: document.getElementById("cancel-remove-song-button"),
+        confirmRemoveSongButton: document.getElementById("confirm-remove-song-button"),
         error: document.getElementById("audio-error"),
         waveform: document.getElementById("waveform"),
         waveWrap: document.getElementById("waveWrap"),
@@ -608,6 +615,7 @@
       this.librarySongMap = new Map();
       this.coverGallery = this.readCoverGallery();
       this.activeSidebarPanel = null;
+      this.pendingRemoveSlotId = null;
       this.blindtest = this.createDefaultBlindtest();
       this.activeSlotId = null;
       this.nextSlotId = 1;
@@ -639,6 +647,11 @@
       window.addEventListener("resize", () => {
         if (this.page === "editor" && this.wavesurfer !== null) {
           this.resetZoom();
+        }
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && this.pendingRemoveSlotId !== null) {
+          this.hideRemoveSongModal();
         }
       });
       this.bindHome();
@@ -802,6 +815,21 @@
       });
       this.elements.closeCoverPanelButton.addEventListener("click", () => {
         this.setSidebarPanel(null);
+      });
+      this.elements.removeSongModal.addEventListener("click", (event) => {
+        const action = event.target.closest("[data-action='close']");
+        if (action !== null || event.target === this.elements.removeSongModal) {
+          this.hideRemoveSongModal();
+        }
+      });
+      this.elements.closeRemoveSongModalButton.addEventListener("click", () => {
+        this.hideRemoveSongModal();
+      });
+      this.elements.cancelRemoveSongButton.addEventListener("click", () => {
+        this.hideRemoveSongModal();
+      });
+      this.elements.confirmRemoveSongButton.addEventListener("click", () => {
+        this.confirmRemoveSlot();
       });
       this.elements.librarySearch.addEventListener("input", () => this.renderLibrary());
       this.elements.metadataForm.addEventListener("input", (event) => {
@@ -1200,7 +1228,7 @@
               this.setActiveSlot(slot.slot_id);
             }
             if (action.dataset.action === "remove") {
-              this.removeSlot(slot.slot_id);
+              this.showRemoveSongModal(slot.slot_id);
             }
             event.stopPropagation();
             return;
@@ -1627,6 +1655,53 @@
       }
       this.renderSongList();
       this.renderEditor();
+    }
+
+    showRemoveSongModal(slotId) {
+      const slot = this.blindtest.songs.find((item) => item.slot_id === slotId) || null;
+      if (
+        slot === null ||
+        this.elements.removeSongModal === null ||
+        this.elements.removeSongModalCopy === null
+      ) {
+        return;
+      }
+
+      const source = this.getSlotSource(slot);
+      const title =
+        this.isSlotPending(slot)
+          ? "this pending slot"
+          : normalizeText(slot.override_title) ||
+            normalizeText(source.title) ||
+            "this song";
+      const artist =
+        normalizeText(slot.override_artist) ||
+        normalizeText(source.artist) ||
+        "";
+      this.pendingRemoveSlotId = slotId;
+      this.elements.removeSongModalCopy.textContent = artist
+        ? `Remove "${title}" by ${artist} from the song list?`
+        : `Remove "${title}" from the song list?`;
+      this.elements.removeSongModal.hidden = false;
+      document.body.classList.add("modal-open");
+      this.elements.confirmRemoveSongButton.focus();
+    }
+
+    hideRemoveSongModal() {
+      this.pendingRemoveSlotId = null;
+      if (this.elements.removeSongModal !== null) {
+        this.elements.removeSongModal.hidden = true;
+      }
+      document.body.classList.remove("modal-open");
+    }
+
+    confirmRemoveSlot() {
+      if (this.pendingRemoveSlotId === null) {
+        return;
+      }
+      const slotId = this.pendingRemoveSlotId;
+      this.hideRemoveSongModal();
+      this.removeSlot(slotId);
     }
 
     moveSlot(draggedSlotId, targetSlotId, placeAfter) {

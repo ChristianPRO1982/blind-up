@@ -199,5 +199,33 @@
       <div id="cover-gallery" class="library-list cover-gallery"></div>
     </aside>
   </section>
+
+  <div id="remove-song-modal" class="modal-shell" hidden>
+    <div class="modal-backdrop" data-action="close"></div>
+    <section
+      class="modal-card panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="remove-song-modal-title"
+    >
+      <div class="panel-heading panel-heading-split">
+        <h2 id="remove-song-modal-title">Remove song</h2>
+        <button
+          id="close-remove-song-modal-button"
+          class="panel-close-button"
+          type="button"
+          aria-label="Close remove song confirmation"
+        >
+          ×
+        </button>
+      </div>
+      <p id="remove-song-modal-copy" class="modal-copy"></p>
+      <div class="modal-actions">
+        <button id="cancel-remove-song-button" class="button-secondary" type="button">Cancel</button>
+        <button id="confirm-remove-song-button" class="button-danger" type="button">Remove</button>
+      </div>
+    </section>
+  </div>
+
   <script id="cover-gallery-data" type="application/json">{{ cover_gallery | tojson }}</script>
 {% endblock %}
