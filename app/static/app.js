@@ -548,6 +548,7 @@
         overrideYear: document.getElementById("override-year"),
         overrideGenre: document.getElementById("override-genre"),
         overrideCover: document.getElementById("override-cover"),
+        previewCoverButton: document.getElementById("preview-cover-button"),
         toggleCoverPanelButton: document.getElementById("toggle-cover-panel-button"),
         customHint: document.getElementById("custom-hint"),
         libraryPanel: document.querySelector(".library-panel"),
@@ -564,6 +565,11 @@
         removeSongModalCopy: document.getElementById("remove-song-modal-copy"),
         cancelRemoveSongButton: document.getElementById("cancel-remove-song-button"),
         confirmRemoveSongButton: document.getElementById("confirm-remove-song-button"),
+        coverPreviewModal: document.getElementById("cover-preview-modal"),
+        closeCoverPreviewModalButton: document.getElementById(
+          "close-cover-preview-modal-button"
+        ),
+        coverPreviewImage: document.getElementById("cover-preview-image"),
         error: document.getElementById("audio-error"),
         waveform: document.getElementById("waveform"),
         waveWrap: document.getElementById("waveWrap"),
@@ -650,8 +656,17 @@
         }
       });
       document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape" && this.pendingRemoveSlotId !== null) {
+        if (event.key !== "Escape") {
+          return;
+        }
+        if (this.pendingRemoveSlotId !== null) {
           this.hideRemoveSongModal();
+        }
+        if (
+          this.elements.coverPreviewModal !== null &&
+          !this.elements.coverPreviewModal.hidden
+        ) {
+          this.hideCoverPreviewModal();
         }
       });
       this.bindHome();
@@ -810,6 +825,9 @@
       this.elements.closeLibraryButton.addEventListener("click", () => {
         this.setSidebarPanel(null);
       });
+      this.elements.previewCoverButton.addEventListener("click", () => {
+        this.showCoverPreviewModal();
+      });
       this.elements.toggleCoverPanelButton.addEventListener("click", () => {
         this.toggleSidebarPanel("covers");
       });
@@ -830,6 +848,19 @@
       });
       this.elements.confirmRemoveSongButton.addEventListener("click", () => {
         this.confirmRemoveSlot();
+      });
+      this.elements.coverPreviewModal.addEventListener("click", (event) => {
+        const action = event.target.closest("[data-action='close']");
+        if (
+          action !== null ||
+          event.target === this.elements.coverPreviewModal ||
+          event.target === this.elements.coverPreviewImage
+        ) {
+          this.hideCoverPreviewModal();
+        }
+      });
+      this.elements.closeCoverPreviewModalButton.addEventListener("click", () => {
+        this.hideCoverPreviewModal();
       });
       this.elements.librarySearch.addEventListener("input", () => this.renderLibrary());
       this.elements.metadataForm.addEventListener("input", (event) => {
@@ -1409,6 +1440,7 @@
         source.year === null || source.year === undefined ? "" : String(source.year);
       this.elements.overrideGenre.placeholder = normalizeText(source.genre);
       this.elements.overrideCover.placeholder = "";
+      this.updateCoverPreviewButtonState();
     }
 
     async loadSlotWaveform(slot) {
@@ -1517,6 +1549,7 @@
       this.showPlaceholder(message);
       this.hideError();
       this.setWaveformControlsDisabled(true);
+      this.updateCoverPreviewButtonState();
     }
 
     showPlaceholder(message) {
@@ -1704,6 +1737,45 @@
       this.removeSlot(slotId);
     }
 
+    getCurrentCoverPreviewPath() {
+      return normalizeText(this.elements.overrideCover.value);
+    }
+
+    updateCoverPreviewButtonState() {
+      if (this.elements.previewCoverButton === null) {
+        return;
+      }
+      this.elements.previewCoverButton.disabled = !this.getCurrentCoverPreviewPath();
+    }
+
+    showCoverPreviewModal() {
+      const imagePath = this.getCurrentCoverPreviewPath();
+      if (
+        !imagePath ||
+        this.elements.coverPreviewModal === null ||
+        this.elements.coverPreviewImage === null
+      ) {
+        return;
+      }
+      this.elements.coverPreviewImage.src = imagePath;
+      this.elements.coverPreviewImage.alt = "Cover preview";
+      this.elements.coverPreviewModal.hidden = false;
+      document.body.classList.add("modal-open");
+      if (this.elements.closeCoverPreviewModalButton !== null) {
+        this.elements.closeCoverPreviewModalButton.focus();
+      }
+    }
+
+    hideCoverPreviewModal() {
+      if (this.elements.coverPreviewModal !== null) {
+        this.elements.coverPreviewModal.hidden = true;
+      }
+      if (this.elements.coverPreviewImage !== null) {
+        this.elements.coverPreviewImage.removeAttribute("src");
+      }
+      document.body.classList.remove("modal-open");
+    }
+
     moveSlot(draggedSlotId, targetSlotId, placeAfter) {
       const sourceIndex = this.blindtest.songs.findIndex((slot) => slot.slot_id === draggedSlotId);
       const targetIndex = this.blindtest.songs.findIndex((slot) => slot.slot_id === targetSlotId);
@@ -1748,6 +1820,7 @@
       this.renderSongList();
       if (field === "override_cover") {
         this.renderCoverGallery();
+        this.updateCoverPreviewButtonState();
       }
     }
 
@@ -1761,6 +1834,7 @@
       this.elements.overrideCover.value = slot.override_cover;
       this.renderSongList();
       this.renderCoverGallery();
+      this.updateCoverPreviewButtonState();
     }
 
     handleMark() {

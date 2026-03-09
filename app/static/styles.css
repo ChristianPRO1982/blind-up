@@ -545,6 +545,25 @@ body.modal-open {
   width: min(30rem, 100%);
 }
 
+.cover-preview-card {
+  width: min(44rem, 100%);
+}
+
+.cover-preview-image {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  max-height: calc(100vh - 12rem);
+  margin-top: 0.25rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(129, 180, 255, 0.2);
+  background: rgba(7, 14, 28, 0.72);
+  object-fit: contain;
+  cursor: pointer;
+  box-shadow: 0 20px 34px rgba(0, 0, 0, 0.28);
+}
+
 .modal-copy {
   position: relative;
   z-index: 1;
