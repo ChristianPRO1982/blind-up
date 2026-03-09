@@ -9,9 +9,11 @@
 ![pytest](https://img.shields.io/badge/pytest-tested-0A9EDC?logo=pytest&logoColor=white)
 ![Ruff](https://img.shields.io/badge/Ruff-linted-D7FF64?logo=ruff&logoColor=black)
 
-**Turn your local music library into a loud, fast, addictive party blind test built for one host and a full room of players.**
+**EN 🇬🇧 Turn your local music library into a loud, fast, addictive party blind test built for one host and a full room of players.**
 
-**Transforme ta bibliothèque audio locale en blind test de soirée, nerveux, festif et prêt à mettre toute la salle en jeu autour d'un seul animateur.**
+---
+
+**FR 🇫🇷 Transforme ta bibliothèque audio locale en blind test de soirée, nerveux, festif et prêt à mettre toute la salle en jeu autour d'un seul animateur.**
 
 ---
 
