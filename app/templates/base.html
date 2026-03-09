@@ -17,17 +17,14 @@
     {% endif %}
   >
     <main class="app-shell">
-      <header class="page-header{% if page_id == 'home' %} page-header-logo-only{% endif %}">
-        {% if page_id == "home" %}
-          <a class="brand-mark" href="/home" aria-label="BlindUp home">
-            <img src="/static/brand/blindup-dark.png" alt="BlindUp" />
-          </a>
-          <h1 id="page-title" class="visually-hidden">{{ page_title }}</h1>
-        {% else %}
+      {% if page_id != "home" %}
+        <header class="page-header">
           <p class="eyebrow">BlindUp</p>
           <h1 id="page-title">{{ page_title }}</h1>
-        {% endif %}
-      </header>
+        </header>
+      {% else %}
+        <h1 id="page-title" class="visually-hidden">{{ page_title }}</h1>
+      {% endif %}
 
       {% block content %}{% endblock %}
     </main>

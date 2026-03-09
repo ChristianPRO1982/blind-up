@@ -419,24 +419,6 @@ h3 {
   text-shadow: 0 0 26px rgba(103, 232, 249, 0.12);
 }
 
-.page-header-logo-only {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: auto;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-  backdrop-filter: none;
-}
-
-.page-header-logo-only::before,
-.page-header-logo-only::after {
-  display: none;
-}
-
 .brand-mark {
   position: relative;
   z-index: 1;
@@ -584,10 +566,16 @@ h3 {
 .home-layout {
   display: grid;
   gap: 1rem;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr);
   grid-template-areas:
-    "actions"
-    "list";
+    "brand actions"
+    "list list";
+}
+
+.home-brand-panel {
+  grid-area: brand;
+  display: flex;
+  align-items: stretch;
 }
 
 .home-actions-panel {
@@ -597,7 +585,7 @@ h3 {
 
 .home-action-buttons {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .action-tile {
@@ -623,6 +611,10 @@ h3 {
 .action-tile-copy {
   color: var(--text-muted);
   font-size: 0.9rem;
+}
+
+.home-brand-mark {
+  width: clamp(17rem, 30vw, 22rem);
 }
 
 .home-list-panel {
@@ -1507,9 +1499,23 @@ body[data-page="player"] .app-shell {
     grid-template-columns: 1fr;
   }
 
+  .home-layout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "brand"
+      "actions"
+      "list";
+  }
+
   .player-shell,
   .player-overlay {
     min-height: calc(100vh - 1rem);
+  }
+
+  .home-brand-panel,
+  .home-brand-mark {
+    justify-content: center;
+    justify-self: center;
   }
 }
 

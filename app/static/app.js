@@ -508,7 +508,6 @@
       this.elements = {
         pageTitle: document.getElementById("page-title"),
         homeLayout: document.getElementById("home-layout"),
-        homeEmpty: document.getElementById("home-empty"),
         homeBlindtestList: document.getElementById("home-blindtest-list"),
         openScanButton: document.getElementById("open-scan-button"),
         newBlindtestButton: document.getElementById("new-blindtest-button"),
@@ -1076,7 +1075,6 @@
       const blindtests = this.homeBlindtests
         .slice()
         .sort((left, right) => blindtestUpdatedAtValue(right) - blindtestUpdatedAtValue(left));
-      this.elements.homeEmpty.hidden = blindtests.length > 0;
       if (blindtests.length === 0) {
         return;
       }
