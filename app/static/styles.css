@@ -173,7 +173,7 @@ input:disabled {
 
 .button-secondary,
 #toggle-library-button,
-#toggle-cover-panel-button,
+#toggle-background-panel-button,
 #save-button,
 #open-scan-button,
 #player-auto-button,
@@ -191,8 +191,8 @@ input:disabled {
 .button-secondary:focus-visible:not(:disabled),
 #toggle-library-button:hover:not(:disabled),
 #toggle-library-button:focus-visible:not(:disabled),
-#toggle-cover-panel-button:hover:not(:disabled),
-#toggle-cover-panel-button:focus-visible:not(:disabled),
+#toggle-background-panel-button:hover:not(:disabled),
+#toggle-background-panel-button:focus-visible:not(:disabled),
 #save-button:hover:not(:disabled),
 #save-button:focus-visible:not(:disabled),
 #open-scan-button:hover:not(:disabled),
@@ -254,7 +254,7 @@ input:disabled {
 
 .is-active,
 #toggle-library-button.is-active,
-#toggle-cover-panel-button.is-active,
+#toggle-background-panel-button.is-active,
 #player-auto-button.is-active,
 #player-hints-button.is-active {
   border-color: rgba(103, 232, 249, 0.58);
@@ -548,11 +548,11 @@ body.modal-open {
   width: min(30rem, 100%);
 }
 
-.cover-preview-card {
+.background-preview-card {
   width: min(44rem, 100%);
 }
 
-.cover-preview-image {
+.background-preview-image {
   position: relative;
   z-index: 1;
   display: block;
@@ -726,7 +726,7 @@ body.modal-open {
 }
 
 .library-list,
-.cover-gallery {
+.background-gallery {
   display: grid;
   gap: 0.85rem;
   align-content: start;
@@ -841,7 +841,7 @@ body.modal-open {
 }
 
 .library-panel,
-.covers-panel {
+.backgrounds-panel {
   grid-area: library;
   display: flex;
   flex-direction: column;
@@ -849,7 +849,7 @@ body.modal-open {
 }
 
 .library-panel[hidden],
-.covers-panel[hidden] {
+.backgrounds-panel[hidden] {
   display: none;
 }
 
@@ -865,17 +865,23 @@ body.modal-open {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.cover-field-row {
+.background-field-row {
   display: flex;
   gap: 0.65rem;
   align-items: center;
 }
 
-.cover-field-row input {
+.background-field-row input {
   flex: 1 1 auto;
 }
 
-#toggle-cover-panel-button {
+.background-clear-button {
+  flex: 0 0 auto;
+  min-width: 2.5rem;
+  padding-inline: 0;
+}
+
+#toggle-background-panel-button {
   flex: 0 0 auto;
   white-space: nowrap;
 }
@@ -1060,11 +1066,11 @@ body.modal-open {
   opacity: 0.55;
 }
 
-.cover-gallery {
+.background-gallery {
   min-height: 0;
 }
 
-.cover-gallery-empty {
+.background-gallery-empty {
   display: grid;
   place-items: center;
   min-height: 160px;
@@ -1564,7 +1570,7 @@ body[data-page="player"] .app-shell {
   width: min(58rem, 100%);
 }
 
-.player-hints.has-cover {
+.player-hints.has-background {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(12rem, 16rem);
   gap: 1rem;
@@ -1578,7 +1584,7 @@ body[data-page="player"] .app-shell {
   gap: 0.8rem;
 }
 
-.player-hints.has-cover .player-hints-list {
+.player-hints.has-background .player-hints-list {
   justify-content: flex-start;
 }
 
@@ -1594,7 +1600,7 @@ body[data-page="player"] .app-shell {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
-.player-hint-cover {
+.player-hint-background {
   justify-self: end;
   width: min(16rem, 100%);
 }
@@ -1609,7 +1615,7 @@ body[data-page="player"] .app-shell {
 }
 
 .player-hint img,
-.player-cover img {
+.player-background-tile img {
   display: block;
   width: min(16rem, 100%);
   margin: 0 auto;
@@ -1626,7 +1632,7 @@ body[data-page="player"] .app-shell {
   align-items: stretch;
 }
 
-.player-cover {
+.player-background-tile {
   display: grid;
   place-items: center;
   min-height: 100%;
@@ -1639,7 +1645,7 @@ body[data-page="player"] .app-shell {
   box-shadow: 0 24px 54px rgba(0, 0, 0, 0.28);
 }
 
-.player-cover .cover-thumb {
+.player-background-tile .cover-thumb {
   width: 8.6rem;
   height: 8.6rem;
   font-size: 2.2rem;
@@ -1677,7 +1683,7 @@ body[data-page="player"] .app-shell {
     min-height: 0;
   }
 
-  .covers-panel {
+  .backgrounds-panel {
     min-height: 0;
   }
 
@@ -1690,7 +1696,7 @@ body[data-page="player"] .app-shell {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .player-cover {
+  .player-background-tile {
     grid-column: span 3;
   }
 }
@@ -1758,11 +1764,11 @@ body[data-page="player"] .app-shell {
     flex: 1 1 auto;
   }
 
-  .player-hints.has-cover {
+  .player-hints.has-background {
     grid-template-columns: 1fr;
   }
 
-  .player-hint-cover {
+  .player-hint-background {
     justify-self: center;
   }
 
@@ -1770,7 +1776,7 @@ body[data-page="player"] .app-shell {
     grid-template-columns: 1fr;
   }
 
-  .player-cover {
+  .player-background-tile {
     grid-column: auto;
   }
 
@@ -1779,7 +1785,7 @@ body[data-page="player"] .app-shell {
     grid-template-columns: 1fr;
   }
 
-  .cover-field-row {
+  .background-field-row {
     align-items: stretch;
     flex-direction: column;
   }

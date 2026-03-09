@@ -103,7 +103,7 @@ def test_save_blindtest_inserts_then_updates(monkeypatch, tmp_path) -> None:
                     override_artist="Override artist",
                     override_album="Override album",
                     override_genre="Pop",
-                    override_cover="/covers/override.jpg",
+                    override_background="/covers/override.jpg",
                 )
             ],
         )
@@ -127,13 +127,13 @@ def test_save_blindtest_inserts_then_updates(monkeypatch, tmp_path) -> None:
             "source_album": None,
             "source_year": None,
             "source_genre": None,
-            "source_cover": None,
+            "source_background": None,
             "override_title": "Opening",
             "override_artist": None,
             "override_album": None,
             "override_year": 1999,
             "override_genre": None,
-            "override_cover": None,
+            "override_background": None,
             "custom_hint": "chorus",
         }
     ]
@@ -155,13 +155,13 @@ def test_save_blindtest_inserts_then_updates(monkeypatch, tmp_path) -> None:
             "source_album": None,
             "source_year": None,
             "source_genre": None,
-            "source_cover": None,
+            "source_background": None,
             "override_title": None,
             "override_artist": "Override artist",
             "override_album": "Override album",
             "override_year": None,
             "override_genre": "Pop",
-            "override_cover": "/covers/override.jpg",
+            "override_background": "/covers/override.jpg",
             "custom_hint": None,
         }
     ]
@@ -307,7 +307,7 @@ def test_save_blindtest_preserves_missing_slot_snapshot(monkeypatch, tmp_path) -
                     source_album="Lost album",
                     source_year=2004,
                     source_genre="Electro",
-                    source_cover="/covers/lost.jpg",
+                    source_background="/covers/lost.jpg",
                     custom_hint="important slide",
                 )
             ],
@@ -328,13 +328,13 @@ def test_save_blindtest_preserves_missing_slot_snapshot(monkeypatch, tmp_path) -
             "source_album": "Lost album",
             "source_year": 2004,
             "source_genre": "Electro",
-            "source_cover": "/covers/lost.jpg",
+            "source_background": "/covers/lost.jpg",
             "override_title": None,
             "override_artist": None,
             "override_album": None,
             "override_year": None,
             "override_genre": None,
-            "override_cover": None,
+            "override_background": None,
             "custom_hint": "important slide",
         }
     ]
@@ -615,8 +615,8 @@ def test_normalize_blindtest_media_updates_raw_image_paths(
                 song_id,
                 order_index,
                 slot_status,
-                source_cover,
-                override_cover
+                source_background,
+                override_background
             )
             VALUES (?, ?, ?, ?, ?, ?);
             """,
@@ -629,8 +629,10 @@ def test_normalize_blindtest_media_updates_raw_image_paths(
     assert updated == 2
     assert blindtest is not None
     assert blindtest["background_image"].startswith("/media/backgrounds/")
-    assert blindtest["songs"][0]["source_cover"].startswith("/media/covers/")
-    assert blindtest["songs"][0]["override_cover"].startswith("/media/covers/")
+    assert blindtest["songs"][0]["source_background"].startswith("/media/backgrounds/")
+    assert blindtest["songs"][0]["override_background"].startswith(
+        "/media/backgrounds/"
+    )
 
 
 def test_normalize_blindtest_media_leaves_public_paths_unchanged(
@@ -666,8 +668,8 @@ def test_normalize_blindtest_media_leaves_public_paths_unchanged(
                 song_id,
                 order_index,
                 slot_status,
-                source_cover,
-                override_cover
+                source_background,
+                override_background
             )
             VALUES (?, ?, ?, ?, ?, ?);
             """,
@@ -676,8 +678,8 @@ def test_normalize_blindtest_media_leaves_public_paths_unchanged(
                 None,
                 0,
                 "missing",
-                "/media/covers/source.jpg",
-                "/media/covers/override.jpg",
+                "/media/backgrounds/source.jpg",
+                "/media/backgrounds/override.jpg",
             ),
         )
 

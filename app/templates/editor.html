@@ -140,15 +140,28 @@
             Genre
             <input id="override-genre" name="override_genre" type="text" />
           </label>
-          <label class="cover-field">
-            Cover
-            <div class="cover-field-row">
-              <input id="override-cover" name="override_cover" type="text" />
-              <button id="preview-cover-button" class="button-secondary button-compact" type="button">
+          <label class="background-field">
+            Background
+            <div class="background-field-row">
+              <input
+                id="override-background"
+                name="override_background"
+                type="text"
+                readonly
+              />
+              <button
+                id="clear-background-button"
+                class="button-ghost button-compact background-clear-button"
+                type="button"
+                aria-label="Clear background"
+              >
+                x
+              </button>
+              <button id="preview-background-button" class="button-secondary button-compact" type="button">
                 Preview
               </button>
-              <button id="toggle-cover-panel-button" class="button-secondary button-compact" type="button">
-                Show covers
+              <button id="toggle-background-panel-button" class="button-secondary button-compact" type="button">
+                Show backgrounds
               </button>
             </div>
           </label>
@@ -210,14 +223,14 @@
       <div id="library-list" class="library-list"></div>
     </aside>
 
-    <aside class="covers-panel panel" aria-labelledby="covers-title" hidden>
+    <aside class="backgrounds-panel panel" aria-labelledby="backgrounds-title" hidden>
       <div class="panel-heading panel-heading-split">
-        <h2 id="covers-title">Covers</h2>
-        <button id="close-cover-panel-button" class="panel-close-button" type="button" aria-label="Hide covers">
+        <h2 id="backgrounds-title">Backgrounds</h2>
+        <button id="close-background-panel-button" class="panel-close-button" type="button" aria-label="Hide backgrounds">
           ×
         </button>
       </div>
-      <div id="cover-gallery" class="library-list cover-gallery"></div>
+      <div id="background-gallery" class="library-list background-gallery"></div>
     </aside>
   </section>
 
@@ -248,28 +261,28 @@
     </section>
   </div>
 
-  <div id="cover-preview-modal" class="modal-shell" hidden>
+  <div id="background-preview-modal" class="modal-shell" hidden>
     <div class="modal-backdrop" data-action="close"></div>
     <section
-      class="modal-card panel cover-preview-card"
+      class="modal-card panel background-preview-card"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="cover-preview-modal-title"
+      aria-labelledby="background-preview-modal-title"
     >
       <div class="panel-heading panel-heading-split">
-        <h2 id="cover-preview-modal-title">Cover preview</h2>
+        <h2 id="background-preview-modal-title">Background preview</h2>
         <button
-          id="close-cover-preview-modal-button"
+          id="close-background-preview-modal-button"
           class="panel-close-button"
           type="button"
-          aria-label="Close cover preview"
+          aria-label="Close background preview"
         >
           ×
         </button>
       </div>
-      <img id="cover-preview-image" class="cover-preview-image" alt="Cover preview" />
+      <img id="background-preview-image" class="background-preview-image" alt="Background preview" />
     </section>
   </div>
 
-  <script id="cover-gallery-data" type="application/json">{{ cover_gallery | tojson }}</script>
+  <script id="background-gallery-data" type="application/json">{{ background_gallery | tojson }}</script>
 {% endblock %}

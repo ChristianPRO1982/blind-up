@@ -20,13 +20,13 @@ CREATE TABLE IF NOT EXISTS blindtest_songs (
     source_album TEXT,
     source_year INTEGER,
     source_genre TEXT,
-    source_cover TEXT,
+    source_background TEXT,
     override_title TEXT,
     override_artist TEXT,
     override_album TEXT,
     override_year INTEGER,
     override_genre TEXT,
-    override_cover TEXT,
+    override_background TEXT,
     custom_hint TEXT,
     FOREIGN KEY (blindtest_id) REFERENCES blindtests(id),
     FOREIGN KEY (song_id) REFERENCES songs(id)
@@ -46,13 +46,13 @@ BLINDTEST_SONGS_COLUMNS = [
     "source_album",
     "source_year",
     "source_genre",
-    "source_cover",
+    "source_background",
     "override_title",
     "override_artist",
     "override_album",
     "override_year",
     "override_genre",
-    "override_cover",
+    "override_background",
     "custom_hint",
 ]
 
@@ -142,6 +142,8 @@ def _migrate_blindtest_songs(connection: sqlite3.Connection) -> None:
     if not original_columns:
         return
 
+    connection.execute("DROP TABLE IF EXISTS blindtest_songs_legacy;")
+
     connection.execute("ALTER TABLE blindtest_songs RENAME TO blindtest_songs_legacy;")
     connection.execute(BLINDTEST_SONGS_TABLE_SQL)
 
@@ -150,6 +152,14 @@ def _migrate_blindtest_songs(connection: sqlite3.Connection) -> None:
 
     def select_column(name: str, fallback: str) -> str:
         return f"blindtest_songs_legacy.{name}" if has_column(name) else fallback
+
+    def select_slot_background(column_name: str) -> str:
+        if has_column(column_name):
+            return f"blindtest_songs_legacy.{column_name}"
+        legacy_name = column_name.replace("_background", "_cover")
+        if has_column(legacy_name):
+            return f"blindtest_songs_legacy.{legacy_name}"
+        return "NULL"
 
     join_clause = ""
     if has_column("song_id"):
@@ -170,13 +180,13 @@ def _migrate_blindtest_songs(connection: sqlite3.Connection) -> None:
             source_album,
             source_year,
             source_genre,
-            source_cover,
+            source_background,
             override_title,
             override_artist,
             override_album,
             override_year,
             override_genre,
-            override_cover,
+            override_background,
             custom_hint
         )
         SELECT
@@ -192,13 +202,13 @@ def _migrate_blindtest_songs(connection: sqlite3.Connection) -> None:
             {select_column("source_album", "songs.album")},
             {select_column("source_year", "songs.year")},
             {select_column("source_genre", "songs.genre")},
-            {select_column("source_cover", "songs.cover_path")},
+            {select_slot_background("source_background")},
             blindtest_songs_legacy.override_title,
             blindtest_songs_legacy.override_artist,
             blindtest_songs_legacy.override_album,
             blindtest_songs_legacy.override_year,
             blindtest_songs_legacy.override_genre,
-            blindtest_songs_legacy.override_cover,
+            {select_slot_background("override_background")},
             blindtest_songs_legacy.custom_hint
         FROM blindtest_songs_legacy
         {join_clause};
