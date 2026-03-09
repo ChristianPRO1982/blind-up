@@ -259,7 +259,8 @@ The host can control the game using keyboard shortcuts.
 
 | Action                         | Keys                            |
 | ------------------------------ | ------------------------------- |
-| Next panel                     | Space / ArrowRight / ArrowDown  |
+| Play / Pause `La la la...`     | Space                           |
+| Next panel                     | ArrowRight / ArrowDown          |
 | Previous panel                 | ArrowLeft / ArrowUp / Backspace |
 | Toggle hints                   | Escape / I                      |
 | Toggle auto mode               | A                               |

@@ -389,7 +389,8 @@ The player supports keyboard shortcuts.
 
 | Action               | Keys                            |
 | -------------------- | ------------------------------- |
-| Next panel           | Space / ArrowRight / ArrowDown  |
+| Play / Pause         | Space                           |
+| Next panel           | ArrowRight / ArrowDown          |
 | Previous panel       | ArrowLeft / ArrowUp / Backspace |
 | Toggle hints         | Escape / I                      |
 | Toggle auto mode     | A                               |
@@ -408,6 +409,7 @@ Examples:
 ```text id="player_buttons"
 Next
 Previous
+Play / Pause
 Toggle hints
 Toggle auto
 Step

@@ -48,6 +48,16 @@
     return `${value || ""}`.trim();
   }
 
+  function appendMultilineText(container, value) {
+    const lines = `${value || ""}`.split(/\r?\n/);
+    lines.forEach((line, index) => {
+      if (index > 0) {
+        container.appendChild(document.createElement("br"));
+      }
+      container.appendChild(document.createTextNode(line));
+    });
+  }
+
   function blindtestUpdatedAtValue(blindtest) {
     const parsed = Date.parse(normalizeText(blindtest && blindtest.updated_at));
     return Number.isNaN(parsed) ? 0 : parsed;
@@ -590,6 +600,7 @@
         autoButton: document.getElementById("player-auto-button"),
         hintsButton: document.getElementById("player-hints-button"),
         prevButton: document.getElementById("player-prev-button"),
+        playPauseButton: document.getElementById("player-play-pause-button"),
         nextButton: document.getElementById("player-next-button"),
         stepButton: document.getElementById("player-step-button"),
         background: document.getElementById("player-background"),
@@ -650,6 +661,7 @@
       this.playerAudioContext = null;
       this.playerExitReturnFocus = null;
       this.playerAnswerElements = null;
+      this.playerTeaserSession = null;
       window.addEventListener("resize", () => {
         if (this.page === "editor" && this.wavesurfer !== null) {
           this.resetZoom();
@@ -890,6 +902,11 @@
       }
       if (this.playerElements.prevButton !== null) {
         this.playerElements.prevButton.addEventListener("click", () => this.handlePlayerPrevious());
+      }
+      if (this.playerElements.playPauseButton !== null) {
+        this.playerElements.playPauseButton.addEventListener("click", () =>
+          this.togglePlayerPlayback()
+        );
       }
       if (this.playerElements.nextButton !== null) {
         this.playerElements.nextButton.addEventListener("click", () => this.handlePlayerNext());
@@ -2330,7 +2347,12 @@
       }
 
       const key = event.key;
-      if (key === " " || key === "ArrowRight" || key === "ArrowDown") {
+      if (key === " ") {
+        event.preventDefault();
+        this.togglePlayerPlayback();
+        return;
+      }
+      if (key === "ArrowRight" || key === "ArrowDown") {
         event.preventDefault();
         this.handlePlayerNext();
         return;
@@ -2410,6 +2432,24 @@
       this.playerState.hints_visible = !this.playerState.hints_visible;
       this.updatePlayerControls();
       this.renderPlayerHints();
+    }
+
+    togglePlayerPlayback() {
+      if (
+        this.playerState === null ||
+        this.playerState.panel !== "La la la..." ||
+        this.playerTeaserSession === null ||
+        this.playerTeaserSession.status === "finished"
+      ) {
+        return;
+      }
+
+      if (this.playerTeaserSession.status === "paused") {
+        this.resumeTeaserSession();
+        return;
+      }
+
+      this.pauseTeaserSession();
     }
 
     handlePlayerPrevious() {
@@ -2520,11 +2560,17 @@
       this.playerHintRevealCount = 0;
       this.clearPlayerError();
       this.renderPlayerBase();
-      this.updatePlayerControls();
 
       if (this.playerState === null) {
+        this.playerTeaserSession = null;
+        this.updatePlayerControls();
         return;
       }
+
+      if (this.playerState.panel !== "La la la...") {
+        this.playerTeaserSession = null;
+      }
+      this.updatePlayerControls();
 
       const song = this.getCurrentPlayerSong();
       if (this.playerState.panel === "waiting") {
@@ -2547,7 +2593,7 @@
       if (this.playerState.panel === "La la la...") {
         this.setPlayerBackground(song ? this.getSongCover(song) : this.blindtest.background_image);
         this.playerElements.panelLabel.textContent = "La la la...";
-        this.playerElements.mainTitle.textContent = "BLINDUP";
+        this.playerElements.mainTitle.textContent = this.getPlayerModeLabel();
         this.playerElements.subtitle.textContent =
           this.playerState.current_round === 3
             ? `Step ${this.playerState.round3_step_index + 1} / ${this.getRound3Steps().length}`
@@ -2602,6 +2648,16 @@
       this.playerElements.stepButton.disabled =
         !showStep ||
         this.playerState.round3_step_index >= this.getRound3Steps().length - 1;
+
+      const showPlayPause =
+        this.playerState !== null &&
+        this.playerState.panel === "La la la..." &&
+        this.playerTeaserSession !== null &&
+        this.playerTeaserSession.status !== "finished";
+      this.playerElements.playPauseButton.hidden = !showPlayPause;
+      this.playerElements.playPauseButton.disabled = !showPlayPause;
+      this.playerElements.playPauseButton.textContent =
+        showPlayPause && this.playerTeaserSession.status === "paused" ? "Play" : "Pause";
     }
 
     getPlayerPositionText() {
@@ -2670,6 +2726,10 @@
       return normalizeText(song.override_cover) || normalizeText(song.source.cover_path) || "";
     }
 
+    getPlayerModeLabel() {
+      return this.blindtest.game_mode === "blindup" ? "BLIND UP" : "BLIND TEST";
+    }
+
     setPlayerBackground(imagePath) {
       const background = this.playerElements.background;
       const normalizedPath = normalizeText(imagePath);
@@ -2728,10 +2788,12 @@
 
     startTeaserPanel(token, song) {
       if (this.isSlotMissing(song)) {
+        this.playerTeaserSession = null;
         this.playerHintDefinitions = [];
         this.playerHintRevealCount = 0;
         this.renderPlayerHints();
         this.showPlayerError();
+        this.updatePlayerControls();
         return;
       }
 
@@ -2740,37 +2802,133 @@
       this.playerHintRevealCount = 0;
       this.renderPlayerHints();
       const delay = this.getPrePlayDelay();
-
+      this.playerTeaserSession = {
+        token,
+        song_id: song.song_id,
+        playback,
+        delay_remaining_sec: delay,
+        playback_elapsed_sec: 0,
+        status: "playing",
+        phase: delay > 0 ? "delay" : "audio",
+        phase_started_at: Date.now(),
+      };
+      this.updatePlayerControls();
       if (delay > 0) {
         this.startCountdown(delay, token);
+        this.playerPrePlayTimeout = window.setTimeout(() => {
+          if (
+            token !== this.playerPanelToken ||
+            this.playerTeaserSession === null ||
+            this.playerTeaserSession.token !== token ||
+            this.playerTeaserSession.status !== "playing"
+          ) {
+            return;
+          }
+          this.beginTeaserAudioPhase();
+        }, delay * 1000);
+        return;
+      }
+      this.beginTeaserAudioPhase();
+    }
+
+    beginTeaserAudioPhase() {
+      const session = this.playerTeaserSession;
+      if (session === null) {
+        return;
       }
 
-      this.playerPrePlayTimeout = window.setTimeout(() => {
-        if (token !== this.playerPanelToken) {
-          return;
-        }
-        this.startCountdown(playback.duration, token);
-        this.startHintTracking(playback.duration, token);
-        if (playback.duration <= 0) {
-          this.handleTeaserPlaybackComplete(token);
-          return;
-        }
-        if (playback.reverse) {
-          this.playReverseSegment(song.song_id, playback.start, playback.duration, token, () => {
-            this.handleTeaserPlaybackComplete(token);
-          });
-          return;
-        }
-        this.playNormalAudio(
-          song.song_id,
-          playback.start,
-          playback.start + playback.duration,
-          token,
+      session.phase = "audio";
+      session.phase_started_at = Date.now();
+
+      const remainingDuration = Math.max(0, session.playback.duration - session.playback_elapsed_sec);
+      this.startCountdown(remainingDuration, session.token);
+      this.startHintTracking(session.playback.duration, session.token, session.playback_elapsed_sec);
+      if (remainingDuration <= 0) {
+        session.status = "finished";
+        this.updatePlayerControls();
+        this.handleTeaserPlaybackComplete(session.token);
+        return;
+      }
+
+      if (session.playback.reverse) {
+        this.playReverseSegment(
+          session.song_id,
+          session.playback.start,
+          remainingDuration,
+          session.token,
           () => {
-            this.handleTeaserPlaybackComplete(token);
+            this.finishTeaserSession(session.token);
           }
         );
-      }, delay * 1000);
+        return;
+      }
+
+      this.playNormalAudio(
+        session.song_id,
+        session.playback.start + session.playback_elapsed_sec,
+        session.playback.start + session.playback.duration,
+        session.token,
+        () => {
+          this.finishTeaserSession(session.token);
+        }
+      );
+    }
+
+    finishTeaserSession(token) {
+      if (this.playerTeaserSession !== null && this.playerTeaserSession.token === token) {
+        this.playerTeaserSession.playback_elapsed_sec = this.playerTeaserSession.playback.duration;
+        this.playerTeaserSession.status = "finished";
+        this.playerTeaserSession.phase = "finished";
+      }
+      this.updatePlayerControls();
+      this.handleTeaserPlaybackComplete(token);
+    }
+
+    pauseTeaserSession() {
+      const session = this.playerTeaserSession;
+      if (session === null || session.status !== "playing") {
+        return;
+      }
+
+      const elapsedSincePhaseStart = (Date.now() - session.phase_started_at) / 1000;
+      if (session.phase === "delay") {
+        session.delay_remaining_sec = Math.max(0, session.delay_remaining_sec - elapsedSincePhaseStart);
+      } else if (session.phase === "audio") {
+        session.playback_elapsed_sec = Math.min(
+          session.playback.duration,
+          session.playback_elapsed_sec + elapsedSincePhaseStart
+        );
+      }
+
+      session.status = "paused";
+      this.stopPlayerPlayback();
+      this.updatePlayerControls();
+    }
+
+    resumeTeaserSession() {
+      const session = this.playerTeaserSession;
+      if (session === null || session.status !== "paused") {
+        return;
+      }
+
+      session.status = "playing";
+      session.phase_started_at = Date.now();
+      if (session.phase === "delay") {
+        this.startCountdown(session.delay_remaining_sec, session.token);
+        this.playerPrePlayTimeout = window.setTimeout(() => {
+          if (
+            this.playerTeaserSession === null ||
+            this.playerTeaserSession.token !== session.token ||
+            this.playerTeaserSession.status !== "playing"
+          ) {
+            return;
+          }
+          this.beginTeaserAudioPhase();
+        }, session.delay_remaining_sec * 1000);
+      } else if (session.phase === "audio") {
+        this.beginTeaserAudioPhase();
+      }
+      this.updatePlayerControls();
     }
 
     handleTeaserPlaybackComplete(token) {
@@ -2839,6 +2997,7 @@
         !this.playerState.hints_visible ||
         this.playerHintRevealCount === 0
       ) {
+        this.playerElements.hints.classList.remove("has-cover");
         this.playerElements.hints.hidden = true;
         this.playerElements.hints.innerHTML = "";
         return;
@@ -2846,6 +3005,7 @@
 
       const hints = this.playerHintDefinitions.slice(0, this.playerHintRevealCount);
       if (hints.length === 0) {
+        this.playerElements.hints.classList.remove("has-cover");
         this.playerElements.hints.hidden = true;
         this.playerElements.hints.innerHTML = "";
         return;
@@ -2853,28 +3013,49 @@
 
       this.playerElements.hints.hidden = false;
       this.playerElements.hints.innerHTML = "";
-      for (const hint of hints) {
+      const coverHint = hints.find((hint) => hint.type === "cover") || null;
+      const textHints = hints.filter((hint) => hint.type !== "cover");
+      const textList = document.createElement("div");
+      textList.className = "player-hints-list";
+      if (coverHint !== null) {
+        this.playerElements.hints.classList.add("has-cover");
+      } else {
+        this.playerElements.hints.classList.remove("has-cover");
+      }
+
+      for (const hint of textHints) {
         const hintNode = document.createElement("div");
         hintNode.className = "player-hint";
         const label = document.createElement("span");
         label.className = "player-hint-label";
         label.textContent = hint.label;
         hintNode.appendChild(label);
-        if (hint.type === "cover") {
-          const image = document.createElement("img");
-          image.alt = hint.label;
-          image.src = hint.value;
-          hintNode.appendChild(image);
-        } else {
-          const value = document.createElement("div");
-          value.textContent = hint.value;
-          hintNode.appendChild(value);
-        }
-        this.playerElements.hints.appendChild(hintNode);
+        const value = document.createElement("div");
+        appendMultilineText(value, hint.value);
+        hintNode.appendChild(value);
+        textList.appendChild(hintNode);
+      }
+
+      if (textHints.length > 0) {
+        this.playerElements.hints.appendChild(textList);
+      }
+
+      if (coverHint !== null) {
+        const coverNode = document.createElement("div");
+        coverNode.className = "player-hint player-hint-cover";
+        const label = document.createElement("span");
+        label.className = "player-hint-label";
+        label.textContent = coverHint.label;
+        const image = document.createElement("img");
+        image.alt = coverHint.label;
+        image.src = coverHint.value;
+        coverNode.appendChild(label);
+        coverNode.appendChild(image);
+        this.playerElements.hints.appendChild(coverNode);
       }
     }
 
-    startHintTracking(durationSec, token) {
+    startHintTracking(durationSec, token, initialElapsedSec = 0) {
       const startedAt = Date.now();
       if (this.playerHintInterval !== null) {
         window.clearInterval(this.playerHintInterval);
@@ -2883,7 +3064,10 @@
         if (token !== this.playerPanelToken) {
           return;
         }
-        const elapsedSec = Math.min(durationSec, (Date.now() - startedAt) / 1000);
+        const elapsedSec = Math.min(
+          durationSec,
+          initialElapsedSec + (Date.now() - startedAt) / 1000
+        );
         const revealCount = Math.min(
           this.playerHintDefinitions.length,
           Math.floor(elapsedSec / 5)
@@ -3085,6 +3269,7 @@
       this.playerAudio.pause();
       if (this.playerReverseSource !== null) {
         try {
+          this.playerReverseSource.onended = null;
           this.playerReverseSource.stop();
         } catch (error) {
           void error;
