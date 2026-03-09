@@ -131,7 +131,7 @@ The database may store these public app-relative paths, but never paths that are
 
 # Waveform Editing
 
-Waveform rendering and teaser editing are handled using:
+Waveform rendering and `La la la...` editing are handled using:
 
 * **WaveSurfer.js v7**
 * **Regions plugin**
@@ -142,7 +142,7 @@ WaveSurfer provides:
 * playback controls
 * region editing
 
-Regions represent the teaser segment.
+Regions represent the `La la la...` segment.
 
 Example:
 
@@ -160,7 +160,7 @@ Reverse playback used in **Round 2** is performed in the frontend.
 Steps:
 
 1. Load the audio buffer
-2. Extract the teaser segment
+2. Extract the `La la la...` segment
 3. Reverse the audio buffer
 4. Play the reversed segment
 
@@ -270,7 +270,7 @@ Responsibilities:
 
 * panel transitions
 * timers
-* teaser playback
+* `La la la...` playback
 * hint timing
 * keyboard shortcuts
 

@@ -53,7 +53,7 @@ A blindtest is a collection of songs configured for gameplay.
 A blindtest defines:
 
 * the order of songs
-* teaser segments for each song
+* `La la la...` segments for each song
 * optional metadata overrides
 * gameplay parameters
 
@@ -67,8 +67,8 @@ If a blindtest uses a background image, that image must also be referenced throu
 
 Each song inside a blindtest defines:
 
-* `start_sec` — starting point of the teaser
-* `duration_sec` — teaser duration
+* `start_sec` — starting point of the `La la la...`
+* `duration_sec` — `La la la...` duration
 * optional metadata overrides
 * an optional **custom hint**
 
@@ -115,16 +115,16 @@ Songs are played in the order defined by the blindtest creator.
 Gameplay:
 
 1. Waiting panel
-2. Teaser playback
+2. `La la la...` playback
 3. Answer panel
 
-Teaser behaviour:
+`La la la...` behaviour:
 
 * playback starts after a configurable delay
-* the teaser plays **once**
-* the teaser segment is defined by `start_sec` and `duration_sec`
+* the `La la la...` plays **once**
+* the `La la la...` segment is defined by `start_sec` and `duration_sec`
 
-Hints may appear during the teaser.
+Hints may appear during the `La la la...`.
 
 ---
 
@@ -132,14 +132,14 @@ Hints may appear during the teaser.
 
 Songs are played in **random order**.
 
-Teaser behaviour:
+`La la la...` behaviour:
 
 * the same segment as round 1
 * audio is **played in reverse**
 
 Answer panel behaviour:
 
-* the same teaser segment is played **normally**
+* the same `La la la...` segment is played **normally**
 * the full song is not played
 
 Hints:
@@ -153,7 +153,7 @@ Hints:
 
 Songs are played in **random order**.
 
-The teaser is played using **progressive durations**.
+The `La la la...` is played using **progressive durations**.
 
 Example preset:
 
@@ -167,7 +167,7 @@ Example preset:
 5
 ```
 
-The host can advance the teaser duration manually.
+The host can advance the `La la la...` duration manually.
 
 A pause occurs between steps.
 
@@ -213,7 +213,7 @@ start_sec = 60
 
 # Hints
 
-Hints may appear progressively during a teaser.
+Hints may appear progressively during a `La la la...`.
 
 Possible hints:
 
@@ -244,7 +244,7 @@ BlindUp supports an **Auto mode**.
 
 When Auto is enabled:
 
-* teaser → answer transitions occur automatically
+* `La la la...` → answer transitions occur automatically
 * answer → next song transitions occur automatically
 
 Answer panels can display a countdown timer.

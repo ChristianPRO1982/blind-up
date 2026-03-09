@@ -727,7 +727,7 @@ body.modal-open {
   display: grid;
   gap: 0.85rem;
   align-content: start;
-  max-height: 800px;
+  max-height: 1000px;
   overflow-y: auto;
 }
 
@@ -1328,22 +1328,29 @@ body.modal-open {
 }
 
 .player-layout {
-  min-height: calc(100vh - 4rem);
+  height: 100%;
+  min-height: 0;
 }
 
 body[data-page="player"] .page-header {
   display: none;
 }
 
+body[data-page="player"] {
+  overflow: hidden;
+}
+
 body[data-page="player"] .app-shell {
   width: min(1560px, calc(100vw - 1rem));
-  margin-top: 0.5rem;
+  height: calc(100dvh - 1rem);
+  margin: 0.5rem auto;
 }
 
 .player-shell {
   position: relative;
   overflow: hidden;
-  min-height: calc(100vh - 2rem);
+  height: 100%;
+  min-height: 0;
   padding: 0;
   border-radius: 1.8rem;
   box-shadow: 0 36px 96px rgba(2, 6, 15, 0.56);
@@ -1380,10 +1387,12 @@ body[data-page="player"] .app-shell {
 .player-overlay {
   position: relative;
   z-index: 1;
-  display: flex;
-  min-height: calc(100vh - 2rem);
-  flex-direction: column;
-  padding: 1.25rem;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100%;
+  min-height: 0;
+  gap: 0.9rem;
+  padding: 1rem;
 }
 
 .player-toolbar,
@@ -1406,10 +1415,11 @@ body[data-page="player"] .app-shell {
 .player-stage {
   display: grid;
   place-items: center;
-  flex: 1;
-  gap: 1rem;
-  padding: 2.2rem 0;
+  min-height: 0;
+  gap: 0.8rem;
+  padding: 1.2rem 0;
   text-align: center;
+  overflow: hidden;
 }
 
 .player-panel-label {
@@ -1436,7 +1446,7 @@ body[data-page="player"] .app-shell {
 
 .player-main-title {
   max-width: 14ch;
-  font-size: clamp(3rem, 10vw, 6.8rem);
+  font-size: clamp(2.8rem, 9vw, 6.1rem);
   line-height: 0.9;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1447,7 +1457,7 @@ body[data-page="player"] .app-shell {
 
 .player-subtitle {
   max-width: 48rem;
-  font-size: clamp(1rem, 2vw, 1.24rem);
+  font-size: clamp(0.98rem, 1.8vw, 1.18rem);
 }
 
 .player-countdown,
@@ -1507,9 +1517,9 @@ body[data-page="player"] .app-shell {
 
 .player-answer {
   display: grid;
-  gap: 1.25rem;
+  gap: 1rem;
   width: min(56rem, 100%);
-  padding: 1.55rem;
+  padding: 1.25rem;
   border: 1px solid rgba(129, 180, 255, 0.18);
   border-radius: 1.55rem;
   background:
@@ -1593,7 +1603,7 @@ body[data-page="player"] .app-shell {
 
   .player-shell,
   .player-overlay {
-    min-height: calc(100vh - 1rem);
+    min-height: 0;
   }
 
   .home-brand-panel,
@@ -1611,7 +1621,8 @@ body[data-page="player"] .app-shell {
 
   body[data-page="player"] .app-shell {
     width: calc(100vw - 0.4rem);
-    margin-top: 0.2rem;
+    height: calc(100dvh - 0.4rem);
+    margin: 0.2rem auto;
   }
 
   .page-header,

@@ -24,31 +24,7 @@
           <p id="player-countdown" class="player-countdown" hidden></p>
           <p id="player-error" class="player-error" hidden>Schrouunntch</p>
           <div id="player-hints" class="player-hints" hidden></div>
-          <div id="player-answer" class="player-answer" hidden>
-            <div id="player-cover" class="player-cover"></div>
-            <dl class="player-answer-grid">
-              <div>
-                <dt>Title</dt>
-                <dd id="player-answer-title"></dd>
-              </div>
-              <div>
-                <dt>Artist</dt>
-                <dd id="player-answer-artist"></dd>
-              </div>
-              <div>
-                <dt>Album</dt>
-                <dd id="player-answer-album"></dd>
-              </div>
-              <div>
-                <dt>Year</dt>
-                <dd id="player-answer-year"></dd>
-              </div>
-              <div>
-                <dt>Genre</dt>
-                <dd id="player-answer-genre"></dd>
-              </div>
-            </dl>
-          </div>
+          <div id="player-answer-host"></div>
         </section>
 
         <footer class="player-controls">
@@ -59,4 +35,33 @@
       </div>
     </div>
   </section>
+
+  <div id="player-exit-modal" class="modal-shell" hidden>
+    <div class="modal-backdrop" data-action="close"></div>
+    <section
+      class="modal-card panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="player-exit-modal-title"
+    >
+      <div class="panel-heading panel-heading-split">
+        <h2 id="player-exit-modal-title">Leave game</h2>
+        <button
+          id="close-player-exit-modal-button"
+          class="panel-close-button"
+          type="button"
+          aria-label="Close exit confirmation"
+        >
+          ×
+        </button>
+      </div>
+      <p class="modal-copy">
+        Return to the editor? The current game panel will close, but the blindtest draft stays available.
+      </p>
+      <div class="modal-actions">
+        <button id="cancel-player-exit-button" class="button-secondary" type="button">Stay here</button>
+        <button id="confirm-player-exit-button" class="button-danger" type="button">Back to editor</button>
+      </div>
+    </section>
+  </div>
 {% endblock %}

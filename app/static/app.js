@@ -601,13 +601,11 @@
         countdown: document.getElementById("player-countdown"),
         error: document.getElementById("player-error"),
         hints: document.getElementById("player-hints"),
-        answer: document.getElementById("player-answer"),
-        cover: document.getElementById("player-cover"),
-        answerTitle: document.getElementById("player-answer-title"),
-        answerArtist: document.getElementById("player-answer-artist"),
-        answerAlbum: document.getElementById("player-answer-album"),
-        answerYear: document.getElementById("player-answer-year"),
-        answerGenre: document.getElementById("player-answer-genre"),
+        answerHost: document.getElementById("player-answer-host"),
+        exitModal: document.getElementById("player-exit-modal"),
+        closeExitModalButton: document.getElementById("close-player-exit-modal-button"),
+        cancelExitButton: document.getElementById("cancel-player-exit-button"),
+        confirmExitButton: document.getElementById("confirm-player-exit-button"),
       };
       this.page = document.body.dataset.page || "home";
       this.pageBlindtestId = numberOrNull(document.body.dataset.blindtestId);
@@ -650,6 +648,8 @@
       this.playerAudioCleanup = null;
       this.playerReverseSource = null;
       this.playerAudioContext = null;
+      this.playerExitReturnFocus = null;
+      this.playerAnswerElements = null;
       window.addEventListener("resize", () => {
         if (this.page === "editor" && this.wavesurfer !== null) {
           this.resetZoom();
@@ -880,7 +880,7 @@
 
     bindPlayerControls() {
       if (this.playerElements.backButton !== null) {
-        this.playerElements.backButton.addEventListener("click", () => this.showEditorView());
+        this.playerElements.backButton.addEventListener("click", () => this.openPlayerExitModal());
       }
       if (this.playerElements.autoButton !== null) {
         this.playerElements.autoButton.addEventListener("click", () => this.togglePlayerAuto());
@@ -896,6 +896,29 @@
       }
       if (this.playerElements.stepButton !== null) {
         this.playerElements.stepButton.addEventListener("click", () => this.advanceRound3Step());
+      }
+      if (this.playerElements.exitModal !== null) {
+        this.playerElements.exitModal.addEventListener("click", (event) => {
+          const action = event.target.closest("[data-action='close']");
+          if (action !== null || event.target === this.playerElements.exitModal) {
+            this.closePlayerExitModal();
+          }
+        });
+      }
+      if (this.playerElements.closeExitModalButton !== null) {
+        this.playerElements.closeExitModalButton.addEventListener("click", () => {
+          this.closePlayerExitModal();
+        });
+      }
+      if (this.playerElements.cancelExitButton !== null) {
+        this.playerElements.cancelExitButton.addEventListener("click", () => {
+          this.closePlayerExitModal();
+        });
+      }
+      if (this.playerElements.confirmExitButton !== null) {
+        this.playerElements.confirmExitButton.addEventListener("click", () => {
+          this.confirmPlayerExit();
+        });
       }
       document.addEventListener("keydown", (event) => this.handlePlayerKeydown(event));
     }
@@ -2098,7 +2121,7 @@
       this.playerElements.subtitle.textContent = "Open the player from the editor.";
       this.playerElements.position.textContent = "";
       this.playerElements.hints.hidden = true;
-      this.playerElements.answer.hidden = true;
+      this.clearPlayerAnswer();
       this.playerElements.countdown.hidden = true;
       this.playerElements.error.hidden = true;
       this.playerElements.stepButton.hidden = true;
@@ -2289,7 +2312,17 @@
     }
 
     handlePlayerKeydown(event) {
-      if (this.currentView !== "player" || this.playerState === null) {
+      if (this.currentView !== "player") {
+        return;
+      }
+      if (this.isPlayerExitModalOpen()) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          this.closePlayerExitModal();
+        }
+        return;
+      }
+      if (this.playerState === null) {
         return;
       }
       if (event.altKey || event.ctrlKey || event.metaKey) {
@@ -2321,6 +2354,45 @@
         event.preventDefault();
         this.advanceRound3Step();
       }
+    }
+
+    isPlayerExitModalOpen() {
+      return (
+        this.playerElements.exitModal !== null &&
+        this.playerElements.exitModal.hidden === false
+      );
+    }
+
+    openPlayerExitModal() {
+      if (this.playerElements.exitModal === null || this.isPlayerExitModalOpen()) {
+        return;
+      }
+
+      this.playerExitReturnFocus =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      this.playerElements.exitModal.hidden = false;
+      document.body.classList.add("modal-open");
+      if (this.playerElements.cancelExitButton !== null) {
+        this.playerElements.cancelExitButton.focus();
+      }
+    }
+
+    closePlayerExitModal() {
+      if (this.playerElements.exitModal === null || !this.isPlayerExitModalOpen()) {
+        return;
+      }
+
+      this.playerElements.exitModal.hidden = true;
+      document.body.classList.remove("modal-open");
+      if (this.playerExitReturnFocus instanceof HTMLElement) {
+        this.playerExitReturnFocus.focus();
+      }
+      this.playerExitReturnFocus = null;
+    }
+
+    confirmPlayerExit() {
+      this.closePlayerExitModal();
+      this.showEditorView();
     }
 
     togglePlayerAuto() {
@@ -2358,7 +2430,7 @@
         if (this.getSongsForRound(1).length === 0) {
           this.playerState.panel = "end";
         } else {
-          this.playerState.panel = "teaser";
+          this.playerState.panel = "La la la...";
         }
         this.playerState.current_round = 1;
         this.playerState.current_song_index = 0;
@@ -2369,14 +2441,14 @@
 
       if (this.playerState.panel === "round_transition") {
         this.pushPlayerHistory();
-        this.playerState.panel = "teaser";
+        this.playerState.panel = "La la la...";
         this.playerState.current_song_index = 0;
         this.playerState.round3_step_index = 0;
         this.enterCurrentPlayerPanel();
         return;
       }
 
-      if (this.playerState.panel === "teaser") {
+      if (this.playerState.panel === "La la la...") {
         this.pushPlayerHistory();
         this.playerState.panel = "answer";
         this.enterCurrentPlayerPanel();
@@ -2404,7 +2476,7 @@
       const roundSongs = this.getSongsForRound(this.playerState.current_round);
       if (this.playerState.current_song_index + 1 < roundSongs.length) {
         this.playerState.current_song_index += 1;
-        this.playerState.panel = "teaser";
+        this.playerState.panel = "La la la...";
         this.playerState.round3_step_index = 0;
         this.enterCurrentPlayerPanel();
         return;
@@ -2426,7 +2498,7 @@
     advanceRound3Step() {
       if (
         this.playerState === null ||
-        this.playerState.panel !== "teaser" ||
+        this.playerState.panel !== "La la la..." ||
         this.playerState.current_round !== 3
       ) {
         return;
@@ -2472,9 +2544,9 @@
         return;
       }
 
-      if (this.playerState.panel === "teaser") {
+      if (this.playerState.panel === "La la la...") {
         this.setPlayerBackground(song ? this.getSongCover(song) : this.blindtest.background_image);
-        this.playerElements.panelLabel.textContent = "Teaser";
+        this.playerElements.panelLabel.textContent = "La la la...";
         this.playerElements.mainTitle.textContent = "BLINDUP";
         this.playerElements.subtitle.textContent =
           this.playerState.current_round === 3
@@ -2503,7 +2575,7 @@
     }
 
     renderPlayerBase() {
-      this.playerElements.answer.hidden = true;
+      this.clearPlayerAnswer();
       this.playerElements.hints.hidden = true;
       this.playerElements.hints.innerHTML = "";
       this.playerElements.countdown.hidden = true;
@@ -2524,7 +2596,7 @@
       this.playerElements.prevButton.disabled = this.playerHistory.length === 0;
       const showStep =
         this.playerState !== null &&
-        this.playerState.panel === "teaser" &&
+        this.playerState.panel === "La la la..." &&
         this.playerState.current_round === 3;
       this.playerElements.stepButton.hidden = !showStep;
       this.playerElements.stepButton.disabled =
@@ -2825,26 +2897,89 @@
 
     fillPlayerAnswer(song) {
       const display = this.getSongDisplay(song);
-      this.playerElements.answer.hidden = false;
+      const answer = this.ensurePlayerAnswerElements();
       this.playerElements.mainTitle.textContent = display.title;
       this.playerElements.subtitle.textContent = display.artist;
-      this.playerElements.answerTitle.textContent = display.title;
-      this.playerElements.answerArtist.textContent = display.artist || " ";
-      this.playerElements.answerAlbum.textContent = display.album || " ";
-      this.playerElements.answerYear.textContent = display.year || " ";
-      this.playerElements.answerGenre.textContent = display.genre || " ";
-      this.playerElements.cover.innerHTML = "";
+      answer.title.textContent = display.title;
+      answer.artist.textContent = display.artist || " ";
+      answer.album.textContent = display.album || " ";
+      answer.year.textContent = display.year || " ";
+      answer.genre.textContent = display.genre || " ";
+      answer.cover.innerHTML = "";
       const coverPath = this.getSongCover(song);
       if (coverPath) {
         const image = document.createElement("img");
         image.src = coverPath;
         image.alt = display.title;
-        this.playerElements.cover.appendChild(image);
+        answer.cover.appendChild(image);
         return;
       }
-      this.playerElements.cover.appendChild(
+      answer.cover.appendChild(
         this.createCoverThumb({ title: display.title || "Song" })
       );
+    }
+
+    ensurePlayerAnswerElements() {
+      if (this.playerAnswerElements !== null) {
+        return this.playerAnswerElements;
+      }
+
+      const host = this.playerElements.answerHost;
+      if (host === null) {
+        return {
+          root: null,
+          cover: document.createElement("div"),
+          title: document.createElement("dd"),
+          artist: document.createElement("dd"),
+          album: document.createElement("dd"),
+          year: document.createElement("dd"),
+          genre: document.createElement("dd"),
+        };
+      }
+
+      const answer = document.createElement("div");
+      answer.id = "player-answer";
+      answer.className = "player-answer";
+
+      const cover = document.createElement("div");
+      cover.id = "player-cover";
+      cover.className = "player-cover";
+      answer.appendChild(cover);
+
+      const grid = document.createElement("dl");
+      grid.className = "player-answer-grid";
+
+      const fields = [
+        ["Title", "player-answer-title", "title"],
+        ["Artist", "player-answer-artist", "artist"],
+        ["Album", "player-answer-album", "album"],
+        ["Year", "player-answer-year", "year"],
+        ["Genre", "player-answer-genre", "genre"],
+      ];
+      const elements = { root: answer, cover };
+      for (const [labelText, elementId, key] of fields) {
+        const item = document.createElement("div");
+        const label = document.createElement("dt");
+        label.textContent = labelText;
+        const value = document.createElement("dd");
+        value.id = elementId;
+        item.appendChild(label);
+        item.appendChild(value);
+        grid.appendChild(item);
+        elements[key] = value;
+      }
+
+      answer.appendChild(grid);
+      host.replaceChildren(answer);
+      this.playerAnswerElements = elements;
+      return this.playerAnswerElements;
+    }
+
+    clearPlayerAnswer() {
+      if (this.playerElements.answerHost !== null) {
+        this.playerElements.answerHost.replaceChildren();
+      }
+      this.playerAnswerElements = null;
     }
 
     startAnswerPanel(token, song) {

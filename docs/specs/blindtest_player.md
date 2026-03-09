@@ -5,7 +5,7 @@ This document defines the **game player panel** responsible for running a blindt
 The player controls:
 
 * panel transitions
-* teaser playback
+* `La la la...` playback
 * hint timing
 * automatic transitions
 * round logic
@@ -66,7 +66,7 @@ Panels:
 
 * waiting
 * round_transition
-* teaser
+* `La la la...`
 * answer
 * end
 
@@ -105,9 +105,9 @@ The host presses **Next** to continue.
 
 ---
 
-# Teaser Panel
+# La la la... Panel
 
-Displays the teaser for the current song.
+Displays the `La la la...` for the current song.
 
 Elements:
 
@@ -122,11 +122,11 @@ The player must not try to render raw local filesystem paths.
 
 Audio playback starts after the **pre_play_delay_sec**.
 
-The teaser audio plays **once**.
+The `La la la...` audio plays **once**.
 
 If the current slot is missing:
 
-* teaser audio is unavailable
+* `La la la...` audio is unavailable
 * the panel displays the usual playback error state
 * the host may continue manually
 
@@ -178,7 +178,7 @@ Song order:
 defined order
 ```
 
-Teaser playback:
+`La la la...` playback:
 
 ```text id="round1_play"
 start_sec → start_sec + duration_sec
@@ -206,17 +206,17 @@ Song order:
 random
 ```
 
-Teaser playback:
+`La la la...` playback:
 
 1. load audio buffer
-2. extract teaser segment
+2. extract `La la la...` segment
 3. reverse audio
 4. play reversed segment
 
 Answer playback:
 
 ```text id="round2_answer"
-normal teaser segment
+normal `La la la...` segment
 ```
 
 If the slot is missing:
@@ -235,7 +235,7 @@ Song order:
 random
 ```
 
-Teaser durations are defined by:
+`La la la...` durations are defined by:
 
 ```text id="round3_steps"
 round3_step_durations
@@ -255,7 +255,7 @@ Example:
 
 If the slot is missing:
 
-* no teaser step can be played
+* no `La la la...` step can be played
 * the host can still advance panels manually
 * the answer panel uses preserved metadata only
 
@@ -265,7 +265,7 @@ If the slot is missing:
 
 The host may manually trigger the next step.
 
-Each step plays the teaser using the configured duration.
+Each step plays the `La la la...` using the configured duration.
 
 ---
 
@@ -349,7 +349,7 @@ Auto mode controls transitions.
 
 When enabled:
 
-* teaser → answer
+* `La la la...` → answer
 * answer → next song
 
 Answer panels use a timer.
@@ -366,7 +366,7 @@ Example:
 
 When auto mode is active:
 
-* teaser steps progress automatically
+* `La la la...` steps progress automatically
 * pauses occur between steps
 
 Example:

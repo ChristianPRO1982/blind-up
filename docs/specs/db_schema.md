@@ -111,7 +111,7 @@ CREATE TABLE blindtests (
 | title                   | blindtest name            |
 | background_image        | backend-served image path |
 | game_mode               | blindtest or blindup      |
-| pre_play_delay_sec      | delay before teaser       |
+| pre_play_delay_sec      | delay before `La la la...`       |
 | auto_enabled_default    | default auto mode         |
 | hints_enabled_default   | default hints visibility  |
 | answer_timer_enabled    | enable answer timer       |
@@ -208,8 +208,8 @@ CREATE TABLE blindtest_songs (
 | song_id       | reference to song, nullable when slot broken |
 | order_index   | order used in round 1                        |
 | slot_status   | `ok` or `missing`                            |
-| start_sec     | teaser start                                 |
-| duration_sec  | teaser duration                              |
+| start_sec     | `La la la...` start                                 |
+| duration_sec  | `La la la...` duration                              |
 | source_*      | last known library metadata snapshot         |
 | override_*    | metadata overrides, including image URLs     |
 | custom_hint   | optional hint                                |

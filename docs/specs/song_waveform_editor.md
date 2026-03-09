@@ -7,7 +7,7 @@ The component allows the user to:
 * visualize the waveform of a song
 * play and pause audio
 * zoom into the waveform
-* define a teaser region
+* define a `La la la...` region
 * adjust the region visually
 * compute `start_sec` and `duration_sec`
 
@@ -28,7 +28,7 @@ WaveSurfer provides:
 * playback control
 * time tracking
 
-Regions allow visual selection of the teaser segment.
+Regions allow visual selection of the `La la la...` segment.
 
 ---
 
@@ -103,7 +103,7 @@ wavesurfer.load(audioUrl)
 
 # Region Representation
 
-The teaser segment is represented by a **single region**.
+The `La la la...` segment is represented by a **single region**.
 
 Region parameters:
 
@@ -244,7 +244,7 @@ wavesurfer.playPause()
 
 The waveform editor must support zooming.
 
-Zoom levels allow more precise selection of teaser segments.
+Zoom levels allow more precise selection of `La la la...` segments.
 
 Controls:
 
@@ -372,7 +372,7 @@ The waveform editor is correct if:
 * the user can zoom in/out
 * the user can play/pause audio
 * the Mark button correctly sets start/end
-* a region visually represents the teaser
+* a region visually represents the `La la la...`
 * start_sec and duration_sec update correctly
 * reset removes the region
 * switching songs reloads the waveform safely

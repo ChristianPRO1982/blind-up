@@ -8,7 +8,7 @@ The application allows a host to:
 
 * scan a local music library
 * create blind tests from the library
-* configure teaser segments for each song
+* configure `La la la...` segments for each song
 * run the game in either **Blind Test mode** or **BlindUp mode**
 
 BlindUp is designed as a **single-host local tool**.
@@ -51,7 +51,7 @@ High-level description of the application:
 Detailed explanation of the **BlindUp game rules**:
 
 * the three rounds
-* teaser behaviour
+* `La la la...` behaviour
 * hints
 * timers
 * keyboard shortcuts

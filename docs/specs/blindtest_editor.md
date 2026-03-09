@@ -9,7 +9,7 @@ This panel allows a user to:
 * configure a blindtest
 * add songs from the library
 * override metadata
-* select the teaser region using a waveform editor
+* select the `La la la...` region using a waveform editor
 * reorder songs
 * configure global gameplay parameters
 
@@ -18,9 +18,9 @@ Frontend uses:
 * **HTML / CSS**
 * **Vanilla JavaScript**
 * **WaveSurfer.js v7**
-* **Regions plugin** for teaser selection.
+* **Regions plugin** for `La la la...` selection.
 
-WaveSurfer renders an interactive waveform and allows selection of audio regions that represent the teaser segment. ([wavesurfer.xyz][1])
+WaveSurfer renders an interactive waveform and allows selection of audio regions that represent the `La la la...` segment. ([wavesurfer.xyz][1])
 
 ---
 
@@ -244,13 +244,13 @@ Expected behaviors:
 
 ---
 
-# 5 Waveform Teaser Editor
+# 5 Waveform La la la... Editor
 
-Audio teaser selection using **WaveSurfer.js**.
+Audio `La la la...` selection using **WaveSurfer.js**.
 
 WaveSurfer is used to render the waveform and handle audio playback. ([wavesurfer.xyz][1])
 
-The **Regions plugin** defines the teaser selection area. ([wavesurfer.xyz][2])
+The **Regions plugin** defines the `La la la...` selection area. ([wavesurfer.xyz][2])
 
 Example initialization:
 
@@ -339,7 +339,7 @@ else
 
 # 7 Region Behavior
 
-The region represents the teaser.
+The region represents the `La la la...`.
 
 ```
 start_sec = region.start
@@ -456,7 +456,7 @@ Missing slot stays visible until manually repaired or removed
 * batch randomization
 * keyboard shortcuts
 * waveform minimap
-* auto preview of teaser region
+* auto preview of `La la la...` region
 
 ---
 
