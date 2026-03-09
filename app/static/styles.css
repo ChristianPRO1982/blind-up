@@ -93,7 +93,8 @@ body::after {
 }
 
 button,
-input {
+input,
+textarea {
   font: inherit;
 }
 
@@ -261,6 +262,7 @@ input:disabled {
 }
 
 input,
+textarea,
 .title-field input,
 .settings-grid input,
 .search-field input,
@@ -281,21 +283,28 @@ input,
     background 160ms ease;
 }
 
-input::placeholder {
+input::placeholder,
+textarea::placeholder {
   color: rgba(160, 183, 220, 0.48);
 }
 
-input[readonly] {
+input[readonly],
+textarea[readonly] {
   color: rgba(214, 229, 255, 0.88);
   border-style: dashed;
 }
 
 input:focus-visible,
+textarea:focus-visible,
 .song-card:focus-visible,
 .library-item:focus-visible {
   outline: none;
   border-color: rgba(103, 232, 249, 0.56);
   box-shadow: var(--glow-primary);
+}
+
+textarea {
+  resize: vertical;
 }
 
 input[type="radio"],
