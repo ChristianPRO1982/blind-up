@@ -1,7 +1,24 @@
 # CHANGELOG
 
 
+## v1.0.0 (2026-03-09)
+
+### Features
+
+- Rewrite README
+  ([`e9b09a1`](https://github.com/ChristianPRO1982/blind-up/commit/e9b09a15bba92d7155c5a6b178e92e0b97fe70f3))
+
+BREAKING CHANGE: rewrite README
+
+### Breaking Changes
+
+- Rewrite README
+
+
 ## v0.2.0 (2026-03-09)
+
+
+## v0.1.0 (2026-03-06)
 
 ### Bug Fixes
 
@@ -106,6 +123,9 @@
 
 ### Chores
 
+- Docs for Codex
+  ([`8d35cfe`](https://github.com/ChristianPRO1982/blind-up/commit/8d35cfebbe8fcbe4e56b2c084bbe2c4545ed15f6))
+
 - Fixes
   ([`be6dda3`](https://github.com/ChristianPRO1982/blind-up/commit/be6dda3fa3335419dc4e7dd7812ac3486b282497))
 
@@ -128,16 +148,6 @@
 
 - Song_waveform_editor.md
   ([`eebe260`](https://github.com/ChristianPRO1982/blind-up/commit/eebe260f754eeff8e61c57727dabfd46a38be66f))
-
-
-## v0.1.0 (2026-03-06)
-
-### Chores
-
-- Docs for Codex
-  ([`8d35cfe`](https://github.com/ChristianPRO1982/blind-up/commit/8d35cfebbe8fcbe4e56b2c084bbe2c4545ed15f6))
-
-### Features
 
 - Start project with docker fastapi pytest ruff
   ([`a9fbef5`](https://github.com/ChristianPRO1982/blind-up/commit/a9fbef54d4136891ab9197d8bd48e603a07121c1))
