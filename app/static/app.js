@@ -2535,6 +2535,13 @@
         return;
       }
       this.playerState.auto_enabled = !this.playerState.auto_enabled;
+      if (
+        this.playerState.panel === "La la la..." &&
+        this.playerState.current_round === 3
+      ) {
+        this.enterCurrentPlayerPanel();
+        return;
+      }
       this.updatePlayerControls();
     }
 
@@ -2722,7 +2729,9 @@
 
       if (this.playerState.panel === "La la la...") {
         this.setPlayerBackground(
-          this.getSongBackground(song) || this.blindtest.background_image
+          this.playerState.current_round === 3
+            ? ""
+            : this.getSongBackground(song) || this.blindtest.background_image
         );
         this.playerElements.panelLabel.textContent = "La la la...";
         this.setPlayerMainTitleText(this.getPlayerModeLabel());
@@ -2739,7 +2748,9 @@
 
       if (this.playerState.panel === "answer") {
         this.setPlayerBackground(
-          this.getSongBackground(song) || this.blindtest.background_image
+          this.playerState.current_round === 3
+            ? ""
+            : this.getSongBackground(song) || this.blindtest.background_image
         );
         this.playerElements.panelLabel.textContent = "Answer";
         if (song !== null) {
@@ -2806,7 +2817,8 @@
       const showStep =
         this.playerState !== null &&
         this.playerState.panel === "La la la..." &&
-        this.playerState.current_round === 3;
+        this.playerState.current_round === 3 &&
+        !this.playerState.auto_enabled;
       this.playerElements.stepButton.hidden = !showStep;
       this.playerElements.stepButton.disabled =
         !showStep ||
@@ -2956,11 +2968,10 @@
     }
 
     getPrePlayDelay() {
-      if (
-        this.playerState !== null &&
-        this.playerState.current_round === 3 &&
-        this.playerState.round3_step_index > 0
-      ) {
+      if (this.playerState !== null && this.playerState.current_round === 3) {
+        if (!this.playerState.auto_enabled) {
+          return 0;
+        }
         return Math.max(0, this.blindtest.round3_step_gap_sec || 0);
       }
       return Math.max(0, this.blindtest.pre_play_delay_sec || 0);
@@ -3019,9 +3030,16 @@
 
       session.phase = "audio";
       session.phase_started_at = Date.now();
-
       const remainingDuration = Math.max(0, session.playback.duration - session.playback_elapsed_sec);
-      this.startCountdown(remainingDuration, session.token);
+      const shouldShowAudioCountdown = !(
+        this.playerState !== null && this.playerState.current_round === 3
+      );
+      if (shouldShowAudioCountdown) {
+        this.startCountdown(remainingDuration, session.token);
+      } else {
+        this.clearCountdown();
+      }
+
       this.startHintTracking(session.playback.duration, session.token, session.playback_elapsed_sec);
       if (remainingDuration <= 0) {
         session.status = "finished";
@@ -3124,6 +3142,8 @@
         this.playerState.current_round === 3 &&
         this.playerState.round3_step_index < this.getRound3Steps().length - 1
       ) {
+        this.playerState.round3_step_index += 1;
+        this.enterCurrentPlayerPanel();
         return;
       }
 
