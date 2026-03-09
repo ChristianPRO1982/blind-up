@@ -2918,6 +2918,10 @@
       return normalizeText(song.source.cover_path) || "";
     }
 
+    getSongAnswerCover(song) {
+      return normalizeText(song.source.cover_path) || "";
+    }
+
     getPlayerModeLabel() {
       return this.blindtest.game_mode === "blindup" ? "BLIND UP" : "BLIND TEST";
     }
@@ -3289,17 +3293,14 @@
       answer.year.textContent = display.year || " ";
       answer.genre.textContent = display.genre || " ";
       answer.background.innerHTML = "";
-      const artworkPath = this.getSongArtwork(song);
-      if (artworkPath) {
+      const coverPath = this.getSongAnswerCover(song);
+      answer.background.hidden = !coverPath;
+      if (coverPath) {
         const image = document.createElement("img");
-        image.src = artworkPath;
+        image.src = coverPath;
         image.alt = display.title;
         answer.background.appendChild(image);
-        return;
       }
-      answer.background.appendChild(
-        this.createCoverThumb({ title: display.title || "Song" })
-      );
     }
 
     ensurePlayerAnswerElements() {
