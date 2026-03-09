@@ -1,67 +1,56 @@
 # BlindUp
 
-BlindUp is a local-first music quiz application. This repository currently contains the minimal project foundation described in `docs/`, without gameplay features yet.
+[![Release](https://img.shields.io/github/v/release/ChristianPRO1982/blind-up?display_name=tag)](https://github.com/ChristianPRO1982/blind-up/releases)
+![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-07405E?logo=sqlite&logoColor=white)
+![Vanilla JS](https://img.shields.io/badge/Vanilla_JS-F7DF1E?logo=javascript&logoColor=black)
+![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
+![pytest](https://img.shields.io/badge/pytest-tested-0A9EDC?logo=pytest&logoColor=white)
+![Ruff](https://img.shields.io/badge/Ruff-linted-D7FF64?logo=ruff&logoColor=black)
 
-## Stack
+**Turn your local music library into a loud, fast, addictive party blind test built for one host and a full room of players.**
 
-- Python 3.11
-- FastAPI
-- SQLite
-- HTML, CSS, and vanilla JavaScript
-- uv
-- pytest
-- ruff
-- Docker
+**Transforme ta bibliothèque audio locale en blind test de soirée, nerveux, festif et prêt à mettre toute la salle en jeu autour d'un seul animateur.**
 
-## Local development
+---
 
-Install dependencies:
+## Lancer BlindUp en local
 
-```bash
-uv sync --dev
+### 1. Modifier `docker-compose.yml`
+
+Dans [docker-compose.yml](/home/christianpro1982/Documents/cARThographie/blind-up/docker-compose.yml), remplace le chemin hôte de ta bibliothèque audio par le tien dans le volume monté sur `/music-library`.
+
+Exemple actuel :
+
+```yml
+volumes:
+  - blindup-data:/data
+  - /home/christianpro1982/Musique/blind-up:/music-library:ro
 ```
 
-Run the server:
+Exemple à adapter :
 
-```bash
-uv run uvicorn app.main:app --reload
+```yml
+volumes:
+  - blindup-data:/data
+  - /chemin/vers/tes/fichiers-audio:/music-library:ro
 ```
 
-Open:
+Seule la partie avant `:/music-library:ro` doit être changée.
 
-- `http://127.0.0.1:8000/health`
-- `http://127.0.0.1:8000/static/index.html`
+### 2. Lancer Docker
 
-Run checks:
-
-```bash
-uv run pytest -q
-uv run ruff check .
-```
-
-## Docker
-
-Build and start the app:
+Depuis la racine du projet :
 
 ```bash
 docker compose up --build
 ```
 
-The application is exposed on port `8000`.
+### 3. Ouvrir l'application
 
-## Project layout
+BlindUp sera accessible sur :
 
 ```text
-blindup/
-├─ app/
-│  ├─ config.py
-│  ├─ db.py
-│  ├─ main.py
-│  └─ static/
-├─ docs/
-├─ tests/
-├─ Dockerfile
-├─ docker-compose.yml
-├─ pyproject.toml
-└─ README.md
+http://127.0.0.1:8500/
 ```

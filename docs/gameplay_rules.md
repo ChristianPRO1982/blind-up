@@ -5,7 +5,7 @@ This document describes the **runtime behavior of the BlindUp game engine**.
 It defines:
 
 * panel transitions
-* teaser playback behavior
+* `La la la...` playback behavior
 * hint logic
 * timers
 * host controls
@@ -63,9 +63,9 @@ The host advances manually.
 
 ---
 
-## Teaser Panel
+## La la la... Panel
 
-The teaser panel plays a song excerpt.
+The `La la la...` panel plays a song excerpt.
 
 Elements displayed:
 
@@ -76,7 +76,7 @@ Elements displayed:
 
 Playback begins after the **pre-play delay**.
 
-The teaser audio plays **once**.
+The `La la la...` audio plays **once**.
 
 ---
 
@@ -115,9 +115,9 @@ BLINDUP
 
 Songs are played in the order defined by the blindtest.
 
-### Teaser
+### La la la...
 
-The teaser is defined by:
+The `La la la...` segment is defined by:
 
 ```id="round1_segment"
 start_sec
@@ -140,7 +140,7 @@ The **full song** is played.
 
 Songs are played in **random order**.
 
-### Teaser
+### La la la...
 
 The same segment as round 1 is used.
 
@@ -164,7 +164,7 @@ The full song is **not** played.
 
 Songs are played in **random order**.
 
-The teaser duration increases progressively.
+The `La la la...` duration increases progressively.
 
 Example preset:
 
@@ -178,7 +178,7 @@ Example preset:
 5
 ```
 
-Each step plays a teaser of increasing duration.
+Each step plays a `La la la...` excerpt of increasing duration.
 
 ---
 
@@ -186,7 +186,7 @@ Each step plays a teaser of increasing duration.
 
 ## Fixed Start
 
-Each teaser starts from `start_sec`.
+Each `La la la...` excerpt starts from `start_sec`.
 
 ```id="round3_fixed_example"
 start_sec = 60
@@ -200,7 +200,7 @@ start_sec = 60
 
 ## Continuous
 
-Each teaser continues from the previous end position.
+Each `La la la...` excerpt continues from the previous end position.
 
 ```id="round3_continuous_example"
 start_sec = 60
@@ -214,7 +214,7 @@ start_sec = 60
 
 # Hint System
 
-Hints appear during teaser playback.
+Hints appear during `La la la...` playback.
 
 Possible hints:
 
@@ -256,7 +256,7 @@ BlindUp supports an **Auto mode**.
 
 When enabled:
 
-* teaser → answer transitions occur automatically
+* `La la la...` → answer transitions occur automatically
 * answer → next song transitions occur automatically
 
 Answer panels use a configurable timer.
@@ -273,7 +273,7 @@ Example:
 
 When Auto mode is enabled during round 3:
 
-* teaser steps progress automatically
+* `La la la...` steps progress automatically
 * a pause occurs between steps
 
 Example:
@@ -297,11 +297,19 @@ The host can control the game using keyboard shortcuts.
 
 | Action               | Keys                            |
 | -------------------- | ------------------------------- |
-| Next panel           | Space / ArrowRight / ArrowDown  |
+| Play / Pause         | Space                           |
+| Next panel           | ArrowRight / ArrowDown          |
 | Previous panel       | ArrowLeft / ArrowUp / Backspace |
-| Toggle hints         | Escape / I                      |
+| Toggle hints         | I / H                           |
 | Toggle auto mode     | A                               |
-| Next escalation step | D                               |
+| Next escalation step | Enter / N / D                   |
+| Exit / Close modal   | Escape / Q                      |
+
+`Escape` is contextual:
+
+* if the exit modal is open, it closes the modal
+* otherwise, if hints are visible, it hides them
+* otherwise, it opens the exit modal
 
 ---
 
@@ -320,7 +328,7 @@ Buttons are designed to remain **visually discreet** to avoid distracting the au
 
 # Error Handling
 
-If a song cannot be played the teaser panel displays:
+If a song cannot be played the `La la la...` panel displays:
 
 ```id="error_text"
 Schrouunntch

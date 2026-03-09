@@ -9,7 +9,7 @@ This panel allows a user to:
 * configure a blindtest
 * add songs from the library
 * override metadata
-* select the teaser region using a waveform editor
+* select the `La la la...` region using a waveform editor
 * reorder songs
 * configure global gameplay parameters
 
@@ -18,9 +18,9 @@ Frontend uses:
 * **HTML / CSS**
 * **Vanilla JavaScript**
 * **WaveSurfer.js v7**
-* **Regions plugin** for teaser selection.
+* **Regions plugin** for `La la la...` selection.
 
-WaveSurfer renders an interactive waveform and allows selection of audio regions that represent the teaser segment. ([wavesurfer.xyz][1])
+WaveSurfer renders an interactive waveform and allows selection of audio regions that represent the `La la la...` segment. ([wavesurfer.xyz][1])
 
 ---
 
@@ -53,6 +53,18 @@ Example:
 ```
 [ Title input ]        [Save] [Launch] [Back]
 ```
+
+### Back Button Behavior
+
+The `Back` button returns to the **Home panel**.
+
+Expected behavior:
+
+* it does not launch gameplay
+* it does not change the current blindtest automatically
+* it leaves the editor and shows the previous navigation level, which is the Home panel
+
+For MVP, no intermediate screen exists between Home and Editor.
 
 ---
 
@@ -114,12 +126,63 @@ Duration: 3.5s
 * drag & drop reorder
 * click to select
 * active card highlighted
+* broken slots remain visible and editable
 
 CSS:
 
 ```
 .song-card.active
+.song-card.missing
 ```
+
+### Broken Slot Presentation
+
+If a slot no longer points to a valid library song:
+
+* the card remains in the list
+* the card is highlighted in orange
+* a visible roadwork indicator is shown, for example `🚧`
+* the card displays a short status such as `Missing audio`
+* the card still shows the last known song metadata from `source_*`
+
+The host must immediately understand that the blindtest structure is intact but that repair is required.
+
+### Blindtest Open Validation
+
+When a blindtest is opened in the editor, the application must perform a lightweight integrity check.
+
+This check does **not** rescan the whole music library.
+
+It only verifies:
+
+* whether `blindtest_songs.song_id` still points to an existing `songs` row
+* whether the referenced `songs.file_path` still exists on disk
+
+If a reference is broken:
+
+* the slot remains in the blindtest
+* `slot_status` becomes `missing`
+* the editor displays the broken slot presentation immediately
+
+The goal is to surface broken blindtest entries as soon as the host opens the blindtest, even before running a library scan.
+
+### Suggested API
+
+The backend may expose a lightweight validation endpoint for this purpose.
+
+Example:
+
+```text
+POST /api/blindtest/{id}/validate-links
+```
+
+Expected behavior:
+
+* validate only the slots belonging to the target blindtest
+* do not compute file hashes
+* do not walk the full music library
+* update broken slots in place if needed
+* return a short summary of detected missing slots
 
 ---
 
@@ -145,6 +208,8 @@ Cover
 Custom hint
 ```
 
+Image-related fields must use backend-served URLs or app-relative HTTP paths.
+
 Rules:
 
 ```
@@ -152,15 +217,40 @@ if field empty → use source metadata
 if field filled → use override
 ```
 
+For image fields:
+
+* placeholders may show backend-served paths
+* overrides must remain directly loadable by the browser
+* raw local filesystem paths must not be used as UI image sources
+
+If the slot is broken:
+
+* placeholders use `source_*` values stored in the blindtest slot
+* the editor remains fully accessible
+* the host may keep, edit, replace, or remove the slot
+
+### Broken Slot Repair
+
+A broken slot can be repaired by replacing it with a library song.
+
+Expected behaviors:
+
+* click broken slot, then click library song → replace target slot
+* drag library song onto broken slot → replace target slot
+* after replacement:
+  * `song_id` points to the new song
+  * `slot_status` returns to `ok`
+  * `source_*` snapshot is refreshed from the new library song
+
 ---
 
-# 5 Waveform Teaser Editor
+# 5 Waveform La la la... Editor
 
-Audio teaser selection using **WaveSurfer.js**.
+Audio `La la la...` selection using **WaveSurfer.js**.
 
 WaveSurfer is used to render the waveform and handle audio playback. ([wavesurfer.xyz][1])
 
-The **Regions plugin** defines the teaser selection area. ([wavesurfer.xyz][2])
+The **Regions plugin** defines the `La la la...` selection area. ([wavesurfer.xyz][2])
 
 Example initialization:
 
@@ -249,7 +339,7 @@ else
 
 # 7 Region Behavior
 
-The region represents the teaser.
+The region represents the `La la la...`.
 
 ```
 start_sec = region.start
@@ -354,6 +444,8 @@ Click library song with target → replace
 Drag library song to slot → replace
 
 Drag song cards → reorder
+
+Missing slot stays visible until manually repaired or removed
 ```
 
 ---
@@ -364,7 +456,7 @@ Drag song cards → reorder
 * batch randomization
 * keyboard shortcuts
 * waveform minimap
-* auto preview of teaser region
+* auto preview of `La la la...` region
 
 ---
 

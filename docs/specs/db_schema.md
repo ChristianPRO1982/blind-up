@@ -69,7 +69,7 @@ CREATE TABLE songs (
 | album        | extracted tag                  |
 | year         | extracted tag                  |
 | genre        | extracted tag                  |
-| cover_path   | optional extracted cover       |
+| cover_path   | optional backend-served cover path |
 | created_at   | creation timestamp             |
 | updated_at   | update timestamp               |
 
@@ -109,9 +109,9 @@ CREATE TABLE blindtests (
 | Field                   | Description               |
 | ----------------------- | ------------------------- |
 | title                   | blindtest name            |
-| background_image        | selected background       |
+| background_image        | backend-served image path |
 | game_mode               | blindtest or blindup      |
-| pre_play_delay_sec      | delay before teaser       |
+| pre_play_delay_sec      | delay before `La la la...`       |
 | auto_enabled_default    | default auto mode         |
 | hints_enabled_default   | default hints visibility  |
 | answer_timer_enabled    | enable answer timer       |
@@ -119,6 +119,12 @@ CREATE TABLE blindtests (
 | round3_step_durations   | comma separated list      |
 | round3_step_gap_sec     | delay between steps       |
 | round3_progression_mode | fixed_start or continuous |
+
+### Blindtest Ordering
+
+The Home panel uses `blindtests.updated_at` to sort blindtests by most recent modification first.
+
+No additional ordering column is required for MVP.
 
 ---
 
@@ -167,12 +173,21 @@ CREATE TABLE blindtest_songs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
 
     blindtest_id INTEGER NOT NULL,
-    song_id INTEGER NOT NULL,
+    song_id INTEGER,
 
     order_index INTEGER,
 
+    slot_status TEXT,
+
     start_sec REAL,
     duration_sec REAL,
+
+    source_title TEXT,
+    source_artist TEXT,
+    source_album TEXT,
+    source_year INTEGER,
+    source_genre TEXT,
+    source_cover TEXT,
 
     override_title TEXT,
     override_artist TEXT,
@@ -187,15 +202,43 @@ CREATE TABLE blindtest_songs (
 
 ### Fields
 
-| Field        | Description            |
-| ------------ | ---------------------- |
-| blindtest_id | reference to blindtest |
-| song_id      | reference to song      |
-| order_index  | order used in round 1  |
-| start_sec    | teaser start           |
-| duration_sec | teaser duration        |
-| override_*   | metadata overrides     |
-| custom_hint  | optional hint          |
+| Field         | Description                                  |
+| ------------- | -------------------------------------------- |
+| blindtest_id  | reference to blindtest                       |
+| song_id       | reference to song, nullable when slot broken |
+| order_index   | order used in round 1                        |
+| slot_status   | `ok` or `missing`                            |
+| start_sec     | `La la la...` start                                 |
+| duration_sec  | `La la la...` duration                              |
+| source_*      | last known library metadata snapshot         |
+| override_*    | metadata overrides, including image URLs     |
+| custom_hint   | optional hint                                |
+
+### Image Path Rules
+
+Any image-related field stored in the database must be usable directly by the browser.
+
+This means:
+
+* `songs.cover_path` must be a backend-served URL or app-relative HTTP path
+* `blindtests.background_image` must be a backend-served URL or app-relative HTTP path
+* `override_cover` and `source_cover` follow the same rule
+
+Raw filesystem-only paths must not be stored as UI-facing values.
+
+### Broken Slot Rules
+
+A blindtest slot must survive even if its source song disappears from the library.
+
+When a library song becomes unavailable:
+
+* `songs` may remove the row
+* `blindtest_songs` keeps the slot
+* `song_id` becomes null
+* `slot_status` becomes `missing`
+* `source_*` keeps the last known metadata used for display and recovery
+
+The goal is to preserve the blindtest structure without hiding that manual action is needed.
 
 ---
 
@@ -226,13 +269,13 @@ filesystem → metadata extraction → songs table
 ### Blindtest creation
 
 ```text id="creation_flow"
-songs → blindtest_songs
+songs + metadata snapshot → blindtest_songs
 ```
 
 ### Gameplay
 
 ```text id="gameplay_flow"
-blindtest → blindtest_songs → songs
+blindtest → blindtest_songs → songs or missing slot snapshot
 ```
 
 ---
@@ -242,7 +285,7 @@ blindtest → blindtest_songs → songs
 The database enforces several constraints:
 
 * `file_hash` must be unique
-* blindtest songs must reference valid songs
+* blindtest songs may reference a valid song or preserve a missing slot
 * blindtest tags must be unique
 
 ---

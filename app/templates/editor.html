@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="editor-layout" aria-label="Blindtest editor">
+    <header class="topbar">
+      <label class="title-field" for="blindtest-title">
+        Title
+        <input id="blindtest-title" type="text" placeholder="Blindtest title" />
+      </label>
+      <div class="header-actions">
+        <button id="toggle-library-button" class="button-secondary" type="button">Show library</button>
+        <button id="save-button" class="button-secondary" type="button">Save</button>
+        <button id="launch-button" class="button-primary" type="button">Launch</button>
+        <button id="back-button" class="button-ghost" type="button">Back</button>
+      </div>
+    </header>
+
+    <section class="settings-panel panel" aria-labelledby="settings-title">
+      <div class="panel-heading">
+        <h2 id="settings-title">Blindtest settings</h2>
+      </div>
+      <div class="settings-grid">
+        <fieldset class="inline-options">
+          <legend>Game mode</legend>
+          <label><input type="radio" name="game-mode" value="blind_test" /> Blind Test</label>
+          <label><input type="radio" name="game-mode" value="blindup" /> BlindUp</label>
+        </fieldset>
+
+        <label>
+          Pre-play delay (seconds)
+          <input id="pre-play-delay" type="number" min="0" step="0.1" />
+        </label>
+
+        <label class="toggle-field">
+          <input id="auto-enabled-default" type="checkbox" />
+          Auto enabled by default
+        </label>
+
+        <label class="toggle-field">
+          <input id="hints-enabled-default" type="checkbox" />
+          Indices enabled by default
+        </label>
+
+        <label class="toggle-field">
+          <input id="answer-timer-enabled" type="checkbox" />
+          Answer timer enabled
+        </label>
+
+        <label>
+          Answer duration seconds
+          <input id="answer-duration" type="number" min="0" step="0.1" />
+        </label>
+
+        <label>
+          Step durations preset
+          <input
+            id="round3-step-durations"
+            type="text"
+            placeholder="0.5,1,1.5,2,3,4,5"
+          />
+        </label>
+
+        <label>
+          Step gap seconds
+          <input id="round3-step-gap" type="number" min="0" step="0.1" />
+        </label>
+
+        <fieldset class="inline-options">
+          <legend>Progression mode</legend>
+          <label>
+            <input
+              type="radio"
+              name="round3-progression-mode"
+              value="fixed_start"
+            />
+            fixed_start
+          </label>
+          <label>
+            <input
+              type="radio"
+              name="round3-progression-mode"
+              value="continuous"
+            />
+            continuous
+          </label>
+        </fieldset>
+      </div>
+    </section>
+
+    <section class="song-list-panel panel" aria-labelledby="song-list-title">
+      <div class="panel-heading panel-heading-split">
+        <h2 id="song-list-title">Song list</h2>
+        <button id="add-song-button" class="panel-action-button button-secondary" type="button">Add song</button>
+      </div>
+      <div id="song-list" class="song-list"></div>
+    </section>
+
+    <section class="song-editor-panel panel" aria-labelledby="song-editor-title">
+      <div class="panel-heading">
+        <h2 id="song-editor-title">Song editor</h2>
+      </div>
+
+      <div id="song-editor-content" hidden>
+        <form id="song-metadata-form" class="metadata-grid">
+          <label>
+            Title
+            <input id="override-title" name="override_title" type="text" />
+          </label>
+          <label>
+            Artist
+            <input id="override-artist" name="override_artist" type="text" />
+          </label>
+          <label>
+            Album
+            <input id="override-album" name="override_album" type="text" />
+          </label>
+          <label>
+            Year
+            <input id="override-year" name="override_year" type="number" step="1" />
+          </label>
+          <label>
+            Genre
+            <input id="override-genre" name="override_genre" type="text" />
+          </label>
+          <label class="cover-field">
+            Cover
+            <div class="cover-field-row">
+              <input id="override-cover" name="override_cover" type="text" />
+              <button id="preview-cover-button" class="button-secondary button-compact" type="button">
+                Preview
+              </button>
+              <button id="toggle-cover-panel-button" class="button-secondary button-compact" type="button">
+                Show covers
+              </button>
+            </div>
+          </label>
+          <label class="wide-field">
+            Custom hint
+            <textarea id="custom-hint" name="custom_hint" rows="5"></textarea>
+          </label>
+        </form>
+
+        <p id="audio-error" class="status" hidden>Audio unavailable</p>
+
+        <div class="waveform-frame">
+          <div id="waveWrap" class="wave-wrap">
+            <div id="waveform" aria-label="Waveform view"></div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button id="play-pause-button" type="button">Play/Pause</button>
+          <button id="zoom-out-button" type="button">Zoom -</button>
+          <button id="zoom-in-button" type="button">Zoom +</button>
+          <button id="zoom-reset-button" type="button">Zoom reset</button>
+          <button id="mark-button" type="button">Mark</button>
+          <button id="reset-selection-button" type="button">Reset selection</button>
+        </div>
+
+        <dl class="time-grid">
+          <div>
+            <dt>Current time</dt>
+            <dd id="current-time">00:00.0</dd>
+          </div>
+          <div>
+            <dt>Start</dt>
+            <dd id="start-time">--:--.-</dd>
+          </div>
+          <div>
+            <dt>End</dt>
+            <dd id="end-time">--:--.-</dd>
+          </div>
+          <div>
+            <dt>Duration</dt>
+            <dd id="selection-duration">--.-s</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+
+    <aside class="library-panel panel" aria-labelledby="library-title" hidden>
+      <div class="panel-heading panel-heading-split">
+        <h2 id="library-title">Library</h2>
+        <button id="close-library-button" class="panel-close-button" type="button" aria-label="Hide library">
+          ×
+        </button>
+      </div>
+      <label class="search-field" for="library-search">
+        Search
+        <input id="library-search" type="search" placeholder="Search songs" />
+      </label>
+      <div id="library-list" class="library-list"></div>
+    </aside>
+
+    <aside class="covers-panel panel" aria-labelledby="covers-title" hidden>
+      <div class="panel-heading panel-heading-split">
+        <h2 id="covers-title">Covers</h2>
+        <button id="close-cover-panel-button" class="panel-close-button" type="button" aria-label="Hide covers">
+          ×
+        </button>
+      </div>
+      <div id="cover-gallery" class="library-list cover-gallery"></div>
+    </aside>
+  </section>
+
+  <div id="remove-song-modal" class="modal-shell" hidden>
+    <div class="modal-backdrop" data-action="close"></div>
+    <section
+      class="modal-card panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="remove-song-modal-title"
+    >
+      <div class="panel-heading panel-heading-split">
+        <h2 id="remove-song-modal-title">Remove song</h2>
+        <button
+          id="close-remove-song-modal-button"
+          class="panel-close-button"
+          type="button"
+          aria-label="Close remove song confirmation"
+        >
+          ×
+        </button>
+      </div>
+      <p id="remove-song-modal-copy" class="modal-copy"></p>
+      <div class="modal-actions">
+        <button id="cancel-remove-song-button" class="button-secondary" type="button">Cancel</button>
+        <button id="confirm-remove-song-button" class="button-danger" type="button">Remove</button>
+      </div>
+    </section>
+  </div>
+
+  <div id="cover-preview-modal" class="modal-shell" hidden>
+    <div class="modal-backdrop" data-action="close"></div>
+    <section
+      class="modal-card panel cover-preview-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="cover-preview-modal-title"
+    >
+      <div class="panel-heading panel-heading-split">
+        <h2 id="cover-preview-modal-title">Cover preview</h2>
+        <button
+          id="close-cover-preview-modal-button"
+          class="panel-close-button"
+          type="button"
+          aria-label="Close cover preview"
+        >
+          ×
+        </button>
+      </div>
+      <img id="cover-preview-image" class="cover-preview-image" alt="Cover preview" />
+    </section>
+  </div>
+
+  <script id="cover-gallery-data" type="application/json">{{ cover_gallery | tojson }}</script>
+{% endblock %}

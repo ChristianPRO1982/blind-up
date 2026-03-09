@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section id="player-layout" class="player-layout" aria-label="Blindtest player">
+    <div class="player-shell panel">
+      <div id="player-background" class="player-background"></div>
+      <div class="player-overlay">
+        <header class="player-toolbar">
+          <div class="player-status">
+            <p id="player-round-label" class="eyebrow">Blindtest player</p>
+            <p id="player-position" class="player-position"></p>
+          </div>
+          <div class="player-toolbar-actions">
+            <button id="player-back-button" class="button-ghost" type="button">Back</button>
+            <button id="player-auto-button" class="button-secondary" type="button">Auto: off</button>
+            <button id="player-hints-button" class="button-secondary" type="button">Hints: hidden</button>
+          </div>
+        </header>
+
+        <section class="player-stage" aria-live="polite">
+          <p id="player-panel-label" class="player-panel-label"></p>
+          <h2 id="player-main-title" class="player-main-title">BLINDUP</h2>
+          <div id="player-stage-meta-host"></div>
+          <p id="player-countdown" class="player-countdown" hidden></p>
+          <p id="player-error" class="player-error" hidden>Schrouunntch</p>
+          <div id="player-hints" class="player-hints" hidden></div>
+          <div id="player-answer-host"></div>
+        </section>
+
+        <footer class="player-controls">
+          <button id="player-prev-button" class="button-secondary" type="button">Previous</button>
+          <button id="player-play-pause-button" class="button-secondary" type="button" hidden>
+            Play
+          </button>
+          <button id="player-next-button" class="button-primary" type="button">Next</button>
+          <button id="player-step-button" class="button-primary" type="button" hidden>Next step</button>
+        </footer>
+      </div>
+    </div>
+  </section>
+
+  <div id="player-exit-modal" class="modal-shell" hidden>
+    <div class="modal-backdrop" data-action="close"></div>
+    <section
+      class="modal-card panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="player-exit-modal-title"
+    >
+      <div class="panel-heading panel-heading-split">
+        <h2 id="player-exit-modal-title">Leave game</h2>
+        <button
+          id="close-player-exit-modal-button"
+          class="panel-close-button"
+          type="button"
+          aria-label="Close exit confirmation"
+        >
+          ×
+        </button>
+      </div>
+      <p class="modal-copy">
+        Return to the editor? The current game panel will close, but the blindtest draft stays available.
+      </p>
+      <div class="modal-actions">
+        <button id="cancel-player-exit-button" class="button-secondary" type="button">Stay here</button>
+        <button id="confirm-player-exit-button" class="button-danger" type="button">Back to editor</button>
+      </div>
+    </section>
+  </div>
+{% endblock %}

@@ -104,9 +104,34 @@ Example:
 
 ---
 
+# Image Handling
+
+The browser must load images only through **HTTP URLs served by the backend**.
+
+This applies to:
+
+* extracted song covers
+* blindtest background images
+* metadata override covers used in gameplay
+
+The frontend must **not** use raw local filesystem paths as image sources.
+
+Instead, the backend exposes public local routes.
+
+Examples:
+
+```text
+/media/covers/{file_hash}.jpg
+/media/backgrounds/{filename}
+```
+
+The database may store these public app-relative paths, but never paths that are only meaningful on the host filesystem.
+
+---
+
 # Waveform Editing
 
-Waveform rendering and teaser editing are handled using:
+Waveform rendering and `La la la...` editing are handled using:
 
 * **WaveSurfer.js v7**
 * **Regions plugin**
@@ -117,7 +142,7 @@ WaveSurfer provides:
 * playback controls
 * region editing
 
-Regions represent the teaser segment.
+Regions represent the `La la la...` segment.
 
 Example:
 
@@ -135,7 +160,7 @@ Reverse playback used in **Round 2** is performed in the frontend.
 Steps:
 
 1. Load the audio buffer
-2. Extract the teaser segment
+2. Extract the `La la la...` segment
 3. Reverse the audio buffer
 4. Play the reversed segment
 
@@ -208,6 +233,33 @@ The frontend is composed of several panels:
 
 Panels are displayed dynamically in the SPA.
 
+The default startup panel is the **Home panel**.
+
+The Home panel is responsible for:
+
+* listing all blindtests stored locally
+* sorting them by `blindtests.updated_at` descending
+* opening a specific blindtest in the editor
+* starting the creation of a new blindtest
+* opening the Library scan panel
+
+The backend therefore exposes:
+
+* a list endpoint for blindtest summaries
+* a read endpoint for a specific blindtest
+* scan control endpoints for the Library scan panel
+
+The application should not rely on automatically loading the first blindtest in storage as the primary navigation flow.
+
+The Library scan panel is responsible for:
+
+* showing the configured library root path
+* starting a scan for that path
+* stopping a running scan
+* displaying the latest scan summary without leaving the panel
+
+Because the scan can be stopped by the host, the backend should expose a cancellable scan lifecycle rather than relying only on a fire-and-forget synchronous HTTP call.
+
 ---
 
 # Game Engine
@@ -218,7 +270,7 @@ Responsibilities:
 
 * panel transitions
 * timers
-* teaser playback
+* `La la la...` playback
 * hint timing
 * keyboard shortcuts
 
@@ -236,6 +288,8 @@ Static assets include:
 * icons
 
 These assets are served by the backend.
+
+Application-managed media such as extracted covers must also be served by the backend through dedicated HTTP routes.
 
 ---
 

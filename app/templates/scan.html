@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section id="scan-layout" class="scan-layout" aria-label="Library scan panel">
+    <section class="scan-path-panel panel" aria-labelledby="scan-path-title">
+      <div class="panel-heading">
+        <h2 id="scan-path-title">Library root path</h2>
+      </div>
+      <label class="title-field scan-path-field" for="scan-root-path">
+        Library root path
+        <input
+          id="scan-root-path"
+          type="text"
+          value="{{ scan_root_path }}"
+          readonly
+        />
+      </label>
+      <div class="header-actions scan-actions">
+        <button id="scan-toggle-button" class="button-primary" type="button">Start scan</button>
+        <button id="scan-back-button" class="button-ghost" type="button">Back</button>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="scan-status-title">
+      <div class="panel-heading">
+        <h2 id="scan-status-title">Scan info</h2>
+      </div>
+      <p id="scan-status" class="scan-status">Idle</p>
+      <p id="scan-error" class="status" hidden></p>
+      <div class="scan-summary-grid">
+        <div>
+          <dt>New songs</dt>
+          <dd id="scan-added-count">0</dd>
+        </div>
+        <div>
+          <dt>Removed songs</dt>
+          <dd id="scan-removed-count">0</dd>
+        </div>
+      </div>
+      <div class="scan-impact-block">
+        <h3>Impacted blindtests</h3>
+        <div id="scan-impact-empty" class="scan-impact-empty">
+          No blindtest impacted by song removals.
+        </div>
+        <div id="scan-impact-list" class="scan-impact-list"></div>
+      </div>
+    </section>
+  </section>
+{% endblock %}

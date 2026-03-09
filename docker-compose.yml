@@ -6,8 +6,10 @@ services:
       - "8500:8000"
     environment:
       BLINDUP_DB_PATH: /data/blindup.db
+      BLINDUP_LIBRARY_ROOT_PATH: /music-library
     volumes:
       - blindup-data:/data
+      - /home/christianpro1982/Musique/blind-up:/music-library:ro
 
 volumes:
   blindup-data:

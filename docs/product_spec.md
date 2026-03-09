@@ -40,6 +40,10 @@ Each song contains metadata extracted from audio tags:
 
 Songs are identified internally using a **file hash**.
 
+If a song cover is displayed in the UI, it must be accessible through a URL served by the application.
+
+The browser must never receive a raw filesystem path as an image source.
+
 ---
 
 ## Blindtest
@@ -49,11 +53,13 @@ A blindtest is a collection of songs configured for gameplay.
 A blindtest defines:
 
 * the order of songs
-* teaser segments for each song
+* `La la la...` segments for each song
 * optional metadata overrides
 * gameplay parameters
 
 Blindtests are stored in the application database.
+
+If a blindtest uses a background image, that image must also be referenced through a backend-served URL.
 
 ---
 
@@ -61,12 +67,20 @@ Blindtests are stored in the application database.
 
 Each song inside a blindtest defines:
 
-* `start_sec` — starting point of the teaser
-* `duration_sec` — teaser duration
+* `start_sec` — starting point of the `La la la...`
+* `duration_sec` — `La la la...` duration
 * optional metadata overrides
 * an optional **custom hint**
 
 Overrides allow modifying displayed metadata without altering the original library data.
+
+Blindtest song slots may remain in place even if the source audio disappears from the library later.
+
+In that case:
+
+* the slot is preserved
+* the blindtest keeps the last known source metadata
+* the slot is marked as broken and must be repaired manually
 
 ---
 
@@ -101,16 +115,16 @@ Songs are played in the order defined by the blindtest creator.
 Gameplay:
 
 1. Waiting panel
-2. Teaser playback
+2. `La la la...` playback
 3. Answer panel
 
-Teaser behaviour:
+`La la la...` behaviour:
 
 * playback starts after a configurable delay
-* the teaser plays **once**
-* the teaser segment is defined by `start_sec` and `duration_sec`
+* the `La la la...` plays **once**
+* the `La la la...` segment is defined by `start_sec` and `duration_sec`
 
-Hints may appear during the teaser.
+Hints may appear during the `La la la...`.
 
 ---
 
@@ -118,14 +132,14 @@ Hints may appear during the teaser.
 
 Songs are played in **random order**.
 
-Teaser behaviour:
+`La la la...` behaviour:
 
 * the same segment as round 1
 * audio is **played in reverse**
 
 Answer panel behaviour:
 
-* the same teaser segment is played **normally**
+* the same `La la la...` segment is played **normally**
 * the full song is not played
 
 Hints:
@@ -139,7 +153,7 @@ Hints:
 
 Songs are played in **random order**.
 
-The teaser is played using **progressive durations**.
+The `La la la...` is played using **progressive durations**.
 
 Example preset:
 
@@ -153,7 +167,7 @@ Example preset:
 5
 ```
 
-The host can advance the teaser duration manually.
+The host can advance the `La la la...` duration manually.
 
 A pause occurs between steps.
 
@@ -199,7 +213,7 @@ start_sec = 60
 
 # Hints
 
-Hints may appear progressively during a teaser.
+Hints may appear progressively during a `La la la...`.
 
 Possible hints:
 
@@ -230,7 +244,7 @@ BlindUp supports an **Auto mode**.
 
 When Auto is enabled:
 
-* teaser → answer transitions occur automatically
+* `La la la...` → answer transitions occur automatically
 * answer → next song transitions occur automatically
 
 Answer panels can display a countdown timer.
@@ -245,11 +259,13 @@ The host can control the game using keyboard shortcuts.
 
 | Action                         | Keys                            |
 | ------------------------------ | ------------------------------- |
-| Next panel                     | Space / ArrowRight / ArrowDown  |
+| Play / Pause `La la la...`     | Space                           |
+| Next panel                     | ArrowRight / ArrowDown          |
 | Previous panel                 | ArrowLeft / ArrowUp / Backspace |
-| Toggle hints                   | Escape / I                      |
+| Toggle hints                   | I / H                           |
 | Toggle auto mode               | A                               |
-| Next escalation step (round 3) | D                               |
+| Next escalation step (round 3) | Enter / N / D                   |
+| Exit / Close modal             | Escape / Q                      |
 
 ---
 
@@ -265,6 +281,48 @@ Main panels include:
 * Game player panel
 
 Each panel focuses on a single task.
+
+## Home Panel
+
+The application opens on the **Home panel**.
+
+The Home panel is the default entry point for normal usage.
+
+It allows the host to:
+
+* browse the full list of blindtests stored locally
+* create a new blindtest
+* open an existing blindtest in the editor
+* open the Library scan panel
+
+The blindtest list must:
+
+* include all blindtests stored in the local database
+* be ordered by `updated_at` descending
+* show the most recently modified blindtest first
+
+Opening a blindtest from the Home panel loads that specific blindtest in the editor.
+
+The application must not automatically open the first blindtest on startup.
+
+## Library Scan Panel
+
+The Library scan panel is opened from the Home panel.
+
+It allows the host to:
+
+* enter the library root path to scan
+* start a scan using that exact path
+* stop the current scan
+* read the result summary after the scan finishes
+
+The panel remains visible after the scan finishes.
+
+The summary must show at minimum:
+
+* number of new songs
+* number of removed songs
+* list of blindtests impacted by removed songs
 
 ---
 

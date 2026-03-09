@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section id="home-layout" class="home-layout" aria-label="Home panel">
+    <aside class="home-brand-panel" aria-label="BlindUp brand">
+      <a class="brand-mark home-brand-mark" href="/home" aria-label="BlindUp home">
+        <img src="/static/brand/blindup-dark.png" alt="BlindUp" />
+      </a>
+    </aside>
+
+    <aside class="home-actions-panel panel" aria-labelledby="home-actions-title">
+      <div class="panel-heading">
+        <h2 id="home-actions-title">Actions</h2>
+      </div>
+      <div class="home-action-buttons">
+        <button id="open-scan-button" class="button-secondary action-tile" type="button">
+          <span class="action-tile-title">Library scan</span>
+          <span class="action-tile-copy">Sync the local catalog and detect broken slots.</span>
+        </button>
+        <button id="new-blindtest-button" class="button-primary action-tile" type="button">
+          <span class="action-tile-title">New blindtest</span>
+          <span class="action-tile-copy">Create a fresh set and jump directly into editing.</span>
+        </button>
+      </div>
+    </aside>
+
+    <section class="home-list-panel panel" aria-labelledby="home-list-title">
+      <div class="panel-heading">
+        <h2 id="home-list-title">Local blindtests</h2>
+      </div>
+      <div id="home-blindtest-list" class="home-blindtest-list"></div>
+    </section>
+  </section>
+{% endblock %}

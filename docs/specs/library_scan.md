@@ -11,9 +11,16 @@ It is responsible for:
 - extracting metadata
 - generating file hashes
 - inserting new songs
-- removing missing songs
+- removing missing songs from the library table
+- preserving broken blindtest slots when referenced songs disappear
 
 The scan does **not** manage blindtests.
+
+The feature includes:
+
+* backend scan execution
+* Library scan panel UI
+* scan summary display
 
 ---
 
@@ -27,7 +34,7 @@ The scan must be safe, deterministic, and simple.
 
 # Root Folder
 
-The music library root folder is configured by the user.
+The music library root folder is configured by the application host.
 
 Example:
 
@@ -36,6 +43,52 @@ Example:
 ```
 
 The scan starts from this root folder and explores all subfolders recursively.
+
+In the UI, the path is displayed in the **Library scan panel** as a fixed local path.
+
+The scan always starts from that configured path.
+
+---
+
+# Library Scan Panel
+
+The Library scan panel is opened from the **Home panel**.
+
+Its layout is intentionally simple:
+
+```text
+Library Scan Panel
+ ├── Root path input
+ ├── Start / Stop scan button
+ └── Scan info panel
+```
+
+## Required controls
+
+The panel must include:
+
+* a visible field showing the configured `root_path`
+* a `Start scan` action
+* a `Stop scan` action while a scan is running
+
+The same primary control may change label between:
+
+* `Start scan`
+* `Stop scan`
+
+## Scan info panel
+
+The panel must display scan information after completion.
+
+At minimum it shows:
+
+* number of new songs
+* number of removed songs
+* list of blindtests impacted by removed songs
+
+The panel remains visible after the scan finishes.
+
+The host stays on the Library scan panel after completion.
 
 ---
 
@@ -124,13 +177,22 @@ If the file contains an embedded cover image:
 
 * extract it
 * save it to an application-managed covers folder
-* store the resulting path in `songs.cover_path`
+* expose it through a backend-served HTTP path
+* store that public path in `songs.cover_path`
 
 If no cover exists:
 
 * `cover_path` remains null or empty
 
 The scan must not modify the original audio file.
+
+Example public cover path:
+
+```text
+/media/covers/{file_hash}.jpg
+```
+
+The scan must not store a raw local filesystem path as a UI-facing image source.
 
 ---
 
@@ -158,8 +220,22 @@ For MVP, the scan should refresh extracted metadata from the file.
 If a song exists in the database but its file is no longer present anywhere in the scan result:
 
 * remove the row from `songs`
+* detect whether this song is referenced by one or more `blindtest_songs`
+* for each referenced blindtest slot:
+  * keep the slot
+  * set `song_id = null`
+  * set `slot_status = missing`
+  * preserve the last known metadata snapshot in `source_*`
 
-This removal is allowed because blindtests only reference valid scanned songs.
+The scan must **not** delete or silently collapse blindtest slots.
+
+This allows the editor to show a visible broken slot that the host can repair later.
+
+If a file was only renamed or moved without content change:
+
+* the file hash remains the same
+* the song row is updated normally
+* no blindtest slot becomes broken
 
 ---
 
@@ -192,6 +268,18 @@ Examples of scan errors:
 * corrupt metadata
 * invalid audio container
 
+If the root path is invalid:
+
+* the scan must fail clearly
+* the Library scan panel stays visible
+* the host can stop the running scan request if needed
+* the host can correct the path and retry
+
+If the host decides the scan was started with the wrong path and is taking too long:
+
+* the host can request scan cancellation from the UI
+* the application stops the current scan as soon as practical
+
 ---
 
 # Expected Scan Flow
@@ -205,8 +293,12 @@ Examples of scan errors:
    - extract cover
    - upsert database row
 4. Detect database songs no longer present
-5. delete missing songs
-6. return scan summary
+5. if missing song is referenced:
+   - convert blindtest slots to missing slots
+   - delete the song row
+6. if missing song is not referenced:
+   - delete the song row
+7. return scan summary
 ```
 
 ---
@@ -219,6 +311,8 @@ After each scan, return a summary object containing:
 * added song count
 * updated song count
 * removed song count
+* broken slot count
+* impacted blindtests list
 * skipped file count
 * error count
 
@@ -231,6 +325,17 @@ Example:
   "added": 12,
   "updated": 231,
   "removed": 5,
+  "broken_slots": 2,
+  "impacted_blindtests": [
+    {
+      "id": 3,
+      "title": "Friday night"
+    },
+    {
+      "id": 7,
+      "title": "80s set"
+    }
+  ],
   "skipped": 2,
   "errors": 2
 }
@@ -240,13 +345,27 @@ Example:
 
 # API Expectations
 
-The backend should expose a scan endpoint.
+The backend should expose a cancellable scan lifecycle for the Library scan panel.
 
 Example:
 
 ```text
-POST /api/library/scan
+POST /api/library/scan/start
+POST /api/library/scan/stop
+GET /api/library/scan/status
 ```
+
+The backend should also expose read-only media routes for extracted covers.
+
+Example:
+
+```text
+GET /media/covers/{filename}
+```
+
+## `POST /api/library/scan/start`
+
+Starts a scan from the path entered by the host.
 
 Possible request body:
 
@@ -256,16 +375,48 @@ Possible request body:
 }
 ```
 
+Possible immediate response:
+
+```json
+{
+  "status": "running"
+}
+```
+
+## `POST /api/library/scan/stop`
+
+Requests cancellation of the current scan.
+
 Possible response:
 
 ```json
 {
-  "status": "ok",
+  "status": "stopping"
+}
+```
+
+## `GET /api/library/scan/status`
+
+Returns the current scan state and the latest completed summary when available.
+
+Possible response:
+
+```json
+{
+  "status": "idle",
   "summary": {
+    "root_path": "/users/moi/music/",
     "scanned_files": 248,
     "added": 12,
     "updated": 231,
     "removed": 5,
+    "broken_slots": 2,
+    "impacted_blindtests": [
+      {
+        "id": 3,
+        "title": "Friday night"
+      }
+    ],
     "skipped": 2,
     "errors": 2
   }
@@ -281,10 +432,11 @@ The scan is local and may process many files.
 Expected behavior:
 
 * acceptable performance on a personal music library
-* no concurrency requirement for MVP
-* no background worker required for MVP
+* only one scan runs at a time
+* the scan must be cancellable from the host UI
+* no heavy distributed job system is required for MVP
 
-A simple synchronous scan is acceptable.
+A lightweight in-process background task is acceptable for MVP.
 
 ---
 
@@ -302,6 +454,7 @@ Minimum log events:
 * song inserted
 * song updated
 * song removed
+* blindtest slot marked missing
 * scan finished
 
 Logs should be readable in development.
@@ -361,10 +514,15 @@ This keeps the implementation modular.
 
 The feature is correct if:
 
+* the host can open the Library scan panel from Home
+* the host can enter the root path directly in the panel
+* the host can start a scan from that path
+* the host can stop a running scan
 * the scan processes the full root folder recursively
 * supported audio files are imported into `songs`
 * file hashes are generated and stored
 * tags are extracted and stored
 * missing files are removed from `songs`
 * broken files do not stop the scan
-* a summary is returned at the end
+* the summary includes impacted blindtests
+* the panel stays on the scan screen after completion

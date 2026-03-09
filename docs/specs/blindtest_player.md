@@ -5,7 +5,7 @@ This document defines the **game player panel** responsible for running a blindt
 The player controls:
 
 * panel transitions
-* teaser playback
+* `La la la...` playback
 * hint timing
 * automatic transitions
 * round logic
@@ -26,6 +26,10 @@ The Blindtest Player must:
 * handle keyboard controls
 
 The player must remain **fully controllable by the host**.
+
+Broken blindtest slots are allowed and must not crash the player.
+
+Before gameplay starts, the loaded blindtest should already reflect the result of the latest lightweight link validation done when opening the blindtest in the editor.
 
 ---
 
@@ -62,9 +66,11 @@ Panels:
 
 * waiting
 * round_transition
-* teaser
+* `La la la...`
 * answer
 * end
+
+The player may encounter a slot with `slot_status = missing`.
 
 ---
 
@@ -99,9 +105,9 @@ The host presses **Next** to continue.
 
 ---
 
-# Teaser Panel
+# La la la... Panel
 
-Displays the teaser for the current song.
+Displays the `La la la...` for the current song.
 
 Elements:
 
@@ -110,9 +116,19 @@ Elements:
 * control buttons
 * optional countdown
 
+Any image displayed by the player must already be exposed through a backend-served URL.
+
+The player must not try to render raw local filesystem paths.
+
 Audio playback starts after the **pre_play_delay_sec**.
 
-The teaser audio plays **once**.
+The `La la la...` audio plays **once**.
+
+If the current slot is missing:
+
+* `La la la...` audio is unavailable
+* the panel displays the usual playback error state
+* the host may continue manually
 
 ---
 
@@ -129,7 +145,14 @@ Content:
 * genre
 * cover
 
+Cover and background images are expected to be browser-loadable HTTP paths served by the application.
+
 Playback behavior depends on the round.
+
+If the current slot is missing:
+
+* the answer panel still displays the preserved metadata snapshot
+* no answer audio is played
 
 ---
 
@@ -155,7 +178,7 @@ Song order:
 defined order
 ```
 
-Teaser playback:
+`La la la...` playback:
 
 ```text id="round1_play"
 start_sec → start_sec + duration_sec
@@ -165,6 +188,12 @@ Answer playback:
 
 ```text id="round1_answer"
 full song
+```
+
+If the slot is missing:
+
+```text id="round1_missing"
+show error state, keep answer metadata, no audio
 ```
 
 ---
@@ -177,17 +206,23 @@ Song order:
 random
 ```
 
-Teaser playback:
+`La la la...` playback:
 
 1. load audio buffer
-2. extract teaser segment
+2. extract `La la la...` segment
 3. reverse audio
 4. play reversed segment
 
 Answer playback:
 
 ```text id="round2_answer"
-normal teaser segment
+normal `La la la...` segment
+```
+
+If the slot is missing:
+
+```text id="round2_missing"
+show error state, keep answer metadata, no audio
 ```
 
 ---
@@ -200,7 +235,7 @@ Song order:
 random
 ```
 
-Teaser durations are defined by:
+`La la la...` durations are defined by:
 
 ```text id="round3_steps"
 round3_step_durations
@@ -218,13 +253,19 @@ Example:
 5
 ```
 
+If the slot is missing:
+
+* no `La la la...` step can be played
+* the host can still advance panels manually
+* the answer panel uses preserved metadata only
+
 ---
 
 # Round 3 Step Behavior
 
 The host may manually trigger the next step.
 
-Each step plays the teaser using the configured duration.
+Each step plays the `La la la...` using the configured duration.
 
 ---
 
@@ -308,7 +349,7 @@ Auto mode controls transitions.
 
 When enabled:
 
-* teaser → answer
+* `La la la...` → answer
 * answer → next song
 
 Answer panels use a timer.
@@ -325,7 +366,7 @@ Example:
 
 When auto mode is active:
 
-* teaser steps progress automatically
+* `La la la...` steps progress automatically
 * pauses occur between steps
 
 Example:
@@ -348,11 +389,13 @@ The player supports keyboard shortcuts.
 
 | Action               | Keys                            |
 | -------------------- | ------------------------------- |
-| Next panel           | Space / ArrowRight / ArrowDown  |
+| Play / Pause         | Space                           |
+| Next panel           | ArrowRight / ArrowDown          |
 | Previous panel       | ArrowLeft / ArrowUp / Backspace |
-| Toggle hints         | Escape / I                      |
+| Toggle hints         | I / H                           |
 | Toggle auto mode     | A                               |
-| Next escalation step | D                               |
+| Next escalation step | Enter / N / D                   |
+| Exit / Close modal   | Escape / Q                      |
 
 ---
 
@@ -367,12 +410,19 @@ Examples:
 ```text id="player_buttons"
 Next
 Previous
+Play / Pause
 Toggle hints
 Toggle auto
 Step
 ```
 
 Buttons must match the keyboard actions.
+
+`Escape` is contextual:
+
+* close the exit modal if open
+* otherwise hide hints if visible
+* otherwise open the exit modal
 
 ---
 
@@ -387,6 +437,12 @@ Schrouunntch
 ```
 
 The host can skip to the next panel.
+
+The same visual error state must be used for:
+
+* unreadable files
+* missing library songs
+* broken blindtest slots
 
 ---
 

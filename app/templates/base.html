@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BlindUp</title>
+    <link rel="icon" type="image/x-icon" href="/static/brand/favicon.ico" />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body
+    data-page="{{ page_id }}"
+    {% if editor_mode %}
+    data-editor-mode="{{ editor_mode }}"
+    {% endif %}
+    {% if blindtest_id is not none %}
+    data-blindtest-id="{{ blindtest_id }}"
+    {% endif %}
+  >
+    <main class="app-shell">
+      {% if page_id != "home" %}
+        <header class="page-header">
+          <p class="eyebrow">BlindUp</p>
+          <h1 id="page-title">{{ page_title }}</h1>
+        </header>
+      {% else %}
+        <h1 id="page-title" class="visually-hidden">{{ page_title }}</h1>
+      {% endif %}
+
+      {% block content %}{% endblock %}
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
