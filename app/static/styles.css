@@ -552,6 +552,29 @@ body.modal-open {
   width: min(44rem, 100%);
 }
 
+.round-order-card {
+  width: min(72rem, 100%);
+}
+
+.round-order-text {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  min-height: 20rem;
+  resize: none;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.game-mode-field {
+  align-items: center;
+}
+
+.game-mode-actions {
+  display: inline-flex;
+  margin-left: auto;
+}
+
 .background-preview-image {
   position: relative;
   z-index: 1;
@@ -1772,6 +1795,10 @@ body[data-page="player"] .app-shell {
   .home-brand-mark {
     justify-content: center;
     justify-self: center;
+  }
+
+  .round-order-text {
+    min-height: 14rem;
   }
 }
 

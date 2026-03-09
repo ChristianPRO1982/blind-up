@@ -20,10 +20,15 @@
         <h2 id="settings-title">Blindtest settings</h2>
       </div>
       <div class="settings-grid">
-        <fieldset class="settings-field inline-options">
+        <fieldset class="settings-field inline-options game-mode-field">
           <legend>Game mode</legend>
           <label><input type="radio" name="game-mode" value="blind_test" /> Blind Test</label>
           <label><input type="radio" name="game-mode" value="blindup" /> BlindUp</label>
+          <div class="game-mode-actions">
+            <button id="show-round-order-button" class="button-secondary" type="button">
+              list
+            </button>
+          </div>
         </fieldset>
 
         <fieldset class="settings-field">
@@ -70,7 +75,7 @@
         </fieldset>
 
         <fieldset class="settings-field">
-          <legend>Step durations preset</legend>
+          <legend>Step durations preset : round 3</legend>
           <input
             id="round3-step-durations"
             type="text"
@@ -79,12 +84,12 @@
         </fieldset>
 
         <fieldset class="settings-field">
-          <legend>Step gap seconds</legend>
+          <legend>Step gap seconds : round 3</legend>
           <input id="round3-step-gap" type="number" min="0" step="0.1" />
         </fieldset>
 
         <fieldset class="settings-field inline-options">
-          <legend>Progression mode</legend>
+          <legend>Progression mode : round 3</legend>
           <label>
             <input
               type="radio"
@@ -102,6 +107,7 @@
             continuous
           </label>
         </fieldset>
+
       </div>
     </section>
 
@@ -295,6 +301,37 @@
         </button>
       </div>
       <img id="background-preview-image" class="background-preview-image" alt="Background preview" />
+    </section>
+  </div>
+
+  <div id="round-order-modal" class="modal-shell" hidden>
+    <div class="modal-backdrop" data-action="close"></div>
+    <section
+      class="modal-card panel round-order-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="round-order-modal-title"
+    >
+      <div class="panel-heading panel-heading-split">
+        <h2 id="round-order-modal-title">Play order</h2>
+        <button
+          id="close-round-order-modal-button"
+          class="panel-close-button"
+          type="button"
+          aria-label="Close play order"
+        >
+          ×
+        </button>
+      </div>
+      <textarea id="round-order-text" class="round-order-text" rows="22" readonly></textarea>
+      <div class="modal-actions">
+        <button id="shuffle-round-order-button" class="button-secondary" type="button">
+          shuffle
+        </button>
+        <button id="close-round-order-footer-button" class="button-primary" type="button">
+          Close
+        </button>
+      </div>
     </section>
   </div>
 

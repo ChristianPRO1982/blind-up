@@ -547,6 +547,7 @@
         round3ProgressionMode: Array.from(
           document.querySelectorAll('input[name="round3-progression-mode"]')
         ),
+        showRoundOrderButton: document.getElementById("show-round-order-button"),
         editorLayout: document.querySelector(".editor-layout"),
         addSongButton: document.getElementById("add-song-button"),
         songList: document.getElementById("song-list"),
@@ -583,6 +584,11 @@
           "close-background-preview-modal-button"
         ),
         backgroundPreviewImage: document.getElementById("background-preview-image"),
+        roundOrderModal: document.getElementById("round-order-modal"),
+        closeRoundOrderModalButton: document.getElementById("close-round-order-modal-button"),
+        closeRoundOrderFooterButton: document.getElementById("close-round-order-footer-button"),
+        shuffleRoundOrderButton: document.getElementById("shuffle-round-order-button"),
+        roundOrderText: document.getElementById("round-order-text"),
         error: document.getElementById("audio-error"),
         waveform: document.getElementById("waveform"),
         waveWrap: document.getElementById("waveWrap"),
@@ -665,6 +671,7 @@
       this.playerExitReturnFocus = null;
       this.playerAnswerElements = null;
       this.playerTeaserSession = null;
+      this.roundOrderReturnFocus = null;
       window.addEventListener("resize", () => {
         if (this.page === "editor" && this.wavesurfer !== null) {
           this.resetZoom();
@@ -682,6 +689,12 @@
           !this.elements.backgroundPreviewModal.hidden
         ) {
           this.hideBackgroundPreviewModal();
+        }
+        if (
+          this.elements.roundOrderModal !== null &&
+          !this.elements.roundOrderModal.hidden
+        ) {
+          this.hideRoundOrderModal();
         }
       });
       this.bindHome();
@@ -722,8 +735,82 @@
         round3_step_durations: "0.5,1,1.5,2,3,4,5",
         round3_step_gap_sec: 3,
         round3_progression_mode: "fixed_start",
+        round2_song_order: [],
+        round3_song_order: [],
         songs: [],
       };
+    }
+
+    normalizeRoundOrder(order) {
+      if (!Array.isArray(order)) {
+        return [];
+      }
+
+      const normalized = [];
+      const seen = new Set();
+      for (const value of order) {
+        const slotId = numberOrNull(value);
+        if (!Number.isInteger(slotId) || seen.has(slotId)) {
+          continue;
+        }
+        seen.add(slotId);
+        normalized.push(slotId);
+      }
+      return normalized;
+    }
+
+    mergeRoundOrder(order, slotIds, shuffleNewEntries = true) {
+      const validIds = new Set(slotIds);
+      const merged = [];
+      const seen = new Set();
+      for (const slotId of this.normalizeRoundOrder(order)) {
+        if (!validIds.has(slotId) || seen.has(slotId)) {
+          continue;
+        }
+        seen.add(slotId);
+        merged.push(slotId);
+      }
+
+      const missing = slotIds.filter((slotId) => !seen.has(slotId));
+      return merged.concat(shuffleNewEntries ? shuffleList(missing) : missing);
+    }
+
+    shuffleBlindupRoundOrders() {
+      const slotIds = this.blindtest.songs.map((slot) => slot.slot_id);
+      this.blindtest.round2_song_order = shuffleList(slotIds);
+      this.blindtest.round3_song_order = shuffleList(slotIds);
+    }
+
+    syncBlindupRoundOrders(options = {}) {
+      const { regenerate = false } = options;
+      const slotIds = this.blindtest.songs.map((slot) => slot.slot_id);
+      if (this.blindtest.game_mode !== "blindup") {
+        this.blindtest.round2_song_order = this.mergeRoundOrder(
+          this.blindtest.round2_song_order,
+          slotIds,
+          false
+        );
+        this.blindtest.round3_song_order = this.mergeRoundOrder(
+          this.blindtest.round3_song_order,
+          slotIds,
+          false
+        );
+        return;
+      }
+
+      if (regenerate) {
+        this.shuffleBlindupRoundOrders();
+        return;
+      }
+
+      this.blindtest.round2_song_order = this.mergeRoundOrder(
+        this.blindtest.round2_song_order,
+        slotIds
+      );
+      this.blindtest.round3_song_order = this.mergeRoundOrder(
+        this.blindtest.round3_song_order,
+        slotIds
+      );
     }
 
     async ensureWaveLibraries() {
@@ -790,7 +877,14 @@
       for (const input of this.elements.gameMode) {
         input.addEventListener("change", () => {
           if (input.checked) {
+            const previousMode = this.blindtest.game_mode;
             this.blindtest.game_mode = input.value;
+            if (input.value === "blindup") {
+              this.syncBlindupRoundOrders({
+                regenerate: previousMode !== "blindup",
+              });
+            }
+            this.renderSettings();
           }
         });
       }
@@ -825,6 +919,11 @@
       this.elements.saveButton.addEventListener("click", () => {
         this.saveBlindtest().catch(() => {});
       });
+      if (this.elements.showRoundOrderButton !== null) {
+        this.elements.showRoundOrderButton.addEventListener("click", () => {
+          this.showRoundOrderModal();
+        });
+      }
       this.elements.toggleLibraryButton.addEventListener("click", () => {
         this.toggleSidebarPanel("library");
       });
@@ -880,6 +979,30 @@
       this.elements.closeBackgroundPreviewModalButton.addEventListener("click", () => {
         this.hideBackgroundPreviewModal();
       });
+      if (this.elements.roundOrderModal !== null) {
+        this.elements.roundOrderModal.addEventListener("click", (event) => {
+          const action = event.target.closest("[data-action='close']");
+          if (action !== null || event.target === this.elements.roundOrderModal) {
+            this.hideRoundOrderModal();
+          }
+        });
+      }
+      if (this.elements.closeRoundOrderModalButton !== null) {
+        this.elements.closeRoundOrderModalButton.addEventListener("click", () => {
+          this.hideRoundOrderModal();
+        });
+      }
+      if (this.elements.closeRoundOrderFooterButton !== null) {
+        this.elements.closeRoundOrderFooterButton.addEventListener("click", () => {
+          this.hideRoundOrderModal();
+        });
+      }
+      if (this.elements.shuffleRoundOrderButton !== null) {
+        this.elements.shuffleRoundOrderButton.addEventListener("click", () => {
+          this.shuffleBlindupRoundOrders();
+          this.renderRoundOrderModal();
+        });
+      }
       this.elements.librarySearch.addEventListener("input", () => this.renderLibrary());
       this.elements.metadataForm.addEventListener("input", (event) => {
         this.handleMetadataInput(event);
@@ -1008,8 +1131,14 @@
       this.playerSongs = this.buildPlayerSongs();
       this.playerOrders = {
         1: this.playerSongs.slice(),
-        2: shuffleList(this.playerSongs),
-        3: shuffleList(this.playerSongs),
+        2: this.buildPlayerRoundOrder(
+          this.playerSongs,
+          this.blindtest.round2_song_order
+        ),
+        3: this.buildPlayerRoundOrder(
+          this.playerSongs,
+          this.blindtest.round3_song_order
+        ),
       };
       this.playerHistory = [];
       this.playerHintDefinitions = [];
@@ -1078,6 +1207,12 @@
     }
 
     hydrateBlindtest(data) {
+      const previousRound2Order = this.normalizeRoundOrder(
+        this.blindtest && this.blindtest.round2_song_order
+      );
+      const previousRound3Order = this.normalizeRoundOrder(
+        this.blindtest && this.blindtest.round3_song_order
+      );
       this.blindtest = this.createDefaultBlindtest();
       if (data !== null && data !== undefined) {
         this.blindtest.id = data.id;
@@ -1094,6 +1229,12 @@
         this.blindtest.round3_step_gap_sec = data.round3_step_gap_sec ?? 3;
         this.blindtest.round3_progression_mode =
           data.round3_progression_mode || "fixed_start";
+        this.blindtest.round2_song_order = this.normalizeRoundOrder(
+          data.round2_song_order ?? previousRound2Order
+        );
+        this.blindtest.round3_song_order = this.normalizeRoundOrder(
+          data.round3_song_order ?? previousRound3Order
+        );
         this.blindtest.songs = (data.songs || []).map((song) => ({
           slot_id: song.id || this.nextSlotId++,
           song_id: song.song_id,
@@ -1253,6 +1394,113 @@
       for (const input of this.elements.round3ProgressionMode) {
         input.checked = input.value === this.blindtest.round3_progression_mode;
       }
+      this.updateRoundOrderButton();
+      if (
+        this.elements.roundOrderModal !== null &&
+        this.elements.roundOrderModal.hidden === false
+      ) {
+        this.renderRoundOrderModal();
+      }
+    }
+
+    updateRoundOrderButton() {
+      const button = this.elements.showRoundOrderButton;
+      if (button === null) {
+        return;
+      }
+
+      const isBlindUp = this.blindtest.game_mode === "blindup";
+      button.textContent = isBlindUp ? "shuffle round 2-3" : "list";
+    }
+
+    getOrderedSlotsForRound(roundNumber) {
+      if (roundNumber === 1 || this.blindtest.game_mode !== "blindup") {
+        return this.blindtest.songs.slice();
+      }
+
+      const slotMap = new Map(this.blindtest.songs.map((slot) => [slot.slot_id, slot]));
+      const storedOrder =
+        roundNumber === 2
+          ? this.blindtest.round2_song_order
+          : this.blindtest.round3_song_order;
+      return this.mergeRoundOrder(storedOrder, this.blindtest.songs.map((slot) => slot.slot_id), false)
+        .map((slotId) => slotMap.get(slotId) || null)
+        .filter((slot) => slot !== null);
+    }
+
+    getRoundOrderLine(slot, index) {
+      const source = this.getSlotSource(slot);
+      const title =
+        normalizeText(slot.override_title) ||
+        normalizeText(source.title) ||
+        "Missing song";
+      const artist =
+        normalizeText(slot.override_artist) ||
+        normalizeText(source.artist) ||
+        "";
+      const flags = [];
+      if (this.isSlotMissing(slot)) {
+        flags.push("missing audio");
+      } else if (this.isSlotPending(slot)) {
+        flags.push("pending");
+      }
+      const details = artist ? `${title} - ${artist}` : title;
+      return `${index + 1}. ${details}${flags.length > 0 ? ` [${flags.join(", ")}]` : ""}`;
+    }
+
+    getRoundOrderText(roundNumber) {
+      const orderedSlots = this.getOrderedSlotsForRound(roundNumber);
+      if (orderedSlots.length === 0) {
+        return "No songs in this round.";
+      }
+      return orderedSlots.map((slot, index) => this.getRoundOrderLine(slot, index)).join("\n");
+    }
+
+    getRoundOrderModalText() {
+      const sections = [`Round 1\n${this.getRoundOrderText(1)}`];
+      if (this.blindtest.game_mode === "blindup") {
+        sections.push(`Round 2\n${this.getRoundOrderText(2)}`);
+        sections.push(`Round 3\n${this.getRoundOrderText(3)}`);
+      }
+      return sections.join("\n\n");
+    }
+
+    renderRoundOrderModal() {
+      if (this.elements.roundOrderText !== null) {
+        this.elements.roundOrderText.value = this.getRoundOrderModalText();
+      }
+      if (this.elements.shuffleRoundOrderButton !== null) {
+        this.elements.shuffleRoundOrderButton.hidden = this.blindtest.game_mode !== "blindup";
+      }
+    }
+
+    showRoundOrderModal() {
+      if (this.elements.roundOrderModal === null) {
+        return;
+      }
+      this.syncBlindupRoundOrders();
+      this.roundOrderReturnFocus = document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+      this.renderRoundOrderModal();
+      this.elements.roundOrderModal.hidden = false;
+      document.body.classList.add("modal-open");
+      if (this.blindtest.game_mode === "blindup" && this.elements.shuffleRoundOrderButton !== null) {
+        this.elements.shuffleRoundOrderButton.focus();
+      } else if (this.elements.closeRoundOrderFooterButton !== null) {
+        this.elements.closeRoundOrderFooterButton.focus();
+      }
+    }
+
+    hideRoundOrderModal() {
+      if (this.elements.roundOrderModal !== null) {
+        this.elements.roundOrderModal.hidden = true;
+      }
+      document.body.classList.remove("modal-open");
+      if (this.roundOrderReturnFocus instanceof HTMLElement) {
+        this.roundOrderReturnFocus.focus();
+      }
+      this.roundOrderReturnFocus = null;
     }
 
     renderSongList() {
@@ -1927,6 +2175,13 @@
       this.blindtest.songs.forEach((slot, index) => {
         slot.order_index = index;
       });
+      this.syncBlindupRoundOrders();
+      if (
+        this.elements.roundOrderModal !== null &&
+        this.elements.roundOrderModal.hidden === false
+      ) {
+        this.renderRoundOrderModal();
+      }
     }
 
     handleMetadataInput(event) {
@@ -2429,6 +2684,17 @@
           source,
         };
       });
+    }
+
+    buildPlayerRoundOrder(playerSongs, storedOrder) {
+      const songBySlotId = new Map(playerSongs.map((song) => [song.slot_id, song]));
+      return this.mergeRoundOrder(
+        storedOrder,
+        playerSongs.map((song) => song.slot_id),
+        false
+      )
+        .map((slotId) => songBySlotId.get(slotId) || null)
+        .filter((song) => song !== null);
     }
 
     handlePlayerKeydown(event) {
