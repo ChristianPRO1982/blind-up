@@ -2893,8 +2893,17 @@
       );
     }
 
+    getSongArtwork(song) {
+      return (
+        normalizeText(song.override_background) ||
+        normalizeText(song.source.cover_path) ||
+        normalizeText(song.source.background_image) ||
+        ""
+      );
+    }
+
     getSongHintCover(song) {
-      return normalizeText(song.source.cover_path) || "";
+      return this.getSongArtwork(song);
     }
 
     getPlayerModeLabel() {
@@ -3260,10 +3269,10 @@
       answer.year.textContent = display.year || " ";
       answer.genre.textContent = display.genre || " ";
       answer.background.innerHTML = "";
-      const backgroundPath = this.getSongBackground(song);
-      if (backgroundPath) {
+      const artworkPath = this.getSongArtwork(song);
+      if (artworkPath) {
         const image = document.createElement("img");
-        image.src = backgroundPath;
+        image.src = artworkPath;
         image.alt = display.title;
         answer.background.appendChild(image);
         return;

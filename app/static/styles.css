@@ -1615,13 +1615,14 @@ body[data-page="player"] .app-shell {
   display: flex;
   justify-content: center;
   width: min(58rem, 100%);
+  margin: 0 auto;
 }
 
 .player-hints.has-background {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(12rem, 16rem);
   gap: 1rem;
-  align-items: start;
+  align-items: center;
 }
 
 .player-hints-list {
@@ -1629,10 +1630,6 @@ body[data-page="player"] .app-shell {
   flex-wrap: wrap;
   justify-content: center;
   gap: 0.8rem;
-}
-
-.player-hints.has-background .player-hints-list {
-  justify-content: flex-start;
 }
 
 .player-hint {
@@ -1648,7 +1645,7 @@ body[data-page="player"] .app-shell {
 }
 
 .player-hint-background {
-  justify-self: end;
+  justify-self: center;
   width: min(16rem, 100%);
 }
 
@@ -1677,11 +1674,13 @@ body[data-page="player"] .app-shell {
   gap: 0.9rem;
   width: min(76rem, 100%);
   align-items: stretch;
+  justify-items: center;
 }
 
 .player-background-tile {
   display: grid;
   place-items: center;
+  width: 100%;
   min-height: 100%;
   padding: 1rem;
   border: 1px solid rgba(129, 180, 255, 0.18);
@@ -1700,11 +1699,12 @@ body[data-page="player"] .app-shell {
 
 .player-answer-item {
   display: grid;
-  align-content: start;
+  align-content: center;
+  width: 100%;
   padding: 0.95rem 1rem;
   border: 1px solid rgba(129, 180, 255, 0.14);
   border-radius: 1.08rem;
-  text-align: left;
+  text-align: center;
   background:
     linear-gradient(180deg, rgba(16, 28, 47, 0.74), rgba(9, 17, 30, 0.82)),
     linear-gradient(90deg, rgba(103, 232, 249, 0.04), rgba(255, 79, 184, 0.04));
