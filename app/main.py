@@ -28,7 +28,11 @@ settings.covers_dir.mkdir(parents=True, exist_ok=True)
 app = FastAPI(title=settings.project_name, lifespan=lifespan)
 templates = Jinja2Templates(directory=settings.templates_dir)
 app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")
-app.mount("/media/covers", StaticFiles(directory=settings.covers_dir), name="media-covers")
+app.mount(
+    "/media/covers",
+    StaticFiles(directory=settings.covers_dir),
+    name="media-covers",
+)
 app.mount("/media", StaticFiles(directory=settings.storage_dir), name="media")
 
 EDITOR_BACKGROUND_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
