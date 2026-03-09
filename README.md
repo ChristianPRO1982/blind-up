@@ -21,25 +21,26 @@
 
 ### 1. Modifier `docker-compose.yml`
 
-Dans [docker-compose.yml](/home/christianpro1982/Documents/cARThographie/blind-up/docker-compose.yml), remplace le chemin hôte de ta bibliothèque audio par le tien dans le volume monté sur `/music-library`.
+Dans [docker-compose.yml](/home/christianpro1982/Documents/cARThographie/blind-up/docker-compose.yml), configure :
+
+* le chemin hôte de ta bibliothèque audio dans le volume monté sur `/music-library`
+* le chemin hôte utilisé pour stocker les covers extraites dans le volume monté sur `/covers`
 
 Exemple actuel :
 
 ```yml
-volumes:
-  - blindup-data:/data
-  - /home/christianpro1982/Musique/blind-up:/music-library:ro
-```
+environment:
+  BLINDUP_DB_PATH: /data/blindup.db
+  BLINDUP_LIBRARY_ROOT_PATH: /music-library
+  BLINDUP_COVERS_DIR: /covers
 
-Exemple à adapter :
-
-```yml
 volumes:
   - blindup-data:/data
   - /chemin/vers/tes/fichiers-audio:/music-library:ro
+  - /chemin/vers/ton/dossier-covers:/covers
 ```
 
-Seule la partie avant `:/music-library:ro` doit être changée.
+Le montage `/covers` doit rester **inscriptible**. Ne pas ajouter `:ro`, sinon BlindUp ne pourra pas sauvegarder les images extraites.
 
 ### 2. Lancer Docker
 

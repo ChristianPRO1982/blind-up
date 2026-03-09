@@ -84,7 +84,7 @@ def test_config_uses_environment_override(monkeypatch, tmp_path) -> None:
     importlib.reload(config_module)
 
 
-def test_get_editor_cover_gallery_handles_missing_and_unsupported_files(
+def test_get_editor_background_gallery_handles_missing_and_unsupported_files(
     monkeypatch, tmp_path
 ) -> None:
     static_dir = tmp_path / "static"
@@ -102,18 +102,18 @@ def test_get_editor_cover_gallery_handles_missing_and_unsupported_files(
         ),
     )
 
-    assert main_module.get_editor_cover_gallery() == []
+    assert main_module.get_editor_background_gallery() == []
 
-    gallery_dir = static_dir / "editor-covers"
+    gallery_dir = static_dir / "editor-backgrounds"
     gallery_dir.mkdir()
     (gallery_dir / "ignore.txt").write_text("skip", encoding="utf-8")
     (gallery_dir / "nested").mkdir()
     (gallery_dir / "usable_cover.png").write_bytes(b"png")
 
-    assert main_module.get_editor_cover_gallery() == [
+    assert main_module.get_editor_background_gallery() == [
         {
             "name": "usable cover",
-            "url": "/static/editor-covers/usable_cover.png",
+            "url": "/static/editor-backgrounds/usable_cover.png",
         }
     ]
 
@@ -243,13 +243,13 @@ def test_init_db_creates_expected_schema(monkeypatch, tmp_path) -> None:
             "source_album",
             "source_year",
             "source_genre",
-            "source_cover",
+            "source_background",
             "override_title",
             "override_artist",
             "override_album",
             "override_year",
             "override_genre",
-            "override_cover",
+            "override_background",
             "custom_hint",
         ]
 
@@ -311,6 +311,7 @@ def test_init_db_migrates_legacy_blindtest_songs_table(monkeypatch, tmp_path) ->
             order_index INTEGER,
             start_sec REAL,
             duration_sec REAL,
+            source_cover TEXT,
             override_title TEXT,
             override_artist TEXT,
             override_album TEXT,
@@ -367,13 +368,13 @@ def test_init_db_migrates_legacy_blindtest_songs_table(monkeypatch, tmp_path) ->
         "source_album",
         "source_year",
         "source_genre",
-        "source_cover",
+        "source_background",
         "override_title",
         "override_artist",
         "override_album",
         "override_year",
         "override_genre",
-        "override_cover",
+        "override_background",
         "custom_hint",
     ]
     assert dict(row) == {
@@ -382,6 +383,110 @@ def test_init_db_migrates_legacy_blindtest_songs_table(monkeypatch, tmp_path) ->
         "source_title": "Song 1",
         "source_artist": "Artist 1",
         "custom_hint": "legacy",
+    }
+
+
+def test_init_db_migrates_background_columns_and_missing_override_background(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    database_path = tmp_path / "legacy-backgrounds" / "blindup.db"
+    monkeypatch.setattr(
+        db_module,
+        "settings",
+        config_module.Settings(database_path=database_path),
+    )
+
+    database_path.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(database_path)
+    connection.row_factory = sqlite3.Row
+    connection.executescript(
+        """
+        CREATE TABLE songs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            file_hash TEXT UNIQUE NOT NULL,
+            file_path TEXT NOT NULL,
+            duration_sec REAL,
+            title TEXT,
+            artist TEXT,
+            album TEXT,
+            year INTEGER,
+            genre TEXT,
+            cover_path TEXT,
+            created_at TEXT,
+            updated_at TEXT
+        );
+
+        CREATE TABLE blindtests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            background_image TEXT,
+            game_mode TEXT,
+            pre_play_delay_sec REAL,
+            auto_enabled_default INTEGER,
+            hints_enabled_default INTEGER,
+            answer_timer_enabled INTEGER,
+            answer_duration_sec REAL,
+            round3_step_durations TEXT,
+            round3_step_gap_sec REAL,
+            round3_progression_mode TEXT,
+            created_at TEXT,
+            updated_at TEXT
+        );
+
+        CREATE TABLE blindtest_songs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            blindtest_id INTEGER NOT NULL,
+            song_id INTEGER NOT NULL,
+            order_index INTEGER,
+            start_sec REAL,
+            duration_sec REAL,
+            source_background TEXT,
+            override_title TEXT,
+            override_artist TEXT,
+            override_album TEXT,
+            override_year INTEGER,
+            override_genre TEXT,
+            custom_hint TEXT,
+            FOREIGN KEY (blindtest_id) REFERENCES blindtests(id),
+            FOREIGN KEY (song_id) REFERENCES songs(id)
+        );
+
+        INSERT INTO songs (id, file_hash, file_path, title, artist)
+        VALUES (1, 'hash-1', '/music/song-1.mp3', 'Song 1', 'Artist 1');
+
+        INSERT INTO blindtests (id, title)
+        VALUES (1, 'Legacy backgrounds');
+
+        INSERT INTO blindtest_songs (
+            id,
+            blindtest_id,
+            song_id,
+            order_index,
+            start_sec,
+            duration_sec,
+            source_background,
+            custom_hint
+        )
+        VALUES (1, 1, 1, 0, 12, 3.5, '/media/backgrounds/source.jpg', 'legacy');
+        """
+    )
+    connection.close()
+
+    db_module.init_db()
+
+    with db_module.get_connection() as migrated:
+        row = migrated.execute(
+            """
+            SELECT source_background, override_background
+            FROM blindtest_songs
+            WHERE id = 1;
+            """
+        ).fetchone()
+
+    assert dict(row) == {
+        "source_background": "/media/backgrounds/source.jpg",
+        "override_background": None,
     }
 
 
@@ -603,7 +708,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
                             "override_album": None,
                             "override_year": 1999,
                             "override_genre": None,
-                            "override_cover": None,
+                            "override_background": None,
                             "custom_hint": "Final chorus",
                         }
                     ],
@@ -728,13 +833,13 @@ def test_fastapi_routes_serve_expected_responses() -> None:
                 "source_album": song.source_album,
                 "source_year": song.source_year,
                 "source_genre": song.source_genre,
-                "source_cover": song.source_cover,
+                "source_background": song.source_background,
                 "override_title": song.override_title,
                 "override_artist": song.override_artist,
                 "override_album": song.override_album,
                 "override_year": song.override_year,
                 "override_genre": song.override_genre,
-                "override_cover": song.override_cover,
+                "override_background": song.override_background,
                 "custom_hint": song.custom_hint,
             }
             for song in record.songs
@@ -905,13 +1010,13 @@ def test_fastapi_routes_serve_expected_responses() -> None:
                         "source_album": None,
                         "source_year": None,
                         "source_genre": None,
-                        "source_cover": None,
+                        "source_background": None,
                         "override_title": "Opening song",
                         "override_artist": None,
                         "override_album": None,
                         "override_year": 1999,
                         "override_genre": None,
-                        "override_cover": None,
+                        "override_background": None,
                         "custom_hint": "Final chorus",
                     }
                 ],

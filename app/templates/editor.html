@@ -20,53 +20,76 @@
         <h2 id="settings-title">Blindtest settings</h2>
       </div>
       <div class="settings-grid">
-        <fieldset class="inline-options">
+        <fieldset class="settings-field inline-options game-mode-field">
           <legend>Game mode</legend>
           <label><input type="radio" name="game-mode" value="blind_test" /> Blind Test</label>
           <label><input type="radio" name="game-mode" value="blindup" /> BlindUp</label>
+          <div class="game-mode-actions">
+            <button id="show-round-order-button" class="button-secondary" type="button">
+              list
+            </button>
+          </div>
         </fieldset>
 
-        <label>
-          Pre-play delay (seconds)
+        <fieldset class="settings-field">
+          <legend>Pre-play delay (seconds)</legend>
           <input id="pre-play-delay" type="number" min="0" step="0.1" />
-        </label>
+        </fieldset>
 
-        <label class="toggle-field">
-          <input id="auto-enabled-default" type="checkbox" />
-          Auto enabled by default
-        </label>
+        <fieldset class="settings-field toggle-field">
+          <legend>Auto enabled by default</legend>
+          <div class="toggle-control">
+            <input
+              id="auto-enabled-default"
+              type="checkbox"
+              aria-label="Auto enabled by default"
+            />
+          </div>
+        </fieldset>
 
-        <label class="toggle-field">
-          <input id="hints-enabled-default" type="checkbox" />
-          Indices enabled by default
-        </label>
+        <fieldset class="settings-field toggle-field">
+          <legend>Indices enabled by default</legend>
+          <div class="toggle-control">
+            <input
+              id="hints-enabled-default"
+              type="checkbox"
+              aria-label="Indices enabled by default"
+            />
+          </div>
+        </fieldset>
 
-        <label class="toggle-field">
-          <input id="answer-timer-enabled" type="checkbox" />
-          Answer timer enabled
-        </label>
+        <fieldset class="settings-field toggle-field">
+          <legend>Answer timer enabled</legend>
+          <div class="toggle-control">
+            <input
+              id="answer-timer-enabled"
+              type="checkbox"
+              aria-label="Answer timer enabled"
+            />
+          </div>
+        </fieldset>
 
-        <label>
-          Answer duration seconds
+        <fieldset class="settings-field">
+          <legend>Answer duration seconds</legend>
           <input id="answer-duration" type="number" min="0" step="0.1" />
-        </label>
+        </fieldset>
 
-        <label>
-          Step durations preset
+        <fieldset class="settings-field">
+          <legend>Step durations preset : round 3</legend>
           <input
             id="round3-step-durations"
             type="text"
             placeholder="0.5,1,1.5,2,3,4,5"
           />
-        </label>
+        </fieldset>
 
-        <label>
-          Step gap seconds
+        <fieldset class="settings-field">
+          <legend>Step gap seconds : round 3</legend>
           <input id="round3-step-gap" type="number" min="0" step="0.1" />
-        </label>
+        </fieldset>
 
-        <fieldset class="inline-options">
-          <legend>Progression mode</legend>
+        <fieldset class="settings-field inline-options">
+          <legend>Progression mode : round 3</legend>
           <label>
             <input
               type="radio"
@@ -84,6 +107,7 @@
             continuous
           </label>
         </fieldset>
+
       </div>
     </section>
 
@@ -122,22 +146,49 @@
             Genre
             <input id="override-genre" name="override_genre" type="text" />
           </label>
-          <label class="cover-field">
-            Cover
-            <div class="cover-field-row">
-              <input id="override-cover" name="override_cover" type="text" />
-              <button id="preview-cover-button" class="button-secondary button-compact" type="button">
+          <label class="background-field">
+            Background
+            <div class="background-field-row">
+              <input
+                id="override-background"
+                name="override_background"
+                type="text"
+                readonly
+              />
+              <button
+                id="clear-background-button"
+                class="button-ghost button-compact background-clear-button"
+                type="button"
+                aria-label="Clear background"
+              >
+                x
+              </button>
+              <button id="preview-background-button" class="button-secondary button-compact" type="button">
                 Preview
               </button>
-              <button id="toggle-cover-panel-button" class="button-secondary button-compact" type="button">
-                Show covers
+              <button id="toggle-background-panel-button" class="button-secondary button-compact" type="button">
+                Show backgrounds
               </button>
             </div>
           </label>
-          <label class="wide-field">
+          <label class="custom-hint-field">
             Custom hint
             <textarea id="custom-hint" name="custom_hint" rows="5"></textarea>
           </label>
+          <section class="cover-display-field" aria-labelledby="cover-display-title">
+            <h3 id="cover-display-title">Cover</h3>
+            <div class="cover-display-card">
+              <p id="cover-display-status" class="cover-display-status">
+                No target song selected.
+              </p>
+              <img
+                id="cover-display-image"
+                class="cover-display-image"
+                alt="Extracted cover"
+                hidden
+              />
+            </div>
+          </section>
         </form>
 
         <p id="audio-error" class="status" hidden>Audio unavailable</p>
@@ -154,6 +205,7 @@
           <button id="zoom-in-button" type="button">Zoom +</button>
           <button id="zoom-reset-button" type="button">Zoom reset</button>
           <button id="mark-button" type="button">Mark</button>
+          <button id="select-all-button" type="button">All</button>
           <button id="reset-selection-button" type="button">Reset selection</button>
         </div>
 
@@ -192,14 +244,14 @@
       <div id="library-list" class="library-list"></div>
     </aside>
 
-    <aside class="covers-panel panel" aria-labelledby="covers-title" hidden>
+    <aside class="backgrounds-panel panel" aria-labelledby="backgrounds-title" hidden>
       <div class="panel-heading panel-heading-split">
-        <h2 id="covers-title">Covers</h2>
-        <button id="close-cover-panel-button" class="panel-close-button" type="button" aria-label="Hide covers">
+        <h2 id="backgrounds-title">Backgrounds</h2>
+        <button id="close-background-panel-button" class="panel-close-button" type="button" aria-label="Hide backgrounds">
           ×
         </button>
       </div>
-      <div id="cover-gallery" class="library-list cover-gallery"></div>
+      <div id="background-gallery" class="library-list background-gallery"></div>
     </aside>
   </section>
 
@@ -230,28 +282,59 @@
     </section>
   </div>
 
-  <div id="cover-preview-modal" class="modal-shell" hidden>
+  <div id="background-preview-modal" class="modal-shell" hidden>
     <div class="modal-backdrop" data-action="close"></div>
     <section
-      class="modal-card panel cover-preview-card"
+      class="modal-card panel background-preview-card"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="cover-preview-modal-title"
+      aria-labelledby="background-preview-modal-title"
     >
       <div class="panel-heading panel-heading-split">
-        <h2 id="cover-preview-modal-title">Cover preview</h2>
+        <h2 id="background-preview-modal-title">Background preview</h2>
         <button
-          id="close-cover-preview-modal-button"
+          id="close-background-preview-modal-button"
           class="panel-close-button"
           type="button"
-          aria-label="Close cover preview"
+          aria-label="Close background preview"
         >
           ×
         </button>
       </div>
-      <img id="cover-preview-image" class="cover-preview-image" alt="Cover preview" />
+      <img id="background-preview-image" class="background-preview-image" alt="Background preview" />
     </section>
   </div>
 
-  <script id="cover-gallery-data" type="application/json">{{ cover_gallery | tojson }}</script>
+  <div id="round-order-modal" class="modal-shell" hidden>
+    <div class="modal-backdrop" data-action="close"></div>
+    <section
+      class="modal-card panel round-order-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="round-order-modal-title"
+    >
+      <div class="panel-heading panel-heading-split">
+        <h2 id="round-order-modal-title">Play order</h2>
+        <button
+          id="close-round-order-modal-button"
+          class="panel-close-button"
+          type="button"
+          aria-label="Close play order"
+        >
+          ×
+        </button>
+      </div>
+      <textarea id="round-order-text" class="round-order-text" rows="22" readonly></textarea>
+      <div class="modal-actions">
+        <button id="shuffle-round-order-button" class="button-secondary" type="button">
+          shuffle
+        </button>
+        <button id="close-round-order-footer-button" class="button-primary" type="button">
+          Close
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <script id="background-gallery-data" type="application/json">{{ background_gallery | tojson }}</script>
 {% endblock %}

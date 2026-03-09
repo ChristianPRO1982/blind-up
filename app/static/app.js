@@ -547,6 +547,7 @@
         round3ProgressionMode: Array.from(
           document.querySelectorAll('input[name="round3-progression-mode"]')
         ),
+        showRoundOrderButton: document.getElementById("show-round-order-button"),
         editorLayout: document.querySelector(".editor-layout"),
         addSongButton: document.getElementById("add-song-button"),
         songList: document.getElementById("song-list"),
@@ -557,17 +558,20 @@
         overrideAlbum: document.getElementById("override-album"),
         overrideYear: document.getElementById("override-year"),
         overrideGenre: document.getElementById("override-genre"),
-        overrideCover: document.getElementById("override-cover"),
-        previewCoverButton: document.getElementById("preview-cover-button"),
-        toggleCoverPanelButton: document.getElementById("toggle-cover-panel-button"),
+        overrideBackground: document.getElementById("override-background"),
+        clearBackgroundButton: document.getElementById("clear-background-button"),
+        previewBackgroundButton: document.getElementById("preview-background-button"),
+        toggleBackgroundPanelButton: document.getElementById("toggle-background-panel-button"),
         customHint: document.getElementById("custom-hint"),
+        coverDisplayStatus: document.getElementById("cover-display-status"),
+        coverDisplayImage: document.getElementById("cover-display-image"),
         libraryPanel: document.querySelector(".library-panel"),
         closeLibraryButton: document.getElementById("close-library-button"),
         librarySearch: document.getElementById("library-search"),
         libraryList: document.getElementById("library-list"),
-        coversPanel: document.querySelector(".covers-panel"),
-        closeCoverPanelButton: document.getElementById("close-cover-panel-button"),
-        coverGallery: document.getElementById("cover-gallery"),
+        backgroundsPanel: document.querySelector(".backgrounds-panel"),
+        closeBackgroundPanelButton: document.getElementById("close-background-panel-button"),
+        backgroundGallery: document.getElementById("background-gallery"),
         removeSongModal: document.getElementById("remove-song-modal"),
         closeRemoveSongModalButton: document.getElementById(
           "close-remove-song-modal-button"
@@ -575,11 +579,16 @@
         removeSongModalCopy: document.getElementById("remove-song-modal-copy"),
         cancelRemoveSongButton: document.getElementById("cancel-remove-song-button"),
         confirmRemoveSongButton: document.getElementById("confirm-remove-song-button"),
-        coverPreviewModal: document.getElementById("cover-preview-modal"),
-        closeCoverPreviewModalButton: document.getElementById(
-          "close-cover-preview-modal-button"
+        backgroundPreviewModal: document.getElementById("background-preview-modal"),
+        closeBackgroundPreviewModalButton: document.getElementById(
+          "close-background-preview-modal-button"
         ),
-        coverPreviewImage: document.getElementById("cover-preview-image"),
+        backgroundPreviewImage: document.getElementById("background-preview-image"),
+        roundOrderModal: document.getElementById("round-order-modal"),
+        closeRoundOrderModalButton: document.getElementById("close-round-order-modal-button"),
+        closeRoundOrderFooterButton: document.getElementById("close-round-order-footer-button"),
+        shuffleRoundOrderButton: document.getElementById("shuffle-round-order-button"),
+        roundOrderText: document.getElementById("round-order-text"),
         error: document.getElementById("audio-error"),
         waveform: document.getElementById("waveform"),
         waveWrap: document.getElementById("waveWrap"),
@@ -588,6 +597,7 @@
         zoomIn: document.getElementById("zoom-in-button"),
         zoomReset: document.getElementById("zoom-reset-button"),
         mark: document.getElementById("mark-button"),
+        selectAll: document.getElementById("select-all-button"),
         reset: document.getElementById("reset-selection-button"),
         currentTime: document.getElementById("current-time"),
         startTime: document.getElementById("start-time"),
@@ -628,7 +638,7 @@
       this.latestScanSummaryKey = "";
       this.librarySongs = [];
       this.librarySongMap = new Map();
-      this.coverGallery = this.readCoverGallery();
+      this.backgroundGallery = this.readBackgroundGallery();
       this.activeSidebarPanel = null;
       this.pendingRemoveSlotId = null;
       this.blindtest = this.createDefaultBlindtest();
@@ -662,6 +672,7 @@
       this.playerExitReturnFocus = null;
       this.playerAnswerElements = null;
       this.playerTeaserSession = null;
+      this.roundOrderReturnFocus = null;
       window.addEventListener("resize", () => {
         if (this.page === "editor" && this.wavesurfer !== null) {
           this.resetZoom();
@@ -675,10 +686,16 @@
           this.hideRemoveSongModal();
         }
         if (
-          this.elements.coverPreviewModal !== null &&
-          !this.elements.coverPreviewModal.hidden
+          this.elements.backgroundPreviewModal !== null &&
+          !this.elements.backgroundPreviewModal.hidden
         ) {
-          this.hideCoverPreviewModal();
+          this.hideBackgroundPreviewModal();
+        }
+        if (
+          this.elements.roundOrderModal !== null &&
+          !this.elements.roundOrderModal.hidden
+        ) {
+          this.hideRoundOrderModal();
         }
       });
       this.bindHome();
@@ -691,8 +708,8 @@
       }
     }
 
-    readCoverGallery() {
-      const dataNode = document.getElementById("cover-gallery-data");
+    readBackgroundGallery() {
+      const dataNode = document.getElementById("background-gallery-data");
       if (dataNode === null) {
         return [];
       }
@@ -700,7 +717,7 @@
         const payload = JSON.parse(dataNode.textContent || "[]");
         return Array.isArray(payload) ? payload : [];
       } catch (error) {
-        console.error("Invalid cover gallery payload", error);
+        console.error("Invalid background gallery payload", error);
         return [];
       }
     }
@@ -719,8 +736,82 @@
         round3_step_durations: "0.5,1,1.5,2,3,4,5",
         round3_step_gap_sec: 3,
         round3_progression_mode: "fixed_start",
+        round2_song_order: [],
+        round3_song_order: [],
         songs: [],
       };
+    }
+
+    normalizeRoundOrder(order) {
+      if (!Array.isArray(order)) {
+        return [];
+      }
+
+      const normalized = [];
+      const seen = new Set();
+      for (const value of order) {
+        const slotId = numberOrNull(value);
+        if (!Number.isInteger(slotId) || seen.has(slotId)) {
+          continue;
+        }
+        seen.add(slotId);
+        normalized.push(slotId);
+      }
+      return normalized;
+    }
+
+    mergeRoundOrder(order, slotIds, shuffleNewEntries = true) {
+      const validIds = new Set(slotIds);
+      const merged = [];
+      const seen = new Set();
+      for (const slotId of this.normalizeRoundOrder(order)) {
+        if (!validIds.has(slotId) || seen.has(slotId)) {
+          continue;
+        }
+        seen.add(slotId);
+        merged.push(slotId);
+      }
+
+      const missing = slotIds.filter((slotId) => !seen.has(slotId));
+      return merged.concat(shuffleNewEntries ? shuffleList(missing) : missing);
+    }
+
+    shuffleBlindupRoundOrders() {
+      const slotIds = this.blindtest.songs.map((slot) => slot.slot_id);
+      this.blindtest.round2_song_order = shuffleList(slotIds);
+      this.blindtest.round3_song_order = shuffleList(slotIds);
+    }
+
+    syncBlindupRoundOrders(options = {}) {
+      const { regenerate = false } = options;
+      const slotIds = this.blindtest.songs.map((slot) => slot.slot_id);
+      if (this.blindtest.game_mode !== "blindup") {
+        this.blindtest.round2_song_order = this.mergeRoundOrder(
+          this.blindtest.round2_song_order,
+          slotIds,
+          false
+        );
+        this.blindtest.round3_song_order = this.mergeRoundOrder(
+          this.blindtest.round3_song_order,
+          slotIds,
+          false
+        );
+        return;
+      }
+
+      if (regenerate) {
+        this.shuffleBlindupRoundOrders();
+        return;
+      }
+
+      this.blindtest.round2_song_order = this.mergeRoundOrder(
+        this.blindtest.round2_song_order,
+        slotIds
+      );
+      this.blindtest.round3_song_order = this.mergeRoundOrder(
+        this.blindtest.round3_song_order,
+        slotIds
+      );
     }
 
     async ensureWaveLibraries() {
@@ -787,7 +878,14 @@
       for (const input of this.elements.gameMode) {
         input.addEventListener("change", () => {
           if (input.checked) {
+            const previousMode = this.blindtest.game_mode;
             this.blindtest.game_mode = input.value;
+            if (input.value === "blindup") {
+              this.syncBlindupRoundOrders({
+                regenerate: previousMode !== "blindup",
+              });
+            }
+            this.renderSettings();
           }
         });
       }
@@ -822,6 +920,11 @@
       this.elements.saveButton.addEventListener("click", () => {
         this.saveBlindtest().catch(() => {});
       });
+      if (this.elements.showRoundOrderButton !== null) {
+        this.elements.showRoundOrderButton.addEventListener("click", () => {
+          this.showRoundOrderModal();
+        });
+      }
       this.elements.toggleLibraryButton.addEventListener("click", () => {
         this.toggleSidebarPanel("library");
       });
@@ -837,13 +940,16 @@
       this.elements.closeLibraryButton.addEventListener("click", () => {
         this.setSidebarPanel(null);
       });
-      this.elements.previewCoverButton.addEventListener("click", () => {
-        this.showCoverPreviewModal();
+      this.elements.previewBackgroundButton.addEventListener("click", () => {
+        this.showBackgroundPreviewModal();
       });
-      this.elements.toggleCoverPanelButton.addEventListener("click", () => {
-        this.toggleSidebarPanel("covers");
+      this.elements.clearBackgroundButton.addEventListener("click", () => {
+        this.clearBackgroundSelection();
       });
-      this.elements.closeCoverPanelButton.addEventListener("click", () => {
+      this.elements.toggleBackgroundPanelButton.addEventListener("click", () => {
+        this.toggleSidebarPanel("backgrounds");
+      });
+      this.elements.closeBackgroundPanelButton.addEventListener("click", () => {
         this.setSidebarPanel(null);
       });
       this.elements.removeSongModal.addEventListener("click", (event) => {
@@ -861,19 +967,43 @@
       this.elements.confirmRemoveSongButton.addEventListener("click", () => {
         this.confirmRemoveSlot();
       });
-      this.elements.coverPreviewModal.addEventListener("click", (event) => {
+      this.elements.backgroundPreviewModal.addEventListener("click", (event) => {
         const action = event.target.closest("[data-action='close']");
         if (
           action !== null ||
-          event.target === this.elements.coverPreviewModal ||
-          event.target === this.elements.coverPreviewImage
+          event.target === this.elements.backgroundPreviewModal ||
+          event.target === this.elements.backgroundPreviewImage
         ) {
-          this.hideCoverPreviewModal();
+          this.hideBackgroundPreviewModal();
         }
       });
-      this.elements.closeCoverPreviewModalButton.addEventListener("click", () => {
-        this.hideCoverPreviewModal();
+      this.elements.closeBackgroundPreviewModalButton.addEventListener("click", () => {
+        this.hideBackgroundPreviewModal();
       });
+      if (this.elements.roundOrderModal !== null) {
+        this.elements.roundOrderModal.addEventListener("click", (event) => {
+          const action = event.target.closest("[data-action='close']");
+          if (action !== null || event.target === this.elements.roundOrderModal) {
+            this.hideRoundOrderModal();
+          }
+        });
+      }
+      if (this.elements.closeRoundOrderModalButton !== null) {
+        this.elements.closeRoundOrderModalButton.addEventListener("click", () => {
+          this.hideRoundOrderModal();
+        });
+      }
+      if (this.elements.closeRoundOrderFooterButton !== null) {
+        this.elements.closeRoundOrderFooterButton.addEventListener("click", () => {
+          this.hideRoundOrderModal();
+        });
+      }
+      if (this.elements.shuffleRoundOrderButton !== null) {
+        this.elements.shuffleRoundOrderButton.addEventListener("click", () => {
+          this.shuffleBlindupRoundOrders();
+          this.renderRoundOrderModal();
+        });
+      }
       this.elements.librarySearch.addEventListener("input", () => this.renderLibrary());
       this.elements.metadataForm.addEventListener("input", (event) => {
         this.handleMetadataInput(event);
@@ -887,6 +1017,7 @@
       this.elements.zoomIn.addEventListener("click", () => this.setZoom(this.currentZoom * ZOOM_STEP));
       this.elements.zoomReset.addEventListener("click", () => this.resetZoom());
       this.elements.mark.addEventListener("click", () => this.handleMark());
+      this.elements.selectAll.addEventListener("click", () => this.handleSelectAll());
       this.elements.reset.addEventListener("click", () => this.resetSelection());
     }
 
@@ -1002,8 +1133,14 @@
       this.playerSongs = this.buildPlayerSongs();
       this.playerOrders = {
         1: this.playerSongs.slice(),
-        2: shuffleList(this.playerSongs),
-        3: shuffleList(this.playerSongs),
+        2: this.buildPlayerRoundOrder(
+          this.playerSongs,
+          this.blindtest.round2_song_order
+        ),
+        3: this.buildPlayerRoundOrder(
+          this.playerSongs,
+          this.blindtest.round3_song_order
+        ),
       };
       this.playerHistory = [];
       this.playerHintDefinitions = [];
@@ -1026,7 +1163,7 @@
       this.renderSettings();
       this.renderSongList();
       this.renderLibrary();
-      this.renderCoverGallery();
+      this.renderBackgroundGallery();
       this.renderEditor();
     }
 
@@ -1036,14 +1173,14 @@
 
     setSidebarPanel(panelName) {
       this.activeSidebarPanel =
-        panelName === "library" || panelName === "covers" ? panelName : null;
+        panelName === "library" || panelName === "backgrounds" ? panelName : null;
       const isLibraryVisible = this.activeSidebarPanel === "library";
-      const isCoversVisible = this.activeSidebarPanel === "covers";
+      const isBackgroundsVisible = this.activeSidebarPanel === "backgrounds";
       if (this.elements.libraryPanel !== null) {
         this.elements.libraryPanel.hidden = !isLibraryVisible;
       }
-      if (this.elements.coversPanel !== null) {
-        this.elements.coversPanel.hidden = !isCoversVisible;
+      if (this.elements.backgroundsPanel !== null) {
+        this.elements.backgroundsPanel.hidden = !isBackgroundsVisible;
       }
       if (this.elements.editorLayout !== null) {
         this.elements.editorLayout.classList.toggle(
@@ -1057,11 +1194,14 @@
           : "Show library";
         this.elements.toggleLibraryButton.classList.toggle("is-active", isLibraryVisible);
       }
-      if (this.elements.toggleCoverPanelButton !== null) {
-        this.elements.toggleCoverPanelButton.textContent = isCoversVisible
-          ? "Hide covers"
-          : "Show covers";
-        this.elements.toggleCoverPanelButton.classList.toggle("is-active", isCoversVisible);
+      if (this.elements.toggleBackgroundPanelButton !== null) {
+        this.elements.toggleBackgroundPanelButton.textContent = isBackgroundsVisible
+          ? "Hide backgrounds"
+          : "Show backgrounds";
+        this.elements.toggleBackgroundPanelButton.classList.toggle(
+          "is-active",
+          isBackgroundsVisible
+        );
       }
       if (this.wavesurfer !== null) {
         window.requestAnimationFrame(() => this.resetZoom());
@@ -1069,6 +1209,12 @@
     }
 
     hydrateBlindtest(data) {
+      const previousRound2Order = this.normalizeRoundOrder(
+        this.blindtest && this.blindtest.round2_song_order
+      );
+      const previousRound3Order = this.normalizeRoundOrder(
+        this.blindtest && this.blindtest.round3_song_order
+      );
       this.blindtest = this.createDefaultBlindtest();
       if (data !== null && data !== undefined) {
         this.blindtest.id = data.id;
@@ -1085,6 +1231,12 @@
         this.blindtest.round3_step_gap_sec = data.round3_step_gap_sec ?? 3;
         this.blindtest.round3_progression_mode =
           data.round3_progression_mode || "fixed_start";
+        this.blindtest.round2_song_order = this.normalizeRoundOrder(
+          data.round2_song_order ?? previousRound2Order
+        );
+        this.blindtest.round3_song_order = this.normalizeRoundOrder(
+          data.round3_song_order ?? previousRound3Order
+        );
         this.blindtest.songs = (data.songs || []).map((song) => ({
           slot_id: song.id || this.nextSlotId++,
           song_id: song.song_id,
@@ -1097,13 +1249,13 @@
           source_album: song.source_album || "",
           source_year: song.source_year ?? "",
           source_genre: song.source_genre || "",
-          source_cover: song.source_cover || "",
+          source_background: song.source_background || song.source_cover || "",
           override_title: song.override_title || "",
           override_artist: song.override_artist || "",
           override_album: song.override_album || "",
           override_year: song.override_year ?? "",
           override_genre: song.override_genre || "",
-          override_cover: song.override_cover || "",
+          override_background: song.override_background || song.override_cover || "",
           custom_hint: song.custom_hint || "",
         }));
         const maxSlotId = this.blindtest.songs.reduce(
@@ -1139,10 +1291,17 @@
             : librarySource && librarySource.year,
         genre:
           normalizeText(slot.source_genre) || normalizeText(librarySource && librarySource.genre),
-        cover_path:
-          normalizeText(slot.source_cover) ||
-          normalizeText(librarySource && librarySource.cover_path),
+        background_image: normalizeText(slot.source_background),
+        cover_path: normalizeText(librarySource && librarySource.cover_path),
       };
+    }
+
+    getSlotCoverPath(slot) {
+      if (slot === null || slot.song_id === null) {
+        return "";
+      }
+      const librarySource = this.librarySongMap.get(slot.song_id) || null;
+      return normalizeText(librarySource && librarySource.cover_path) || "";
     }
 
     snapshotFromLibrarySong(songId) {
@@ -1154,7 +1313,7 @@
         source_year:
           song && song.year !== null && song.year !== undefined ? song.year : "",
         source_genre: normalizeText(song && song.genre),
-        source_cover: normalizeText(song && song.cover_path),
+        source_background: "",
       };
     }
 
@@ -1164,7 +1323,7 @@
       this.renderSettings();
       this.renderSongList();
       this.renderLibrary();
-      this.renderCoverGallery();
+      this.renderBackgroundGallery();
       this.renderEditor();
     }
 
@@ -1237,6 +1396,113 @@
       for (const input of this.elements.round3ProgressionMode) {
         input.checked = input.value === this.blindtest.round3_progression_mode;
       }
+      this.updateRoundOrderButton();
+      if (
+        this.elements.roundOrderModal !== null &&
+        this.elements.roundOrderModal.hidden === false
+      ) {
+        this.renderRoundOrderModal();
+      }
+    }
+
+    updateRoundOrderButton() {
+      const button = this.elements.showRoundOrderButton;
+      if (button === null) {
+        return;
+      }
+
+      const isBlindUp = this.blindtest.game_mode === "blindup";
+      button.textContent = isBlindUp ? "shuffle round 2-3" : "list";
+    }
+
+    getOrderedSlotsForRound(roundNumber) {
+      if (roundNumber === 1 || this.blindtest.game_mode !== "blindup") {
+        return this.blindtest.songs.slice();
+      }
+
+      const slotMap = new Map(this.blindtest.songs.map((slot) => [slot.slot_id, slot]));
+      const storedOrder =
+        roundNumber === 2
+          ? this.blindtest.round2_song_order
+          : this.blindtest.round3_song_order;
+      return this.mergeRoundOrder(storedOrder, this.blindtest.songs.map((slot) => slot.slot_id), false)
+        .map((slotId) => slotMap.get(slotId) || null)
+        .filter((slot) => slot !== null);
+    }
+
+    getRoundOrderLine(slot, index) {
+      const source = this.getSlotSource(slot);
+      const title =
+        normalizeText(slot.override_title) ||
+        normalizeText(source.title) ||
+        "Missing song";
+      const artist =
+        normalizeText(slot.override_artist) ||
+        normalizeText(source.artist) ||
+        "";
+      const flags = [];
+      if (this.isSlotMissing(slot)) {
+        flags.push("missing audio");
+      } else if (this.isSlotPending(slot)) {
+        flags.push("pending");
+      }
+      const details = artist ? `${title} - ${artist}` : title;
+      return `${index + 1}. ${details}${flags.length > 0 ? ` [${flags.join(", ")}]` : ""}`;
+    }
+
+    getRoundOrderText(roundNumber) {
+      const orderedSlots = this.getOrderedSlotsForRound(roundNumber);
+      if (orderedSlots.length === 0) {
+        return "No songs in this round.";
+      }
+      return orderedSlots.map((slot, index) => this.getRoundOrderLine(slot, index)).join("\n");
+    }
+
+    getRoundOrderModalText() {
+      const sections = [`Round 1\n${this.getRoundOrderText(1)}`];
+      if (this.blindtest.game_mode === "blindup") {
+        sections.push(`Round 2\n${this.getRoundOrderText(2)}`);
+        sections.push(`Round 3\n${this.getRoundOrderText(3)}`);
+      }
+      return sections.join("\n\n");
+    }
+
+    renderRoundOrderModal() {
+      if (this.elements.roundOrderText !== null) {
+        this.elements.roundOrderText.value = this.getRoundOrderModalText();
+      }
+      if (this.elements.shuffleRoundOrderButton !== null) {
+        this.elements.shuffleRoundOrderButton.hidden = this.blindtest.game_mode !== "blindup";
+      }
+    }
+
+    showRoundOrderModal() {
+      if (this.elements.roundOrderModal === null) {
+        return;
+      }
+      this.syncBlindupRoundOrders();
+      this.roundOrderReturnFocus = document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+      this.renderRoundOrderModal();
+      this.elements.roundOrderModal.hidden = false;
+      document.body.classList.add("modal-open");
+      if (this.blindtest.game_mode === "blindup" && this.elements.shuffleRoundOrderButton !== null) {
+        this.elements.shuffleRoundOrderButton.focus();
+      } else if (this.elements.closeRoundOrderFooterButton !== null) {
+        this.elements.closeRoundOrderFooterButton.focus();
+      }
+    }
+
+    hideRoundOrderModal() {
+      if (this.elements.roundOrderModal !== null) {
+        this.elements.roundOrderModal.hidden = true;
+      }
+      document.body.classList.remove("modal-open");
+      if (this.roundOrderReturnFocus instanceof HTMLElement) {
+        this.roundOrderReturnFocus.focus();
+      }
+      this.roundOrderReturnFocus = null;
     }
 
     renderSongList() {
@@ -1401,53 +1667,60 @@
       }
     }
 
-    renderCoverGallery() {
-      if (this.elements.coverGallery === null) {
+    renderBackgroundGallery() {
+      if (this.elements.backgroundGallery === null) {
         return;
       }
 
       const slot = this.getActiveSlot();
-      const canAssignCover = slot !== null && !this.isSlotPending(slot);
-      const currentCover = canAssignCover ? normalizeText(slot.override_cover) : "";
-      this.elements.coverGallery.innerHTML = "";
+      const canAssignBackground = slot !== null && !this.isSlotPending(slot);
+      const currentBackground = canAssignBackground
+        ? normalizeText(slot.override_background)
+        : "";
+      this.elements.backgroundGallery.innerHTML = "";
 
-      if (this.coverGallery.length === 0) {
+      if (this.backgroundGallery.length === 0) {
         const empty = document.createElement("div");
-        empty.className = "cover-gallery-empty";
-        empty.textContent = "No covers available.";
-        this.elements.coverGallery.appendChild(empty);
+        empty.className = "background-gallery-empty";
+        empty.textContent = "No backgrounds available.";
+        this.elements.backgroundGallery.appendChild(empty);
         return;
       }
 
-      for (const cover of this.coverGallery) {
+      for (const background of this.backgroundGallery) {
         const button = document.createElement("button");
         button.type = "button";
         button.className = "library-item cover-choice";
-        if (normalizeText(cover.url) === currentCover) {
+        if (normalizeText(background.url) === currentBackground) {
           button.classList.add("is-active");
         }
-        button.disabled = !canAssignCover;
-        const thumb = this.createImageThumb(cover.url, cover.name || "Cover");
+        button.disabled = !canAssignBackground;
+        const thumb = this.createImageThumb(
+          background.url,
+          background.name || "Background"
+        );
         const body = document.createElement("div");
         body.innerHTML = `
           <div class="library-item-header">
             <div class="library-item-meta">
-              <div class="library-item-title">${this.escapeHtml(cover.name || "Cover")}</div>
-              <div class="library-item-subtitle">Preset cover</div>
+              <div class="library-item-title">${this.escapeHtml(background.name || "Background")}</div>
+              <div class="library-item-subtitle">Preset background</div>
               <div class="library-item-details">Click to use this image</div>
             </div>
           </div>
         `;
         button.appendChild(thumb);
         button.appendChild(body);
-        button.addEventListener("click", () => this.applyCoverSelection(cover.url));
-        this.elements.coverGallery.appendChild(button);
+        button.addEventListener("click", () =>
+          this.applyBackgroundSelection(background.url)
+        );
+        this.elements.backgroundGallery.appendChild(button);
       }
     }
 
     renderEditor() {
       const slot = this.getActiveSlot();
-      this.renderCoverGallery();
+      this.renderBackgroundGallery();
       if (slot === null) {
         this.showEditorEmpty();
         return;
@@ -1459,6 +1732,7 @@
 
       this.elements.songEditorContent.hidden = false;
       this.fillMetadataForm(slot);
+      this.renderCoverDisplay(slot);
       this.loadSlotWaveform(slot).catch(() => {
         this.showAudioError();
       });
@@ -1471,7 +1745,7 @@
       this.elements.overrideAlbum.value = slot.override_album || "";
       this.elements.overrideYear.value = slot.override_year === "" ? "" : slot.override_year;
       this.elements.overrideGenre.value = slot.override_genre || "";
-      this.elements.overrideCover.value = slot.override_cover || "";
+      this.elements.overrideBackground.value = slot.override_background || "";
       this.elements.customHint.value = slot.custom_hint || "";
       this.elements.overrideTitle.placeholder = normalizeText(source.title);
       this.elements.overrideArtist.placeholder = normalizeText(source.artist);
@@ -1479,8 +1753,59 @@
       this.elements.overrideYear.placeholder =
         source.year === null || source.year === undefined ? "" : String(source.year);
       this.elements.overrideGenre.placeholder = normalizeText(source.genre);
-      this.elements.overrideCover.placeholder = "";
-      this.updateCoverPreviewButtonState();
+      this.elements.overrideBackground.placeholder = "";
+      this.updateClearBackgroundButtonState();
+      this.updateBackgroundPreviewButtonState();
+    }
+
+    renderCoverDisplay(slot) {
+      if (slot === null) {
+        this.showCoverDisplayStatus("No target song selected.");
+        return;
+      }
+      if (this.isSlotPending(slot)) {
+        this.showCoverDisplayStatus("Open the library to add a song.");
+        return;
+      }
+      if (this.isSlotMissing(slot) || slot.song_id === null) {
+        this.showCoverDisplayStatus("Cover unavailable.");
+        return;
+      }
+
+      const existingCover = this.getSlotCoverPath(slot);
+      if (existingCover) {
+        this.showCoverDisplayImage(existingCover, slot);
+        return;
+      }
+
+      this.showCoverDisplayStatus("No extracted cover.");
+    }
+
+    showCoverDisplayStatus(message) {
+      if (this.elements.coverDisplayStatus !== null) {
+        this.elements.coverDisplayStatus.hidden = false;
+        this.elements.coverDisplayStatus.textContent = message;
+      }
+      if (this.elements.coverDisplayImage !== null) {
+        this.elements.coverDisplayImage.hidden = true;
+        this.elements.coverDisplayImage.removeAttribute("src");
+      }
+    }
+
+    showCoverDisplayImage(imageUrl, slot) {
+      if (this.elements.coverDisplayStatus !== null) {
+        this.elements.coverDisplayStatus.hidden = true;
+      }
+      if (this.elements.coverDisplayImage !== null) {
+        this.elements.coverDisplayImage.hidden = false;
+        this.elements.coverDisplayImage.src = imageUrl;
+        const source = this.getSlotSource(slot);
+        const title =
+          normalizeText(slot.override_title) ||
+          normalizeText(source.title) ||
+          "target song";
+        this.elements.coverDisplayImage.alt = `Cover for ${title}`;
+      }
     }
 
     async loadSlotWaveform(slot) {
@@ -1557,7 +1882,7 @@
       this.wavesurfer.on("error", () => this.showAudioError());
     }
 
-    createImageThumb(imageUrl, label = "Cover") {
+    createImageThumb(imageUrl, label = "Background") {
       const thumb = document.createElement("div");
       thumb.className = "cover-thumb cover-thumb-image";
       const image = document.createElement("img");
@@ -1589,7 +1914,9 @@
       this.showPlaceholder(message);
       this.hideError();
       this.setWaveformControlsDisabled(true);
-      this.updateCoverPreviewButtonState();
+      this.showCoverDisplayStatus(message ? "Cover unavailable." : "No target song selected.");
+      this.updateClearBackgroundButtonState();
+      this.updateBackgroundPreviewButtonState();
     }
 
     showPlaceholder(message) {
@@ -1622,6 +1949,7 @@
       this.elements.zoomIn.disabled = disabled;
       this.elements.zoomReset.disabled = disabled;
       this.elements.mark.disabled = disabled;
+      this.elements.selectAll.disabled = disabled;
       this.elements.reset.disabled = disabled;
     }
 
@@ -1696,7 +2024,7 @@
         override_album: "",
         override_year: "",
         override_genre: "",
-        override_cover: "",
+        override_background: "",
         custom_hint: "",
       };
     }
@@ -1777,41 +2105,52 @@
       this.removeSlot(slotId);
     }
 
-    getCurrentCoverPreviewPath() {
-      return normalizeText(this.elements.overrideCover.value);
+    getCurrentBackgroundPreviewPath() {
+      return normalizeText(this.elements.overrideBackground.value);
     }
 
-    updateCoverPreviewButtonState() {
-      if (this.elements.previewCoverButton === null) {
+    updateBackgroundPreviewButtonState() {
+      if (this.elements.previewBackgroundButton === null) {
         return;
       }
-      this.elements.previewCoverButton.disabled = !this.getCurrentCoverPreviewPath();
+      this.elements.previewBackgroundButton.disabled = !this.getCurrentBackgroundPreviewPath();
     }
 
-    showCoverPreviewModal() {
-      const imagePath = this.getCurrentCoverPreviewPath();
+    updateClearBackgroundButtonState() {
+      if (this.elements.clearBackgroundButton === null) {
+        return;
+      }
+      const slot = this.getActiveSlot();
+      this.elements.clearBackgroundButton.disabled =
+        slot === null ||
+        this.isSlotPending(slot) ||
+        !normalizeText(this.elements.overrideBackground.value);
+    }
+
+    showBackgroundPreviewModal() {
+      const imagePath = this.getCurrentBackgroundPreviewPath();
       if (
         !imagePath ||
-        this.elements.coverPreviewModal === null ||
-        this.elements.coverPreviewImage === null
+        this.elements.backgroundPreviewModal === null ||
+        this.elements.backgroundPreviewImage === null
       ) {
         return;
       }
-      this.elements.coverPreviewImage.src = imagePath;
-      this.elements.coverPreviewImage.alt = "Cover preview";
-      this.elements.coverPreviewModal.hidden = false;
+      this.elements.backgroundPreviewImage.src = imagePath;
+      this.elements.backgroundPreviewImage.alt = "Background preview";
+      this.elements.backgroundPreviewModal.hidden = false;
       document.body.classList.add("modal-open");
-      if (this.elements.closeCoverPreviewModalButton !== null) {
-        this.elements.closeCoverPreviewModalButton.focus();
+      if (this.elements.closeBackgroundPreviewModalButton !== null) {
+        this.elements.closeBackgroundPreviewModalButton.focus();
       }
     }
 
-    hideCoverPreviewModal() {
-      if (this.elements.coverPreviewModal !== null) {
-        this.elements.coverPreviewModal.hidden = true;
+    hideBackgroundPreviewModal() {
+      if (this.elements.backgroundPreviewModal !== null) {
+        this.elements.backgroundPreviewModal.hidden = true;
       }
-      if (this.elements.coverPreviewImage !== null) {
-        this.elements.coverPreviewImage.removeAttribute("src");
+      if (this.elements.backgroundPreviewImage !== null) {
+        this.elements.backgroundPreviewImage.removeAttribute("src");
       }
       document.body.classList.remove("modal-open");
     }
@@ -1839,6 +2178,13 @@
       this.blindtest.songs.forEach((slot, index) => {
         slot.order_index = index;
       });
+      this.syncBlindupRoundOrders();
+      if (
+        this.elements.roundOrderModal !== null &&
+        this.elements.roundOrderModal.hidden === false
+      ) {
+        this.renderRoundOrderModal();
+      }
     }
 
     handleMetadataInput(event) {
@@ -1858,23 +2204,38 @@
         slot[field] = event.target.value;
       }
       this.renderSongList();
-      if (field === "override_cover") {
-        this.renderCoverGallery();
-        this.updateCoverPreviewButtonState();
+      if (field === "override_background") {
+        this.renderBackgroundGallery();
+        this.updateBackgroundPreviewButtonState();
       }
     }
 
-    applyCoverSelection(coverUrl) {
+    applyBackgroundSelection(backgroundUrl) {
       const slot = this.getActiveSlot();
       if (slot === null || this.isSlotPending(slot)) {
         return;
       }
 
-      slot.override_cover = normalizeText(coverUrl);
-      this.elements.overrideCover.value = slot.override_cover;
+      slot.override_background = normalizeText(backgroundUrl);
+      this.elements.overrideBackground.value = slot.override_background;
       this.renderSongList();
-      this.renderCoverGallery();
-      this.updateCoverPreviewButtonState();
+      this.renderBackgroundGallery();
+      this.updateClearBackgroundButtonState();
+      this.updateBackgroundPreviewButtonState();
+    }
+
+    clearBackgroundSelection() {
+      const slot = this.getActiveSlot();
+      if (slot === null || this.isSlotPending(slot)) {
+        return;
+      }
+
+      slot.override_background = "";
+      this.elements.overrideBackground.value = "";
+      this.renderSongList();
+      this.renderBackgroundGallery();
+      this.updateClearBackgroundButtonState();
+      this.updateBackgroundPreviewButtonState();
     }
 
     handleMark() {
@@ -1885,6 +2246,22 @@
       const duration = this.wavesurfer.getDuration();
       const current = clamp(this.wavesurfer.getCurrentTime(), 0, duration || 0);
       this.applyMarkAtTime(current);
+    }
+
+    handleSelectAll() {
+      if (this.wavesurfer === null) {
+        return;
+      }
+
+      const duration = this.wavesurfer.getDuration();
+      if (!(duration > 0)) {
+        return;
+      }
+
+      this.pendingStart = 0;
+      this.selectionEnd = duration;
+      this.renderSelectionRegion();
+      this.renderSongList();
     }
 
     handleWaveInteraction() {
@@ -2261,13 +2638,13 @@
               source_album: normalizeText(slot.source_album) || null,
               source_year: slot.source_year === "" ? null : numberOrNull(slot.source_year),
               source_genre: normalizeText(slot.source_genre) || null,
-              source_cover: normalizeText(slot.source_cover) || null,
+              source_background: normalizeText(slot.source_background) || null,
               override_title: normalizeText(slot.override_title) || null,
               override_artist: normalizeText(slot.override_artist) || null,
               override_album: normalizeText(slot.override_album) || null,
             override_year: slot.override_year === "" ? null : numberOrNull(slot.override_year),
             override_genre: normalizeText(slot.override_genre) || null,
-            override_cover: normalizeText(slot.override_cover) || null,
+            override_background: normalizeText(slot.override_background) || null,
             custom_hint: normalizeText(slot.custom_hint) || null,
           })),
         }),
@@ -2326,6 +2703,17 @@
           source,
         };
       });
+    }
+
+    buildPlayerRoundOrder(playerSongs, storedOrder) {
+      const songBySlotId = new Map(playerSongs.map((song) => [song.slot_id, song]));
+      return this.mergeRoundOrder(
+        storedOrder,
+        playerSongs.map((song) => song.slot_id),
+        false
+      )
+        .map((slotId) => songBySlotId.get(slotId) || null)
+        .filter((song) => song !== null);
     }
 
     handlePlayerKeydown(event) {
@@ -2432,6 +2820,13 @@
         return;
       }
       this.playerState.auto_enabled = !this.playerState.auto_enabled;
+      if (
+        this.playerState.panel === "La la la..." &&
+        this.playerState.current_round === 3
+      ) {
+        this.enterCurrentPlayerPanel();
+        return;
+      }
       this.updatePlayerControls();
     }
 
@@ -2618,7 +3013,11 @@
       }
 
       if (this.playerState.panel === "La la la...") {
-        this.setPlayerBackground(song ? this.getSongCover(song) : this.blindtest.background_image);
+        this.setPlayerBackground(
+          this.playerState.current_round === 3
+            ? ""
+            : this.getSongBackground(song) || this.blindtest.background_image
+        );
         this.playerElements.panelLabel.textContent = "La la la...";
         this.setPlayerMainTitleText(this.getPlayerModeLabel());
         if (this.playerState.current_round === 3) {
@@ -2633,7 +3032,11 @@
       }
 
       if (this.playerState.panel === "answer") {
-        this.setPlayerBackground(song ? this.getSongCover(song) : this.blindtest.background_image);
+        this.setPlayerBackground(
+          this.playerState.current_round === 3
+            ? ""
+            : this.getSongBackground(song) || this.blindtest.background_image
+        );
         this.playerElements.panelLabel.textContent = "Answer";
         if (song !== null) {
           this.fillPlayerAnswer(song);
@@ -2699,7 +3102,8 @@
       const showStep =
         this.playerState !== null &&
         this.playerState.panel === "La la la..." &&
-        this.playerState.current_round === 3;
+        this.playerState.current_round === 3 &&
+        !this.playerState.auto_enabled;
       this.playerElements.stepButton.hidden = !showStep;
       this.playerElements.stepButton.disabled =
         !showStep ||
@@ -2778,8 +3182,29 @@
       };
     }
 
-    getSongCover(song) {
-      return normalizeText(song.override_cover) || normalizeText(song.source.cover_path) || "";
+    getSongBackground(song) {
+      return (
+        normalizeText(song.override_background) ||
+        normalizeText(song.source.background_image) ||
+        ""
+      );
+    }
+
+    getSongArtwork(song) {
+      return (
+        normalizeText(song.override_background) ||
+        normalizeText(song.source.cover_path) ||
+        normalizeText(song.source.background_image) ||
+        ""
+      );
+    }
+
+    getSongHintCover(song) {
+      return normalizeText(song.source.cover_path) || "";
+    }
+
+    getSongAnswerCover(song) {
+      return normalizeText(song.source.cover_path) || "";
     }
 
     getPlayerModeLabel() {
@@ -2832,11 +3257,10 @@
     }
 
     getPrePlayDelay() {
-      if (
-        this.playerState !== null &&
-        this.playerState.current_round === 3 &&
-        this.playerState.round3_step_index > 0
-      ) {
+      if (this.playerState !== null && this.playerState.current_round === 3) {
+        if (!this.playerState.auto_enabled) {
+          return 0;
+        }
         return Math.max(0, this.blindtest.round3_step_gap_sec || 0);
       }
       return Math.max(0, this.blindtest.pre_play_delay_sec || 0);
@@ -2895,9 +3319,16 @@
 
       session.phase = "audio";
       session.phase_started_at = Date.now();
-
       const remainingDuration = Math.max(0, session.playback.duration - session.playback_elapsed_sec);
-      this.startCountdown(remainingDuration, session.token);
+      const shouldShowAudioCountdown = !(
+        this.playerState !== null && this.playerState.current_round === 3
+      );
+      if (shouldShowAudioCountdown) {
+        this.startCountdown(remainingDuration, session.token);
+      } else {
+        this.clearCountdown();
+      }
+
       this.startHintTracking(session.playback.duration, session.token, session.playback_elapsed_sec);
       if (remainingDuration <= 0) {
         session.status = "finished";
@@ -3000,6 +3431,8 @@
         this.playerState.current_round === 3 &&
         this.playerState.round3_step_index < this.getRound3Steps().length - 1
       ) {
+        this.playerState.round3_step_index += 1;
+        this.enterCurrentPlayerPanel();
         return;
       }
 
@@ -3014,7 +3447,7 @@
       }
 
       const display = this.getSongDisplay(song);
-      const cover = this.getSongCover(song);
+      const cover = this.getSongHintCover(song);
       if (this.playerState.current_round === 3) {
         return [];
       }
@@ -3053,7 +3486,7 @@
         !this.playerState.hints_visible ||
         this.playerHintRevealCount === 0
       ) {
-        this.playerElements.hints.classList.remove("has-cover");
+        this.playerElements.hints.classList.remove("has-background");
         this.playerElements.hints.hidden = true;
         this.playerElements.hints.innerHTML = "";
         return;
@@ -3061,7 +3494,7 @@
 
       const hints = this.playerHintDefinitions.slice(0, this.playerHintRevealCount);
       if (hints.length === 0) {
-        this.playerElements.hints.classList.remove("has-cover");
+        this.playerElements.hints.classList.remove("has-background");
         this.playerElements.hints.hidden = true;
         this.playerElements.hints.innerHTML = "";
         return;
@@ -3074,9 +3507,9 @@
       const textList = document.createElement("div");
       textList.className = "player-hints-list";
       if (coverHint !== null) {
-        this.playerElements.hints.classList.add("has-cover");
+        this.playerElements.hints.classList.add("has-background");
       } else {
-        this.playerElements.hints.classList.remove("has-cover");
+        this.playerElements.hints.classList.remove("has-background");
       }
 
       for (const hint of textHints) {
@@ -3098,7 +3531,7 @@
 
       if (coverHint !== null) {
         const coverNode = document.createElement("div");
-        coverNode.className = "player-hint player-hint-cover";
+        coverNode.className = "player-hint player-hint-background";
         const label = document.createElement("span");
         label.className = "player-hint-label";
         label.textContent = coverHint.label;
@@ -3144,18 +3577,15 @@
       answer.album.textContent = display.album || " ";
       answer.year.textContent = display.year || " ";
       answer.genre.textContent = display.genre || " ";
-      answer.cover.innerHTML = "";
-      const coverPath = this.getSongCover(song);
+      answer.background.innerHTML = "";
+      const coverPath = this.getSongAnswerCover(song);
+      answer.background.hidden = !coverPath;
       if (coverPath) {
         const image = document.createElement("img");
         image.src = coverPath;
         image.alt = display.title;
-        answer.cover.appendChild(image);
-        return;
+        answer.background.appendChild(image);
       }
-      answer.cover.appendChild(
-        this.createCoverThumb({ title: display.title || "Song" })
-      );
     }
 
     ensurePlayerAnswerElements() {
@@ -3166,7 +3596,7 @@
       const host = this.playerElements.answerHost;
       if (host === null) {
         return {
-          cover: document.createElement("div"),
+          background: document.createElement("div"),
           title: document.createElement("dd"),
           artist: document.createElement("dd"),
           album: document.createElement("dd"),
@@ -3175,13 +3605,13 @@
         };
       }
 
-      const cover = document.createElement("div");
-      cover.id = "player-cover";
-      cover.className = "player-cover";
+      const background = document.createElement("div");
+      background.id = "player-background-tile";
+      background.className = "player-background-tile";
 
       const row = document.createElement("div");
       row.className = "player-answer-row";
-      row.appendChild(cover);
+      row.appendChild(background);
 
       const fields = [
         ["Title", "player-answer-title", "title"],
@@ -3190,7 +3620,7 @@
         ["Year", "player-answer-year", "year"],
         ["Genre", "player-answer-genre", "genre"],
       ];
-      const elements = { cover };
+      const elements = { background };
       for (const [labelText, elementId, key] of fields) {
         const item = document.createElement("div");
         item.className = "player-answer-item";

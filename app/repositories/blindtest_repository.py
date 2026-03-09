@@ -20,13 +20,13 @@ class BlindtestSongRecord:
     source_album: str | None = None
     source_year: int | None = None
     source_genre: str | None = None
-    source_cover: str | None = None
+    source_background: str | None = None
     override_title: str | None = None
     override_artist: str | None = None
     override_album: str | None = None
     override_year: int | None = None
     override_genre: str | None = None
-    override_cover: str | None = None
+    override_background: str | None = None
     custom_hint: str | None = None
 
 
@@ -59,7 +59,6 @@ def _snapshot_from_song(song: dict[str, object] | None) -> dict[str, object | No
             "source_album": None,
             "source_year": None,
             "source_genre": None,
-            "source_cover": None,
         }
 
     return {
@@ -68,7 +67,6 @@ def _snapshot_from_song(song: dict[str, object] | None) -> dict[str, object | No
         "source_album": song["album"],
         "source_year": song["year"],
         "source_genre": song["genre"],
-        "source_cover": song["cover_path"],
     }
 
 
@@ -163,28 +161,31 @@ def normalize_blindtest_media(blindtest_id: int) -> int:
 
         slot_rows = connection.execute(
             """
-            SELECT id, source_cover, override_cover
+            SELECT id, source_background, override_background
             FROM blindtest_songs
             WHERE blindtest_id = ?;
             """,
             (blindtest_id,),
         ).fetchall()
         for row in slot_rows:
-            normalized_source = import_image_reference(row["source_cover"], "covers")
+            normalized_source = import_image_reference(
+                row["source_background"],
+                "backgrounds",
+            )
             normalized_override = import_image_reference(
-                row["override_cover"],
-                "covers",
+                row["override_background"],
+                "backgrounds",
             )
             if (
-                normalized_source == row["source_cover"]
-                and normalized_override == row["override_cover"]
+                normalized_source == row["source_background"]
+                and normalized_override == row["override_background"]
             ):
                 continue
             connection.execute(
                 """
                 UPDATE blindtest_songs
-                SET source_cover = ?,
-                    override_cover = ?
+                SET source_background = ?,
+                    override_background = ?
                 WHERE id = ?;
                 """,
                 (normalized_source, normalized_override, row["id"]),
@@ -209,7 +210,7 @@ def validate_blindtest_links(blindtest_id: int) -> dict[str, int]:
                 blindtest_songs.source_album,
                 blindtest_songs.source_year,
                 blindtest_songs.source_genre,
-                blindtest_songs.source_cover,
+                blindtest_songs.source_background,
                 songs.title,
                 songs.artist,
                 songs.album,
@@ -257,8 +258,7 @@ def validate_blindtest_links(blindtest_id: int) -> dict[str, int]:
                     source_artist = COALESCE(?, source_artist),
                     source_album = COALESCE(?, source_album),
                     source_year = COALESCE(?, source_year),
-                    source_genre = COALESCE(?, source_genre),
-                    source_cover = COALESCE(?, source_cover)
+                    source_genre = COALESCE(?, source_genre)
                 WHERE id = ?;
                 """,
                 (
@@ -268,7 +268,6 @@ def validate_blindtest_links(blindtest_id: int) -> dict[str, int]:
                     snapshot["source_album"],
                     snapshot["source_year"],
                     snapshot["source_genre"],
-                    snapshot["source_cover"],
                     row["id"],
                 ),
             )
@@ -291,8 +290,7 @@ def mark_song_slots_missing(song: dict[str, object]) -> int:
                 source_artist = COALESCE(source_artist, ?),
                 source_album = COALESCE(source_album, ?),
                 source_year = COALESCE(source_year, ?),
-                source_genre = COALESCE(source_genre, ?),
-                source_cover = COALESCE(source_cover, ?)
+                source_genre = COALESCE(source_genre, ?)
             WHERE song_id = ?;
             """,
             (
@@ -302,7 +300,6 @@ def mark_song_slots_missing(song: dict[str, object]) -> int:
                 snapshot["source_album"],
                 snapshot["source_year"],
                 snapshot["source_genre"],
-                snapshot["source_cover"],
                 song["id"],
             ),
         )
@@ -412,11 +409,14 @@ def save_blindtest(record: BlindtestRecord) -> dict[str, object]:
             )
             song_id = song.song_id if source_song is not None else None
             slot_status = "ok" if song_id is not None else "missing"
-            source_cover = import_image_reference(
-                (song.source_cover if song_id is None else snapshot["source_cover"]),
-                "covers",
+            source_background = import_image_reference(
+                song.source_background,
+                "backgrounds",
             )
-            override_cover = import_image_reference(song.override_cover, "covers")
+            override_background = import_image_reference(
+                song.override_background,
+                "backgrounds",
+            )
             connection.execute(
                 """
                 INSERT INTO blindtest_songs (
@@ -431,13 +431,13 @@ def save_blindtest(record: BlindtestRecord) -> dict[str, object]:
                     source_album,
                     source_year,
                     source_genre,
-                    source_cover,
+                    source_background,
                     override_title,
                     override_artist,
                     override_album,
                     override_year,
                     override_genre,
-                    override_cover,
+                    override_background,
                     custom_hint
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
@@ -470,13 +470,13 @@ def save_blindtest(record: BlindtestRecord) -> dict[str, object]:
                         if song_id is None
                         else snapshot["source_genre"]
                     ),
-                    (source_cover),
+                    (source_background),
                     song.override_title,
                     song.override_artist,
                     song.override_album,
                     song.override_year,
                     song.override_genre,
-                    override_cover,
+                    override_background,
                     song.custom_hint,
                 ),
             )
