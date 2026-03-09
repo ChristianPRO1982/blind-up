@@ -608,7 +608,7 @@
         position: document.getElementById("player-position"),
         panelLabel: document.getElementById("player-panel-label"),
         mainTitle: document.getElementById("player-main-title"),
-        subtitle: document.getElementById("player-subtitle"),
+        stageMetaHost: document.getElementById("player-stage-meta-host"),
         countdown: document.getElementById("player-countdown"),
         error: document.getElementById("player-error"),
         hints: document.getElementById("player-hints"),
@@ -2577,7 +2577,6 @@
         this.setPlayerBackground(this.blindtest.background_image);
         this.playerElements.panelLabel.textContent = "Waiting";
         this.playerElements.mainTitle.textContent = this.blindtest.title || "BLINDUP";
-        this.playerElements.subtitle.textContent = "";
         return;
       }
 
@@ -2586,7 +2585,6 @@
         this.playerElements.panelLabel.textContent = "Round transition";
         this.playerElements.mainTitle.textContent =
           ROUND_TRANSITION_TITLES[this.playerState.current_round] || "Round";
-        this.playerElements.subtitle.textContent = "";
         return;
       }
 
@@ -2594,10 +2592,11 @@
         this.setPlayerBackground(song ? this.getSongCover(song) : this.blindtest.background_image);
         this.playerElements.panelLabel.textContent = "La la la...";
         this.playerElements.mainTitle.textContent = this.getPlayerModeLabel();
-        this.playerElements.subtitle.textContent =
-          this.playerState.current_round === 3
-            ? `Step ${this.playerState.round3_step_index + 1} / ${this.getRound3Steps().length}`
-            : "";
+        if (this.playerState.current_round === 3) {
+          this.renderPlayerStageMeta(
+            `Step ${this.playerState.round3_step_index + 1} / ${this.getRound3Steps().length}`
+          );
+        }
         if (song !== null) {
           this.startTeaserPanel(this.playerPanelToken, song);
         }
@@ -2617,19 +2616,34 @@
       this.setPlayerBackground(this.blindtest.background_image);
       this.playerElements.panelLabel.textContent = "End";
       this.playerElements.mainTitle.textContent = "BLINDUP";
-      this.playerElements.subtitle.textContent = "";
     }
 
     renderPlayerBase() {
+      this.clearPlayerStageMeta();
       this.clearPlayerAnswer();
       this.playerElements.hints.hidden = true;
       this.playerElements.hints.innerHTML = "";
       this.playerElements.countdown.hidden = true;
       this.playerElements.countdown.textContent = "";
-      this.playerElements.subtitle.hidden = false;
       this.playerElements.error.hidden = true;
       this.playerElements.roundLabel.textContent = "Blindtest player";
       this.playerElements.position.textContent = this.getPlayerPositionText();
+    }
+
+    renderPlayerStageMeta(text) {
+      if (this.playerElements.stageMetaHost === null) {
+        return;
+      }
+      const meta = document.createElement("p");
+      meta.className = "player-stage-meta";
+      meta.textContent = text;
+      this.playerElements.stageMetaHost.replaceChildren(meta);
+    }
+
+    clearPlayerStageMeta() {
+      if (this.playerElements.stageMetaHost !== null) {
+        this.playerElements.stageMetaHost.replaceChildren();
+      }
     }
 
     updatePlayerControls() {
@@ -3083,7 +3097,6 @@
       const display = this.getSongDisplay(song);
       const answer = this.ensurePlayerAnswerElements();
       this.playerElements.mainTitle.textContent = display.title;
-      this.playerElements.subtitle.textContent = display.artist;
       answer.title.textContent = display.title;
       answer.artist.textContent = display.artist || " ";
       answer.album.textContent = display.album || " ";
@@ -3111,7 +3124,6 @@
       const host = this.playerElements.answerHost;
       if (host === null) {
         return {
-          root: null,
           cover: document.createElement("div"),
           title: document.createElement("dd"),
           artist: document.createElement("dd"),
@@ -3121,17 +3133,13 @@
         };
       }
 
-      const answer = document.createElement("div");
-      answer.id = "player-answer";
-      answer.className = "player-answer";
-
       const cover = document.createElement("div");
       cover.id = "player-cover";
       cover.className = "player-cover";
-      answer.appendChild(cover);
 
-      const grid = document.createElement("dl");
-      grid.className = "player-answer-grid";
+      const row = document.createElement("div");
+      row.className = "player-answer-row";
+      row.appendChild(cover);
 
       const fields = [
         ["Title", "player-answer-title", "title"],
@@ -3140,21 +3148,21 @@
         ["Year", "player-answer-year", "year"],
         ["Genre", "player-answer-genre", "genre"],
       ];
-      const elements = { root: answer, cover };
+      const elements = { cover };
       for (const [labelText, elementId, key] of fields) {
         const item = document.createElement("div");
+        item.className = "player-answer-item";
         const label = document.createElement("dt");
         label.textContent = labelText;
         const value = document.createElement("dd");
         value.id = elementId;
         item.appendChild(label);
         item.appendChild(value);
-        grid.appendChild(item);
+        row.appendChild(item);
         elements[key] = value;
       }
 
-      answer.appendChild(grid);
-      host.replaceChildren(answer);
+      host.replaceChildren(row);
       this.playerAnswerElements = elements;
       return this.playerAnswerElements;
     }
