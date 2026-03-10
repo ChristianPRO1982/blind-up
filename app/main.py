@@ -1,6 +1,7 @@
 import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, RedirectResponse
@@ -172,18 +173,28 @@ class BlindtestPayload(BaseModel):
     songs: list[BlindtestSongPayload] = Field(default_factory=list)
 
 
+class LibraryScanStartPayload(BaseModel):
+    mode: Literal["light", "update"] = "light"
+
+
 class LibraryScanController:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._worker: threading.Thread | None = None
         self._cancel_event: threading.Event | None = None
         self._status = "idle"
+        self._mode: Literal["light", "update"] | None = None
         self._summary: dict[str, object] | None = None
         self._error: str | None = None
 
-    def _run_scan(self, root_path: str, cancel_event: threading.Event) -> None:
+    def _run_scan(
+        self,
+        root_path: str,
+        mode: Literal["light", "update"],
+        cancel_event: threading.Event,
+    ) -> None:
         try:
-            summary = scan_library(root_path, cancel_event)
+            summary = scan_library(root_path, cancel_event, mode)
         except ScanCancelled:
             with self._lock:
                 self._status = "idle"
@@ -205,8 +216,13 @@ class LibraryScanController:
             with self._lock:
                 self._worker = None
                 self._cancel_event = None
+                self._mode = None
 
-    def start(self, root_path: str) -> dict[str, object]:
+    def start(
+        self,
+        root_path: str,
+        mode: Literal["light", "update"] = "light",
+    ) -> dict[str, object]:
         with self._lock:
             if self._worker is not None and self._worker.is_alive():
                 raise RuntimeError("Scan already running")
@@ -214,16 +230,17 @@ class LibraryScanController:
             cancel_event = threading.Event()
             worker = threading.Thread(
                 target=self._run_scan,
-                args=(root_path, cancel_event),
+                args=(root_path, mode, cancel_event),
                 daemon=True,
             )
             self._worker = worker
             self._cancel_event = cancel_event
             self._status = "running"
+            self._mode = mode
             self._error = None
 
         worker.start()
-        return {"status": "running"}
+        return {"status": "running", "mode": mode}
 
     def stop(self) -> dict[str, object]:
         with self._lock:
@@ -232,16 +249,17 @@ class LibraryScanController:
                 or not self._worker.is_alive()
                 or self._cancel_event is None
             ):
-                return {"status": "idle"}
+                return {"status": "idle", "mode": None}
 
             self._cancel_event.set()
             self._status = "stopping"
-            return {"status": "stopping"}
+            return {"status": "stopping", "mode": self._mode}
 
     def snapshot(self) -> dict[str, object]:
         with self._lock:
             return {
                 "status": self._status,
+                "mode": self._mode,
                 "summary": self._summary,
                 "error": self._error,
             }
@@ -251,9 +269,12 @@ library_scan_controller = LibraryScanController()
 
 
 @app.post("/api/library/scan/start")
-async def library_scan_start() -> dict[str, object]:
+async def library_scan_start(
+    payload: LibraryScanStartPayload | None = None,
+) -> dict[str, object]:
     try:
-        return library_scan_controller.start(str(settings.library_root_path))
+        mode = payload.mode if payload is not None else "light"
+        return library_scan_controller.start(str(settings.library_root_path), mode)
     except RuntimeError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 

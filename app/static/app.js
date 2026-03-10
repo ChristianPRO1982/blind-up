@@ -532,7 +532,8 @@
         ),
         scanLayout: document.getElementById("scan-layout"),
         scanRootPath: document.getElementById("scan-root-path"),
-        scanToggleButton: document.getElementById("scan-toggle-button"),
+        scanLightButton: document.getElementById("scan-light-button"),
+        scanHeavyButton: document.getElementById("scan-heavy-button"),
         scanBackButton: document.getElementById("scan-back-button"),
         scanStatus: document.getElementById("scan-status"),
         scanError: document.getElementById("scan-error"),
@@ -593,6 +594,17 @@
           "close-background-preview-modal-button"
         ),
         backgroundPreviewImage: document.getElementById("background-preview-image"),
+        closeBackgroundPreviewFooterButton: document.getElementById(
+          "close-background-preview-footer-button"
+        ),
+        applyBackgroundToAllButton: document.getElementById("apply-background-to-all-button"),
+        applyBackgroundModal: document.getElementById("apply-background-modal"),
+        closeApplyBackgroundModalButton: document.getElementById(
+          "close-apply-background-modal-button"
+        ),
+        applyBackgroundModalCopy: document.getElementById("apply-background-modal-copy"),
+        cancelApplyBackgroundButton: document.getElementById("cancel-apply-background-button"),
+        confirmApplyBackgroundButton: document.getElementById("confirm-apply-background-button"),
         roundOrderModal: document.getElementById("round-order-modal"),
         closeRoundOrderModalButton: document.getElementById("close-round-order-modal-button"),
         closeRoundOrderFooterButton: document.getElementById("close-round-order-footer-button"),
@@ -644,7 +656,7 @@
       this.homeBlindtests = [];
       this.pendingDeleteBlindtestId = null;
       this.deleteBlindtestReturnFocus = null;
-      this.scanState = { status: "idle", summary: null, error: null };
+      this.scanState = { status: "idle", mode: null, summary: null, error: null };
       this.scanPollInterval = null;
       this.latestScanSummaryKey = "";
       this.librarySongs = [];
@@ -684,6 +696,7 @@
       this.playerAnswerElements = null;
       this.playerTeaserSession = null;
       this.roundOrderReturnFocus = null;
+      this.applyBackgroundReturnFocus = null;
       window.addEventListener("resize", () => {
         if (this.page === "editor" && this.wavesurfer !== null) {
           this.resetZoom();
@@ -704,6 +717,12 @@
           !this.elements.backgroundPreviewModal.hidden
         ) {
           this.hideBackgroundPreviewModal();
+        }
+        if (
+          this.elements.applyBackgroundModal !== null &&
+          !this.elements.applyBackgroundModal.hidden
+        ) {
+          this.hideApplyBackgroundModal();
         }
         if (
           this.elements.roundOrderModal !== null &&
@@ -891,9 +910,14 @@
           this.confirmDeleteBlindtest().catch(() => {});
         });
       }
-      if (this.elements.scanToggleButton !== null) {
-        this.elements.scanToggleButton.addEventListener("click", () => {
-          this.handleScanToggle().catch(() => {});
+      if (this.elements.scanLightButton !== null) {
+        this.elements.scanLightButton.addEventListener("click", () => {
+          this.handleScanAction("light").catch(() => {});
+        });
+      }
+      if (this.elements.scanHeavyButton !== null) {
+        this.elements.scanHeavyButton.addEventListener("click", () => {
+          this.handleScanAction("update").catch(() => {});
         });
       }
       if (this.elements.scanBackButton !== null) {
@@ -1017,6 +1041,39 @@
       this.elements.closeBackgroundPreviewModalButton.addEventListener("click", () => {
         this.hideBackgroundPreviewModal();
       });
+      if (this.elements.closeBackgroundPreviewFooterButton !== null) {
+        this.elements.closeBackgroundPreviewFooterButton.addEventListener("click", () => {
+          this.hideBackgroundPreviewModal();
+        });
+      }
+      if (this.elements.applyBackgroundToAllButton !== null) {
+        this.elements.applyBackgroundToAllButton.addEventListener("click", () => {
+          this.showApplyBackgroundModal();
+        });
+      }
+      if (this.elements.applyBackgroundModal !== null) {
+        this.elements.applyBackgroundModal.addEventListener("click", (event) => {
+          const action = event.target.closest("[data-action='close']");
+          if (action !== null || event.target === this.elements.applyBackgroundModal) {
+            this.hideApplyBackgroundModal();
+          }
+        });
+      }
+      if (this.elements.closeApplyBackgroundModalButton !== null) {
+        this.elements.closeApplyBackgroundModalButton.addEventListener("click", () => {
+          this.hideApplyBackgroundModal();
+        });
+      }
+      if (this.elements.cancelApplyBackgroundButton !== null) {
+        this.elements.cancelApplyBackgroundButton.addEventListener("click", () => {
+          this.hideApplyBackgroundModal();
+        });
+      }
+      if (this.elements.confirmApplyBackgroundButton !== null) {
+        this.elements.confirmApplyBackgroundButton.addEventListener("click", () => {
+          this.confirmApplyBackgroundToAll();
+        });
+      }
       if (this.elements.roundOrderModal !== null) {
         this.elements.roundOrderModal.addEventListener("click", (event) => {
           const action = event.target.closest("[data-action='close']");
@@ -1313,6 +1370,20 @@
       return slot.song_id === null && slot.slot_status === "pending";
     }
 
+    getSlotSelectionCheckState(slot) {
+      if (slot === null || this.isSlotPending(slot)) {
+        return "pending";
+      }
+
+      const hasStart = Number.isFinite(slot.start_sec);
+      const hasDuration = Number.isFinite(slot.duration_sec) && slot.duration_sec > 0;
+      if (!hasStart || !hasDuration) {
+        return "invalid";
+      }
+
+      return slot.duration_sec < 15 ? "warning" : "valid";
+    }
+
     getSlotSource(slot) {
       const librarySource =
         slot.song_id === null ? null : this.librarySongMap.get(slot.song_id) || null;
@@ -1468,13 +1539,33 @@
     }
 
     renderScan() {
-      const state = this.scanState || { status: "idle", summary: null, error: null };
+      const state = this.scanState || {
+        status: "idle",
+        mode: null,
+        summary: null,
+        error: null,
+      };
       const summary = state.summary || null;
       const isRunning = state.status === "running" || state.status === "stopping";
-      this.elements.scanToggleButton.textContent = isRunning ? "Stop scan" : "Start scan";
-      this.elements.scanToggleButton.classList.toggle("button-danger", isRunning);
-      this.elements.scanToggleButton.classList.toggle("button-primary", !isRunning);
-      this.elements.scanStatus.textContent = this.formatScanStatus(state.status);
+      const activeMode = state.mode || null;
+      if (this.elements.scanLightButton !== null) {
+        const isActive = isRunning && activeMode === "light";
+        this.elements.scanLightButton.textContent = isActive ? "Stop scan" : "Scan";
+        this.elements.scanLightButton.disabled = isRunning && !isActive;
+        this.elements.scanLightButton.classList.toggle("button-danger", isActive);
+        this.elements.scanLightButton.classList.toggle("button-primary", !isActive);
+      }
+      if (this.elements.scanHeavyButton !== null) {
+        const isActive = isRunning && activeMode === "update";
+        this.elements.scanHeavyButton.textContent = isActive ? "Stop scan" : "Scan + update";
+        this.elements.scanHeavyButton.disabled = isRunning && !isActive;
+        this.elements.scanHeavyButton.classList.toggle("button-danger", isActive);
+        this.elements.scanHeavyButton.classList.toggle("button-secondary", !isActive);
+      }
+      this.elements.scanStatus.textContent = this.formatScanStatus(
+        state.status,
+        activeMode || (summary && summary.scan_mode) || null
+      );
       this.elements.scanStatus.dataset.state = normalizeText(state.error)
         ? "error"
         : state.status || "idle";
@@ -1623,6 +1714,7 @@
         const source = this.getSlotSource(slot);
         const missing = this.isSlotMissing(slot);
         const pending = this.isSlotPending(slot);
+        const selectionCheckState = this.getSlotSelectionCheckState(slot);
         const card = document.createElement("article");
         card.className = "song-card";
         card.draggable = true;
@@ -1632,6 +1724,13 @@
         }
         if (pending) {
           card.classList.add("pending");
+        }
+        if (selectionCheckState === "invalid") {
+          card.classList.add("selection-invalid");
+        } else if (selectionCheckState === "warning") {
+          card.classList.add("selection-warning");
+        } else if (selectionCheckState === "valid") {
+          card.classList.add("selection-valid");
         }
         if (slot.slot_id === this.activeSlotId) {
           card.classList.add("active");
@@ -2267,6 +2366,73 @@
       document.body.classList.remove("modal-open");
     }
 
+    showApplyBackgroundModal() {
+      const imagePath = this.getCurrentBackgroundPreviewPath();
+      if (
+        !imagePath ||
+        this.elements.applyBackgroundModal === null ||
+        this.elements.applyBackgroundModalCopy === null
+      ) {
+        return;
+      }
+
+      const affectedSongs = this.blindtest.songs.filter((slot) => !this.isSlotPending(slot)).length;
+      this.hideBackgroundPreviewModal();
+      this.applyBackgroundReturnFocus =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      this.elements.applyBackgroundModalCopy.textContent =
+        affectedSongs > 0
+          ? `Apply this background to ${affectedSongs} song${affectedSongs > 1 ? "s" : ""}?`
+          : "No songs can receive this background yet.";
+      if (this.elements.confirmApplyBackgroundButton !== null) {
+        this.elements.confirmApplyBackgroundButton.disabled = affectedSongs === 0;
+      }
+      this.elements.applyBackgroundModal.hidden = false;
+      document.body.classList.add("modal-open");
+      if (this.elements.confirmApplyBackgroundButton !== null) {
+        this.elements.confirmApplyBackgroundButton.focus();
+      }
+    }
+
+    hideApplyBackgroundModal() {
+      if (this.elements.applyBackgroundModal !== null) {
+        this.elements.applyBackgroundModal.hidden = true;
+      }
+      if (this.elements.confirmApplyBackgroundButton !== null) {
+        this.elements.confirmApplyBackgroundButton.disabled = false;
+      }
+      document.body.classList.remove("modal-open");
+      if (this.applyBackgroundReturnFocus instanceof HTMLElement) {
+        this.applyBackgroundReturnFocus.focus();
+      }
+      this.applyBackgroundReturnFocus = null;
+    }
+
+    confirmApplyBackgroundToAll() {
+      const imagePath = this.getCurrentBackgroundPreviewPath();
+      if (!imagePath) {
+        this.hideApplyBackgroundModal();
+        return;
+      }
+
+      for (const slot of this.blindtest.songs) {
+        if (this.isSlotPending(slot)) {
+          continue;
+        }
+        slot.override_background = imagePath;
+      }
+
+      const activeSlot = this.getActiveSlot();
+      if (activeSlot !== null && !this.isSlotPending(activeSlot)) {
+        this.elements.overrideBackground.value = activeSlot.override_background || "";
+      }
+      this.hideApplyBackgroundModal();
+      this.renderSongList();
+      this.renderBackgroundGallery();
+      this.updateClearBackgroundButtonState();
+      this.updateBackgroundPreviewButtonState();
+    }
+
     moveSlot(draggedSlotId, targetSlotId, placeAfter) {
       const sourceIndex = this.blindtest.songs.findIndex((slot) => slot.slot_id === draggedSlotId);
       const targetIndex = this.blindtest.songs.findIndex((slot) => slot.slot_id === targetSlotId);
@@ -2475,6 +2641,7 @@
       this.persistSelection();
       this.updateDisplays();
       this.updateMarkLabel();
+      this.renderSongList();
     }
 
     renderSelectionRegion() {
@@ -2499,6 +2666,7 @@
       this.persistSelection();
       this.updateDisplays();
       this.updateMarkLabel();
+      this.renderSongList();
     }
 
     renderCurrentSelection() {
@@ -2569,15 +2737,16 @@
       this.elements.mark.textContent = "Mark";
     }
 
-    formatScanStatus(status) {
+    formatScanStatus(status, mode) {
+      const label = mode === "update" ? "Scan + update" : "Scan";
       if (status === "running") {
-        return "Scan running";
+        return `${label} running`;
       }
       if (status === "stopping") {
-        return "Scan stopping";
+        return `${label} stopping`;
       }
       if (status === "error") {
-        return "Scan error";
+        return `${label} error`;
       }
       return "Idle";
     }
@@ -2647,7 +2816,7 @@
       }
     }
 
-    async handleScanToggle() {
+    async handleScanAction(mode) {
       const status = this.scanState.status;
       if (status === "running" || status === "stopping") {
         await fetch("/api/library/scan/stop", {
@@ -2660,6 +2829,10 @@
 
       await fetch("/api/library/scan/start", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ mode }),
       });
       await this.refreshScanStatus();
       this.startScanPolling();
@@ -2670,6 +2843,7 @@
       const payload = await response.json();
       this.scanState = {
         status: payload.status || "idle",
+        mode: payload.mode || null,
         summary: payload.summary || null,
         error: payload.error || null,
       };

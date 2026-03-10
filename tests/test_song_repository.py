@@ -17,6 +17,8 @@ def test_upsert_song_inserts_then_updates(monkeypatch, tmp_path) -> None:
         song_repository.SongRecord(
             file_hash="hash-1",
             file_path="/music/song-1.mp3",
+            file_size=111,
+            file_mtime_ns=222,
             duration_sec=10.0,
             title="Song 1",
             artist="Artist 1",
@@ -32,6 +34,8 @@ def test_upsert_song_inserts_then_updates(monkeypatch, tmp_path) -> None:
         song_repository.SongRecord(
             file_hash="hash-1",
             file_path="/music/song-1-renamed.mp3",
+            file_size=333,
+            file_mtime_ns=444,
             duration_sec=12.0,
             title="Song 1 Updated",
             artist="Artist 1",
@@ -50,6 +54,8 @@ def test_upsert_song_inserts_then_updates(monkeypatch, tmp_path) -> None:
     assert updated_result == "updated"
     assert updated is not None
     assert updated["file_path"] == "/music/song-1-renamed.mp3"
+    assert updated["file_size"] == 333
+    assert updated["file_mtime_ns"] == 444
     assert updated["duration_sec"] == 12.0
     assert updated["title"] == "Song 1 Updated"
     assert updated["year"] == 2002
@@ -73,6 +79,8 @@ def test_list_songs_returns_rows_in_display_order(monkeypatch, tmp_path) -> None
         song_repository.SongRecord(
             file_hash="hash-b",
             file_path="/music/b.mp3",
+            file_size=None,
+            file_mtime_ns=None,
             duration_sec=12.0,
             title="Bravo",
             artist="Artist B",
@@ -86,6 +94,8 @@ def test_list_songs_returns_rows_in_display_order(monkeypatch, tmp_path) -> None
         song_repository.SongRecord(
             file_hash="hash-a",
             file_path="/music/a.mp3",
+            file_size=None,
+            file_mtime_ns=None,
             duration_sec=10.0,
             title="Alpha",
             artist="Artist A",
@@ -115,6 +125,8 @@ def test_delete_songs_missing_from_removes_absent_rows(monkeypatch, tmp_path) ->
         song_repository.SongRecord(
             file_hash="keep",
             file_path="/music/keep.mp3",
+            file_size=None,
+            file_mtime_ns=None,
             duration_sec=None,
             title=None,
             artist=None,
@@ -128,6 +140,8 @@ def test_delete_songs_missing_from_removes_absent_rows(monkeypatch, tmp_path) ->
         song_repository.SongRecord(
             file_hash="remove",
             file_path="/music/remove.mp3",
+            file_size=None,
+            file_mtime_ns=None,
             duration_sec=None,
             title=None,
             artist=None,
@@ -153,6 +167,60 @@ def test_delete_songs_missing_from_removes_absent_rows(monkeypatch, tmp_path) ->
     assert song_repository.get_song_by_hash("keep") is None
 
 
+def test_init_db_migrates_existing_songs_table_with_scan_columns(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    database_path = tmp_path / "blindup.db"
+    monkeypatch.setattr(
+        db_module,
+        "settings",
+        config_module.Settings(database_path=database_path),
+    )
+
+    with db_module.get_connection() as connection:
+        connection.executescript(
+            """
+            CREATE TABLE songs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                file_hash TEXT UNIQUE NOT NULL,
+                file_path TEXT NOT NULL,
+                duration_sec REAL,
+                title TEXT,
+                artist TEXT,
+                album TEXT,
+                year INTEGER,
+                genre TEXT,
+                cover_path TEXT,
+                created_at TEXT,
+                updated_at TEXT
+            );
+            """
+        )
+
+    db_module.init_db()
+
+    with db_module.get_connection() as connection:
+        columns = connection.execute("PRAGMA table_info(songs);").fetchall()
+
+    assert {row["name"] for row in columns} >= {"file_size", "file_mtime_ns"}
+
+
+def test_songs_missing_columns_returns_empty_without_songs_table(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    database_path = tmp_path / "blindup.db"
+    monkeypatch.setattr(
+        db_module,
+        "settings",
+        config_module.Settings(database_path=database_path),
+    )
+
+    with db_module.get_connection() as connection:
+        assert db_module._songs_missing_columns(connection) == []
+
+
 def test_list_songs_missing_from_and_delete_songs_by_ids(monkeypatch, tmp_path) -> None:
     database_path = tmp_path / "blindup.db"
     monkeypatch.setattr(
@@ -166,6 +234,8 @@ def test_list_songs_missing_from_and_delete_songs_by_ids(monkeypatch, tmp_path) 
         song_repository.SongRecord(
             file_hash="keep",
             file_path="/music/keep.mp3",
+            file_size=None,
+            file_mtime_ns=None,
             duration_sec=None,
             title="Keep",
             artist=None,
@@ -179,6 +249,8 @@ def test_list_songs_missing_from_and_delete_songs_by_ids(monkeypatch, tmp_path) 
         song_repository.SongRecord(
             file_hash="remove",
             file_path="/music/remove.mp3",
+            file_size=None,
+            file_mtime_ns=None,
             duration_sec=None,
             title="Remove",
             artist=None,
@@ -221,6 +293,8 @@ def test_normalize_song_media_paths_updates_raw_cover_path(
         song_repository.SongRecord(
             file_hash="hash-1",
             file_path="/music/song.mp3",
+            file_size=None,
+            file_mtime_ns=None,
             duration_sec=None,
             title="Song",
             artist=None,
@@ -261,6 +335,8 @@ def test_normalize_song_media_paths_leaves_public_path_unchanged(
         song_repository.SongRecord(
             file_hash="hash-1",
             file_path="/music/song.mp3",
+            file_size=None,
+            file_mtime_ns=None,
             duration_sec=None,
             title="Song",
             artist=None,

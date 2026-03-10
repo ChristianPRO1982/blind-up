@@ -199,6 +199,8 @@ def test_init_db_creates_expected_schema(monkeypatch, tmp_path) -> None:
             "id",
             "file_hash",
             "file_path",
+            "file_size",
+            "file_mtime_ns",
             "duration_sec",
             "title",
             "artist",
@@ -635,7 +637,10 @@ def test_fastapi_routes_serve_expected_responses() -> None:
             transport=transport,
             base_url="http://testserver",
         ) as client:
-            return await client.post("/api/library/scan/start")
+            return await client.post(
+                "/api/library/scan/start",
+                json={"mode": "light"},
+            )
 
     async def post_scan_stop_response() -> httpx.Response:
         transport = httpx.ASGITransport(app=main_module.app)
@@ -746,7 +751,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
     )
     original_delete_blindtest = main_module.blindtest_repository.delete_blindtest
     original_save_blindtest = main_module.blindtest_repository.save_blindtest
-    scan_start_calls: list[str] = []
+    scan_start_calls: list[tuple[str, str]] = []
     configured_scan_root_path = "/music/library"
     main_module.settings = config_module.Settings(
         database_path=main_module.settings.database_path,
@@ -756,13 +761,19 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         storage_dir=main_module.settings.storage_dir,
         covers_dir=main_module.settings.covers_dir,
     )
-    main_module.library_scan_controller.start = lambda root_path: (
-        scan_start_calls.append(root_path) or {"status": "running"}
+    main_module.library_scan_controller.start = lambda root_path, mode="light": (
+        scan_start_calls.append((root_path, mode))
+        or {"status": "running", "mode": mode}
     )
-    main_module.library_scan_controller.stop = lambda: {"status": "stopping"}
+    main_module.library_scan_controller.stop = lambda: {
+        "status": "stopping",
+        "mode": "light",
+    }
     main_module.library_scan_controller.snapshot = lambda: {
         "status": "idle",
+        "mode": None,
         "summary": {
+            "scan_mode": "light",
             "root_path": "/music",
             "scanned_files": 1,
             "added": 1,
@@ -928,14 +939,16 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         assert 'data-page="player"' in player_page_response.text
         assert "Blindtest player" in player_page_response.text
         assert scan_start_response.status_code == 200
-        assert scan_start_response.json() == {"status": "running"}
-        assert scan_start_calls == [configured_scan_root_path]
+        assert scan_start_response.json() == {"status": "running", "mode": "light"}
+        assert scan_start_calls == [(configured_scan_root_path, "light")]
         assert scan_stop_response.status_code == 200
-        assert scan_stop_response.json() == {"status": "stopping"}
+        assert scan_stop_response.json() == {"status": "stopping", "mode": "light"}
         assert scan_status_response.status_code == 200
         assert scan_status_response.json() == {
             "status": "idle",
+            "mode": None,
             "summary": {
+                "scan_mode": "light",
                 "root_path": "/music",
                 "scanned_files": 1,
                 "added": 1,
@@ -1059,7 +1072,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         assert "blindUpReady" in script_text
         assert 'window.location.assign("/player")' in script_text
         assert "window.sessionStorage" in script_text
-        assert "handleScanToggle" in script_text
+        assert "handleScanAction" in script_text
         assert "showScanView" in script_text
         assert "openBlindtest" in script_text
         assert "showHomeView" in script_text
@@ -1102,7 +1115,7 @@ def test_library_scan_start_route_returns_409_when_running(monkeypatch) -> None:
                 json={"root_path": "/missing"},
             )
 
-    def raise_running(_: str) -> dict[str, object]:
+    def raise_running(_: str, __: str = "light") -> dict[str, object]:
         raise RuntimeError("Scan already running")
 
     monkeypatch.setattr(main_module.library_scan_controller, "start", raise_running)
@@ -1139,13 +1152,37 @@ def test_blindtest_route_returns_404_for_missing_blindtest(monkeypatch) -> None:
     assert response.json() == {"detail": "Blindtest not found"}
 
 
+def test_delete_blindtest_route_returns_404_for_missing_blindtest(
+    monkeypatch,
+) -> None:
+    async def delete_blindtest_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.delete("/api/blindtest/999")
+
+    monkeypatch.setattr(
+        main_module.blindtest_repository,
+        "delete_blindtest",
+        lambda _: False,
+    )
+
+    response = asyncio.run(delete_blindtest_response())
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Blindtest not found"}
+
+
 def test_library_scan_controller_tracks_success(monkeypatch) -> None:
     controller = main_module.LibraryScanController()
 
     monkeypatch.setattr(
         main_module,
         "scan_library",
-        lambda root_path, _: ScanSummary(
+        lambda root_path, _, mode="light": ScanSummary(
+            scan_mode=mode,
             root_path=root_path,
             scanned_files=2,
             added=1,
@@ -1158,12 +1195,17 @@ def test_library_scan_controller_tracks_success(monkeypatch) -> None:
         ),
     )
 
-    assert controller.start("/music") == {"status": "running"}
+    assert controller.start("/music", "update") == {
+        "status": "running",
+        "mode": "update",
+    }
     _wait_for_scan_controller(controller)
 
     assert controller.snapshot() == {
         "status": "idle",
+        "mode": None,
         "summary": {
+            "scan_mode": "update",
             "root_path": "/music",
             "scanned_files": 2,
             "added": 1,
@@ -1176,27 +1218,28 @@ def test_library_scan_controller_tracks_success(monkeypatch) -> None:
         },
         "error": None,
     }
-    assert controller.stop() == {"status": "idle"}
+    assert controller.stop() == {"status": "idle", "mode": None}
 
 
 def test_library_scan_controller_handles_stop_and_conflict(monkeypatch) -> None:
     controller = main_module.LibraryScanController()
 
-    def fake_scan_library(_: str, cancel_event) -> ScanSummary:
+    def fake_scan_library(_: str, cancel_event, __: str = "light") -> ScanSummary:
         while not cancel_event.is_set():
             pass
         raise main_module.ScanCancelled()
 
     monkeypatch.setattr(main_module, "scan_library", fake_scan_library)
 
-    assert controller.start("/music") == {"status": "running"}
+    assert controller.start("/music") == {"status": "running", "mode": "light"}
     with pytest.raises(RuntimeError):
         controller.start("/music-again")
-    assert controller.stop() == {"status": "stopping"}
+    assert controller.stop() == {"status": "stopping", "mode": "light"}
     controller._worker.join(timeout=2)
 
     assert controller.snapshot() == {
         "status": "idle",
+        "mode": None,
         "summary": None,
         "error": "Scan stopped",
     }
@@ -1208,14 +1251,15 @@ def test_library_scan_controller_handles_file_not_found(monkeypatch) -> None:
     monkeypatch.setattr(
         main_module,
         "scan_library",
-        lambda *_: (_ for _ in ()).throw(FileNotFoundError("/missing")),
+        lambda *_args: (_ for _ in ()).throw(FileNotFoundError("/missing")),
     )
 
-    assert controller.start("/missing") == {"status": "running"}
+    assert controller.start("/missing") == {"status": "running", "mode": "light"}
     _wait_for_scan_controller(controller)
 
     assert controller.snapshot() == {
         "status": "error",
+        "mode": None,
         "summary": None,
         "error": "Invalid root path: /missing",
     }
@@ -1227,14 +1271,15 @@ def test_library_scan_controller_handles_unexpected_error(monkeypatch) -> None:
     monkeypatch.setattr(
         main_module,
         "scan_library",
-        lambda *_: (_ for _ in ()).throw(ValueError("broken scan")),
+        lambda *_args: (_ for _ in ()).throw(ValueError("broken scan")),
     )
 
-    assert controller.start("/music") == {"status": "running"}
+    assert controller.start("/music") == {"status": "running", "mode": "light"}
     _wait_for_scan_controller(controller)
 
     assert controller.snapshot() == {
         "status": "error",
+        "mode": None,
         "summary": None,
         "error": "broken scan",
     }

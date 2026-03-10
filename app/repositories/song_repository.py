@@ -11,6 +11,8 @@ from app.services.media_path_service import import_image_reference
 class SongRecord:
     file_hash: str
     file_path: str
+    file_size: int | None
+    file_mtime_ns: int | None
     duration_sec: float | None
     title: str | None
     artist: str | None
@@ -54,6 +56,18 @@ def list_songs() -> list[dict[str, object]]:
     return [dict(row) for row in rows]
 
 
+def get_song_scan_index() -> dict[str, dict[str, object]]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT *
+            FROM songs
+            ORDER BY id;
+            """
+        ).fetchall()
+    return {str(row["file_path"]): dict(row) for row in rows}
+
+
 def normalize_song_media_paths() -> int:
     updated = 0
     with get_connection() as connection:
@@ -86,6 +100,8 @@ def upsert_song(song: SongRecord) -> str:
     existing = get_song_by_hash(song.file_hash)
     payload = (
         song.file_path,
+        song.file_size,
+        song.file_mtime_ns,
         song.duration_sec,
         song.title,
         song.artist,
@@ -103,6 +119,8 @@ def upsert_song(song: SongRecord) -> str:
                 INSERT INTO songs (
                     file_hash,
                     file_path,
+                    file_size,
+                    file_mtime_ns,
                     duration_sec,
                     title,
                     artist,
@@ -113,11 +131,13 @@ def upsert_song(song: SongRecord) -> str:
                     created_at,
                     updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """,
                 (
                     song.file_hash,
                     song.file_path,
+                    song.file_size,
+                    song.file_mtime_ns,
                     song.duration_sec,
                     song.title,
                     song.artist,
@@ -135,6 +155,8 @@ def upsert_song(song: SongRecord) -> str:
             """
             UPDATE songs
             SET file_path = ?,
+                file_size = ?,
+                file_mtime_ns = ?,
                 duration_sec = ?,
                 title = ?,
                 artist = ?,
