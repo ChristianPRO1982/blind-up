@@ -1,6 +1,40 @@
 # CHANGELOG
 
 
+## v1.0.2 (2026-03-10)
+
+### Bug Fixes
+
+- Editor
+  ([`fb84ea9`](https://github.com/ChristianPRO1982/blind-up/commit/fb84ea9b8a0de6a01a9ddd2d035c43b61b721278))
+
+- Editor
+  ([`fadd0cd`](https://github.com/ChristianPRO1982/blind-up/commit/fadd0cd558c563082d51e4e70bebefa08a64b2ce))
+
+- Editor : backgrond for all songs
+  ([`654f893`](https://github.com/ChristianPRO1982/blind-up/commit/654f893fffcf780a4e5e38716eb8bbd31b7e64a1))
+
+- Editor add colors
+  ([`b2f52dd`](https://github.com/ChristianPRO1982/blind-up/commit/b2f52dd79eb75f9a6654f4666356b2741bf334ae))
+
+- Scan : add padding
+  ([`b1a1b2f`](https://github.com/ChristianPRO1982/blind-up/commit/b1a1b2f9fda735657d6aa71ec2d24dd81ee43787))
+
+- Scan : more speed with 2 new buttons
+  ([`91d4e9a`](https://github.com/ChristianPRO1982/blind-up/commit/91d4e9a2b941de410fc2f9746a205423622200ed))
+
+### Chores
+
+- New readme
+  ([`c0706d6`](https://github.com/ChristianPRO1982/blind-up/commit/c0706d6f7bed36875593a3c1000b6d74c0e3aab3))
+
+- New readme
+  ([`246d8c1`](https://github.com/ChristianPRO1982/blind-up/commit/246d8c119a2851ab6e162031d9941f6e64071203))
+
+- New readme
+  ([`09711bb`](https://github.com/ChristianPRO1982/blind-up/commit/09711bbbd926e3bc9154681d902568254fc6e161))
+
+
 ## v1.0.1 (2026-03-09)
 
 ### Bug Fixes
@@ -51,6 +85,9 @@
 
 - Favicon
   ([`8decde2`](https://github.com/ChristianPRO1982/blind-up/commit/8decde2eab3b608a4efe5d35a7f24c54ad8ffbe1))
+
+- New readme
+  ([`9fd69d4`](https://github.com/ChristianPRO1982/blind-up/commit/9fd69d4276e9b57a9875d1dc2a036257c6d03f29))
 
 
 ## v1.0.0 (2026-03-09)
