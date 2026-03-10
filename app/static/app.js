@@ -1313,6 +1313,20 @@
       return slot.song_id === null && slot.slot_status === "pending";
     }
 
+    getSlotSelectionCheckState(slot) {
+      if (slot === null || this.isSlotPending(slot)) {
+        return "pending";
+      }
+
+      const hasStart = Number.isFinite(slot.start_sec);
+      const hasDuration = Number.isFinite(slot.duration_sec) && slot.duration_sec > 0;
+      if (!hasStart || !hasDuration) {
+        return "invalid";
+      }
+
+      return slot.duration_sec < 15 ? "warning" : "valid";
+    }
+
     getSlotSource(slot) {
       const librarySource =
         slot.song_id === null ? null : this.librarySongMap.get(slot.song_id) || null;
@@ -1623,6 +1637,7 @@
         const source = this.getSlotSource(slot);
         const missing = this.isSlotMissing(slot);
         const pending = this.isSlotPending(slot);
+        const selectionCheckState = this.getSlotSelectionCheckState(slot);
         const card = document.createElement("article");
         card.className = "song-card";
         card.draggable = true;
@@ -1632,6 +1647,13 @@
         }
         if (pending) {
           card.classList.add("pending");
+        }
+        if (selectionCheckState === "invalid") {
+          card.classList.add("selection-invalid");
+        } else if (selectionCheckState === "warning") {
+          card.classList.add("selection-warning");
+        } else if (selectionCheckState === "valid") {
+          card.classList.add("selection-valid");
         }
         if (slot.slot_id === this.activeSlotId) {
           card.classList.add("active");
@@ -2475,6 +2497,7 @@
       this.persistSelection();
       this.updateDisplays();
       this.updateMarkLabel();
+      this.renderSongList();
     }
 
     renderSelectionRegion() {
@@ -2499,6 +2522,7 @@
       this.persistSelection();
       this.updateDisplays();
       this.updateMarkLabel();
+      this.renderSongList();
     }
 
     renderCurrentSelection() {
