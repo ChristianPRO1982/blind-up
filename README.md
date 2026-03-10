@@ -11,9 +11,13 @@
 
 **EN 🇬🇧 Turn your local music library into a loud, fast, addictive party blind test built for one host and a full room of players.**
 
+**New: BlindUp mode mixes classic Blind Test with a Time's Up-style progression across 3 rounds with different rules (classic, reverse, escalation).**
+
 ---
 
 **FR 🇫🇷 Transforme ta bibliothèque audio locale en blind test de soirée, nerveux, festif et prêt à mettre toute la salle en jeu autour d'un seul animateur.**
+
+**Nouveauté : le mode BlindUp fusionne Blind Test et Time's Up en 3 manches aux règles différentes (classique, reverse, escalation).**
 
 ---
 
