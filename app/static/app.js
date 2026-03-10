@@ -594,6 +594,17 @@
           "close-background-preview-modal-button"
         ),
         backgroundPreviewImage: document.getElementById("background-preview-image"),
+        closeBackgroundPreviewFooterButton: document.getElementById(
+          "close-background-preview-footer-button"
+        ),
+        applyBackgroundToAllButton: document.getElementById("apply-background-to-all-button"),
+        applyBackgroundModal: document.getElementById("apply-background-modal"),
+        closeApplyBackgroundModalButton: document.getElementById(
+          "close-apply-background-modal-button"
+        ),
+        applyBackgroundModalCopy: document.getElementById("apply-background-modal-copy"),
+        cancelApplyBackgroundButton: document.getElementById("cancel-apply-background-button"),
+        confirmApplyBackgroundButton: document.getElementById("confirm-apply-background-button"),
         roundOrderModal: document.getElementById("round-order-modal"),
         closeRoundOrderModalButton: document.getElementById("close-round-order-modal-button"),
         closeRoundOrderFooterButton: document.getElementById("close-round-order-footer-button"),
@@ -685,6 +696,7 @@
       this.playerAnswerElements = null;
       this.playerTeaserSession = null;
       this.roundOrderReturnFocus = null;
+      this.applyBackgroundReturnFocus = null;
       window.addEventListener("resize", () => {
         if (this.page === "editor" && this.wavesurfer !== null) {
           this.resetZoom();
@@ -705,6 +717,12 @@
           !this.elements.backgroundPreviewModal.hidden
         ) {
           this.hideBackgroundPreviewModal();
+        }
+        if (
+          this.elements.applyBackgroundModal !== null &&
+          !this.elements.applyBackgroundModal.hidden
+        ) {
+          this.hideApplyBackgroundModal();
         }
         if (
           this.elements.roundOrderModal !== null &&
@@ -1023,6 +1041,39 @@
       this.elements.closeBackgroundPreviewModalButton.addEventListener("click", () => {
         this.hideBackgroundPreviewModal();
       });
+      if (this.elements.closeBackgroundPreviewFooterButton !== null) {
+        this.elements.closeBackgroundPreviewFooterButton.addEventListener("click", () => {
+          this.hideBackgroundPreviewModal();
+        });
+      }
+      if (this.elements.applyBackgroundToAllButton !== null) {
+        this.elements.applyBackgroundToAllButton.addEventListener("click", () => {
+          this.showApplyBackgroundModal();
+        });
+      }
+      if (this.elements.applyBackgroundModal !== null) {
+        this.elements.applyBackgroundModal.addEventListener("click", (event) => {
+          const action = event.target.closest("[data-action='close']");
+          if (action !== null || event.target === this.elements.applyBackgroundModal) {
+            this.hideApplyBackgroundModal();
+          }
+        });
+      }
+      if (this.elements.closeApplyBackgroundModalButton !== null) {
+        this.elements.closeApplyBackgroundModalButton.addEventListener("click", () => {
+          this.hideApplyBackgroundModal();
+        });
+      }
+      if (this.elements.cancelApplyBackgroundButton !== null) {
+        this.elements.cancelApplyBackgroundButton.addEventListener("click", () => {
+          this.hideApplyBackgroundModal();
+        });
+      }
+      if (this.elements.confirmApplyBackgroundButton !== null) {
+        this.elements.confirmApplyBackgroundButton.addEventListener("click", () => {
+          this.confirmApplyBackgroundToAll();
+        });
+      }
       if (this.elements.roundOrderModal !== null) {
         this.elements.roundOrderModal.addEventListener("click", (event) => {
           const action = event.target.closest("[data-action='close']");
@@ -2313,6 +2364,73 @@
         this.elements.backgroundPreviewImage.removeAttribute("src");
       }
       document.body.classList.remove("modal-open");
+    }
+
+    showApplyBackgroundModal() {
+      const imagePath = this.getCurrentBackgroundPreviewPath();
+      if (
+        !imagePath ||
+        this.elements.applyBackgroundModal === null ||
+        this.elements.applyBackgroundModalCopy === null
+      ) {
+        return;
+      }
+
+      const affectedSongs = this.blindtest.songs.filter((slot) => !this.isSlotPending(slot)).length;
+      this.hideBackgroundPreviewModal();
+      this.applyBackgroundReturnFocus =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      this.elements.applyBackgroundModalCopy.textContent =
+        affectedSongs > 0
+          ? `Apply this background to ${affectedSongs} song${affectedSongs > 1 ? "s" : ""}?`
+          : "No songs can receive this background yet.";
+      if (this.elements.confirmApplyBackgroundButton !== null) {
+        this.elements.confirmApplyBackgroundButton.disabled = affectedSongs === 0;
+      }
+      this.elements.applyBackgroundModal.hidden = false;
+      document.body.classList.add("modal-open");
+      if (this.elements.confirmApplyBackgroundButton !== null) {
+        this.elements.confirmApplyBackgroundButton.focus();
+      }
+    }
+
+    hideApplyBackgroundModal() {
+      if (this.elements.applyBackgroundModal !== null) {
+        this.elements.applyBackgroundModal.hidden = true;
+      }
+      if (this.elements.confirmApplyBackgroundButton !== null) {
+        this.elements.confirmApplyBackgroundButton.disabled = false;
+      }
+      document.body.classList.remove("modal-open");
+      if (this.applyBackgroundReturnFocus instanceof HTMLElement) {
+        this.applyBackgroundReturnFocus.focus();
+      }
+      this.applyBackgroundReturnFocus = null;
+    }
+
+    confirmApplyBackgroundToAll() {
+      const imagePath = this.getCurrentBackgroundPreviewPath();
+      if (!imagePath) {
+        this.hideApplyBackgroundModal();
+        return;
+      }
+
+      for (const slot of this.blindtest.songs) {
+        if (this.isSlotPending(slot)) {
+          continue;
+        }
+        slot.override_background = imagePath;
+      }
+
+      const activeSlot = this.getActiveSlot();
+      if (activeSlot !== null && !this.isSlotPending(activeSlot)) {
+        this.elements.overrideBackground.value = activeSlot.override_background || "";
+      }
+      this.hideApplyBackgroundModal();
+      this.renderSongList();
+      this.renderBackgroundGallery();
+      this.updateClearBackgroundButtonState();
+      this.updateBackgroundPreviewButtonState();
     }
 
     moveSlot(draggedSlotId, targetSlotId, placeAfter) {
