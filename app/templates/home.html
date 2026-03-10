@@ -31,4 +31,31 @@
       <div id="home-blindtest-list" class="home-blindtest-list"></div>
     </section>
   </section>
+
+  <div id="delete-blindtest-modal" class="modal-shell" hidden>
+    <div class="modal-backdrop" data-action="close"></div>
+    <section
+      class="modal-card panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-blindtest-modal-title"
+    >
+      <div class="panel-heading panel-heading-split">
+        <h2 id="delete-blindtest-modal-title">Delete blindtest</h2>
+        <button
+          id="close-delete-blindtest-modal-button"
+          class="panel-close-button"
+          type="button"
+          aria-label="Close delete blindtest confirmation"
+        >
+          ×
+        </button>
+      </div>
+      <p id="delete-blindtest-modal-copy" class="modal-copy"></p>
+      <div class="modal-actions">
+        <button id="cancel-delete-blindtest-button" class="button-secondary" type="button">Cancel</button>
+        <button id="confirm-delete-blindtest-button" class="button-danger" type="button">Delete</button>
+      </div>
+    </section>
+  </div>
 {% endblock %}

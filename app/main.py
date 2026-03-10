@@ -319,6 +319,13 @@ async def get_blindtest(blindtest_id: int) -> dict[str, object]:
     return {"blindtest": blindtest}
 
 
+@app.delete("/api/blindtest/{blindtest_id}")
+async def delete_blindtest(blindtest_id: int) -> dict[str, object]:
+    if not blindtest_repository.delete_blindtest(blindtest_id):
+        raise HTTPException(status_code=404, detail="Blindtest not found")
+    return {"status": "ok"}
+
+
 @app.post("/api/blindtest")
 async def save_blindtest(payload: BlindtestPayload) -> dict[str, object]:
     blindtest = blindtest_repository.save_blindtest(

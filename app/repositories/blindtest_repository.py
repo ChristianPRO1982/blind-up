@@ -131,6 +131,32 @@ def list_blindtests_impacted_by_song_ids(
     return [dict(row) for row in rows]
 
 
+def delete_blindtest(blindtest_id: int) -> bool:
+    with get_connection() as connection:
+        connection.execute(
+            """
+            DELETE FROM blindtest_tag_links
+            WHERE blindtest_id = ?;
+            """,
+            (blindtest_id,),
+        )
+        connection.execute(
+            """
+            DELETE FROM blindtest_songs
+            WHERE blindtest_id = ?;
+            """,
+            (blindtest_id,),
+        )
+        cursor = connection.execute(
+            """
+            DELETE FROM blindtests
+            WHERE id = ?;
+            """,
+            (blindtest_id,),
+        )
+    return cursor.rowcount > 0
+
+
 def normalize_blindtest_media(blindtest_id: int) -> int:
     updated = 0
     with get_connection() as connection:

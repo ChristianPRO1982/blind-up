@@ -677,6 +677,14 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         ) as client:
             return await client.get("/api/blindtest/1")
 
+    async def delete_blindtest_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.delete("/api/blindtest/1")
+
     async def post_blindtest_response() -> httpx.Response:
         transport = httpx.ASGITransport(app=main_module.app)
         async with httpx.AsyncClient(
@@ -736,6 +744,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
     original_validate_blindtest_links = (
         main_module.blindtest_repository.validate_blindtest_links
     )
+    original_delete_blindtest = main_module.blindtest_repository.delete_blindtest
     original_save_blindtest = main_module.blindtest_repository.save_blindtest
     scan_start_calls: list[str] = []
     configured_scan_root_path = "/music/library"
@@ -806,6 +815,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         "validated_slots": 0,
         "missing_slots": 0,
     }
+    main_module.blindtest_repository.delete_blindtest = lambda _: True
     main_module.blindtest_repository.save_blindtest = lambda record: {
         "id": 2,
         "title": record.title,
@@ -859,6 +869,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
     songs_response = asyncio.run(get_songs_response())
     blindtests_response = asyncio.run(get_blindtests_response())
     blindtest_response = asyncio.run(get_blindtest_response())
+    delete_blindtest_result = asyncio.run(delete_blindtest_response())
     save_blindtest_response = asyncio.run(post_blindtest_response())
     static_index = main_module.settings.static_dir / "index.html"
     static_styles = main_module.settings.static_dir / "styles.css"
@@ -980,6 +991,8 @@ def test_fastapi_routes_serve_expected_responses() -> None:
                 "songs": [],
             }
         }
+        assert delete_blindtest_result.status_code == 200
+        assert delete_blindtest_result.json() == {"status": "ok"}
         assert save_blindtest_response.status_code == 200
         assert save_blindtest_response.json() == {
             "status": "ok",
@@ -1073,6 +1086,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         main_module.blindtest_repository.validate_blindtest_links = (
             original_validate_blindtest_links
         )
+        main_module.blindtest_repository.delete_blindtest = original_delete_blindtest
         main_module.blindtest_repository.save_blindtest = original_save_blindtest
 
 
