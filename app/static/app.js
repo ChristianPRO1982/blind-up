@@ -532,7 +532,8 @@
         ),
         scanLayout: document.getElementById("scan-layout"),
         scanRootPath: document.getElementById("scan-root-path"),
-        scanToggleButton: document.getElementById("scan-toggle-button"),
+        scanLightButton: document.getElementById("scan-light-button"),
+        scanHeavyButton: document.getElementById("scan-heavy-button"),
         scanBackButton: document.getElementById("scan-back-button"),
         scanStatus: document.getElementById("scan-status"),
         scanError: document.getElementById("scan-error"),
@@ -644,7 +645,7 @@
       this.homeBlindtests = [];
       this.pendingDeleteBlindtestId = null;
       this.deleteBlindtestReturnFocus = null;
-      this.scanState = { status: "idle", summary: null, error: null };
+      this.scanState = { status: "idle", mode: null, summary: null, error: null };
       this.scanPollInterval = null;
       this.latestScanSummaryKey = "";
       this.librarySongs = [];
@@ -891,9 +892,14 @@
           this.confirmDeleteBlindtest().catch(() => {});
         });
       }
-      if (this.elements.scanToggleButton !== null) {
-        this.elements.scanToggleButton.addEventListener("click", () => {
-          this.handleScanToggle().catch(() => {});
+      if (this.elements.scanLightButton !== null) {
+        this.elements.scanLightButton.addEventListener("click", () => {
+          this.handleScanAction("light").catch(() => {});
+        });
+      }
+      if (this.elements.scanHeavyButton !== null) {
+        this.elements.scanHeavyButton.addEventListener("click", () => {
+          this.handleScanAction("update").catch(() => {});
         });
       }
       if (this.elements.scanBackButton !== null) {
@@ -1482,13 +1488,33 @@
     }
 
     renderScan() {
-      const state = this.scanState || { status: "idle", summary: null, error: null };
+      const state = this.scanState || {
+        status: "idle",
+        mode: null,
+        summary: null,
+        error: null,
+      };
       const summary = state.summary || null;
       const isRunning = state.status === "running" || state.status === "stopping";
-      this.elements.scanToggleButton.textContent = isRunning ? "Stop scan" : "Start scan";
-      this.elements.scanToggleButton.classList.toggle("button-danger", isRunning);
-      this.elements.scanToggleButton.classList.toggle("button-primary", !isRunning);
-      this.elements.scanStatus.textContent = this.formatScanStatus(state.status);
+      const activeMode = state.mode || null;
+      if (this.elements.scanLightButton !== null) {
+        const isActive = isRunning && activeMode === "light";
+        this.elements.scanLightButton.textContent = isActive ? "Stop scan" : "Scan";
+        this.elements.scanLightButton.disabled = isRunning && !isActive;
+        this.elements.scanLightButton.classList.toggle("button-danger", isActive);
+        this.elements.scanLightButton.classList.toggle("button-primary", !isActive);
+      }
+      if (this.elements.scanHeavyButton !== null) {
+        const isActive = isRunning && activeMode === "update";
+        this.elements.scanHeavyButton.textContent = isActive ? "Stop scan" : "Scan + update";
+        this.elements.scanHeavyButton.disabled = isRunning && !isActive;
+        this.elements.scanHeavyButton.classList.toggle("button-danger", isActive);
+        this.elements.scanHeavyButton.classList.toggle("button-secondary", !isActive);
+      }
+      this.elements.scanStatus.textContent = this.formatScanStatus(
+        state.status,
+        activeMode || (summary && summary.scan_mode) || null
+      );
       this.elements.scanStatus.dataset.state = normalizeText(state.error)
         ? "error"
         : state.status || "idle";
@@ -2593,15 +2619,16 @@
       this.elements.mark.textContent = "Mark";
     }
 
-    formatScanStatus(status) {
+    formatScanStatus(status, mode) {
+      const label = mode === "update" ? "Scan + update" : "Scan";
       if (status === "running") {
-        return "Scan running";
+        return `${label} running`;
       }
       if (status === "stopping") {
-        return "Scan stopping";
+        return `${label} stopping`;
       }
       if (status === "error") {
-        return "Scan error";
+        return `${label} error`;
       }
       return "Idle";
     }
@@ -2671,7 +2698,7 @@
       }
     }
 
-    async handleScanToggle() {
+    async handleScanAction(mode) {
       const status = this.scanState.status;
       if (status === "running" || status === "stopping") {
         await fetch("/api/library/scan/stop", {
@@ -2684,6 +2711,10 @@
 
       await fetch("/api/library/scan/start", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ mode }),
       });
       await this.refreshScanStatus();
       this.startScanPolling();
@@ -2694,6 +2725,7 @@
       const payload = await response.json();
       this.scanState = {
         status: payload.status || "idle",
+        mode: payload.mode || null,
         summary: payload.summary || null,
         error: payload.error || null,
       };

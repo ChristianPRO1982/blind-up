@@ -6,6 +6,30 @@ DEFAULT_SLOT_STATUS_SQL = (
     "CASE WHEN blindtest_songs_legacy.song_id IS NULL THEN 'missing' ELSE 'ok' END"
 )
 
+SONGS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS songs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    file_hash TEXT UNIQUE NOT NULL,
+    file_path TEXT NOT NULL,
+    file_size INTEGER,
+    file_mtime_ns INTEGER,
+    duration_sec REAL,
+    title TEXT,
+    artist TEXT,
+    album TEXT,
+    year INTEGER,
+    genre TEXT,
+    cover_path TEXT,
+    created_at TEXT,
+    updated_at TEXT
+);
+"""
+
+SONGS_SCAN_COLUMNS = [
+    "file_size",
+    "file_mtime_ns",
+]
+
 BLINDTEST_SONGS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS blindtest_songs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,21 +81,7 @@ BLINDTEST_SONGS_COLUMNS = [
 ]
 
 SCHEMA_SCRIPT = f"""
-CREATE TABLE IF NOT EXISTS songs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    file_hash TEXT UNIQUE NOT NULL,
-    file_path TEXT NOT NULL,
-    duration_sec REAL,
-    title TEXT,
-    artist TEXT,
-    album TEXT,
-    year INTEGER,
-    genre TEXT,
-    cover_path TEXT,
-    created_at TEXT,
-    updated_at TEXT
-);
-
+{SONGS_TABLE_SQL}
 CREATE TABLE IF NOT EXISTS blindtests (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
@@ -117,6 +127,20 @@ def get_connection() -> sqlite3.Connection:
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON;")
     return connection
+
+
+def _songs_missing_columns(connection: sqlite3.Connection) -> list[str]:
+    columns = connection.execute("PRAGMA table_info(songs);").fetchall()
+    if not columns:
+        return []
+
+    column_names = {row["name"] for row in columns}
+    return [name for name in SONGS_SCAN_COLUMNS if name not in column_names]
+
+
+def _migrate_songs(connection: sqlite3.Connection) -> None:
+    for column_name in _songs_missing_columns(connection):
+        connection.execute(f"ALTER TABLE songs ADD COLUMN {column_name} INTEGER;")
 
 
 def _blindtest_songs_needs_migration(connection: sqlite3.Connection) -> bool:
@@ -226,5 +250,7 @@ def _migrate_blindtest_songs(connection: sqlite3.Connection) -> None:
 def init_db() -> None:
     with get_connection() as connection:
         connection.executescript(SCHEMA_SCRIPT)
+        if _songs_missing_columns(connection):
+            _migrate_songs(connection)
         if _blindtest_songs_needs_migration(connection):
             _migrate_blindtest_songs(connection)
