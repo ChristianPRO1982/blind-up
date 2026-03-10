@@ -1,6 +1,58 @@
 # CHANGELOG
 
 
+## v1.0.1 (2026-03-09)
+
+### Bug Fixes
+
+- Editor
+  ([`aa8b335`](https://github.com/ChristianPRO1982/blind-up/commit/aa8b335c6a4942085ed08e11e426628fbb13c9a4))
+
+- Editor
+  ([`6983387`](https://github.com/ChristianPRO1982/blind-up/commit/69833872c3c1e94c52b98f6764c564a83a1c3d69))
+
+- Editor
+  ([`baf09e3`](https://github.com/ChristianPRO1982/blind-up/commit/baf09e358f1e6def79d3d3f5a60d4ddb5af6c52d))
+
+- Editor
+  ([`bc32d6d`](https://github.com/ChristianPRO1982/blind-up/commit/bc32d6dc9a3324d5536e3a0827f805e6ce465c11))
+
+- Editor
+  ([`40e729a`](https://github.com/ChristianPRO1982/blind-up/commit/40e729a737c53541a642218b257c44c371f697b2))
+
+- Editor
+  ([`aa7f0a6`](https://github.com/ChristianPRO1982/blind-up/commit/aa7f0a635967b0cdf260f20ad2d72e8e0eed3c7f))
+
+- New design for editor
+  ([`99b0102`](https://github.com/ChristianPRO1982/blind-up/commit/99b010223941593e317363454d428a68256f04d3))
+
+- New design for editor
+  ([`396f321`](https://github.com/ChristianPRO1982/blind-up/commit/396f32139d1546f553bcb39b8518f7462abc3888))
+
+- Player 'answer'
+  ([`ecb1abc`](https://github.com/ChristianPRO1982/blind-up/commit/ecb1abcff3858d88eea1c2bc9681a080edc86757))
+
+- Player la la la...
+  ([`e17fdf9`](https://github.com/ChristianPRO1982/blind-up/commit/e17fdf98982403d90cffd58dc0a39be0430d6fdc))
+
+- Player la la la... mode BLIND-UP
+  ([`a89814f`](https://github.com/ChristianPRO1982/blind-up/commit/a89814fa063e3e3d7df431a80c1979b72184198e))
+
+- Player with cover
+  ([`1e8719d`](https://github.com/ChristianPRO1982/blind-up/commit/1e8719d3ad78402931e45ce9ef80a7a2679eefba))
+
+- Player with cover
+  ([`87e3fa5`](https://github.com/ChristianPRO1982/blind-up/commit/87e3fa5e070ff4edf6f456272f479a665cd1c3b1))
+
+- Scan
+  ([`9662f94`](https://github.com/ChristianPRO1982/blind-up/commit/9662f9465d66167a615136857375508bd7c77d81))
+
+### Chores
+
+- Favicon
+  ([`8decde2`](https://github.com/ChristianPRO1982/blind-up/commit/8decde2eab3b608a4efe5d35a7f24c54ad8ffbe1))
+
+
 ## v1.0.0 (2026-03-09)
 
 ### Features

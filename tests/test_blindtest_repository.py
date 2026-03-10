@@ -103,7 +103,7 @@ def test_save_blindtest_inserts_then_updates(monkeypatch, tmp_path) -> None:
                     override_artist="Override artist",
                     override_album="Override album",
                     override_genre="Pop",
-                    override_cover="/covers/override.jpg",
+                    override_background="/covers/override.jpg",
                 )
             ],
         )
@@ -127,13 +127,13 @@ def test_save_blindtest_inserts_then_updates(monkeypatch, tmp_path) -> None:
             "source_album": None,
             "source_year": None,
             "source_genre": None,
-            "source_cover": None,
+            "source_background": None,
             "override_title": "Opening",
             "override_artist": None,
             "override_album": None,
             "override_year": 1999,
             "override_genre": None,
-            "override_cover": None,
+            "override_background": None,
             "custom_hint": "chorus",
         }
     ]
@@ -155,13 +155,13 @@ def test_save_blindtest_inserts_then_updates(monkeypatch, tmp_path) -> None:
             "source_album": None,
             "source_year": None,
             "source_genre": None,
-            "source_cover": None,
+            "source_background": None,
             "override_title": None,
             "override_artist": "Override artist",
             "override_album": "Override album",
             "override_year": None,
             "override_genre": "Pop",
-            "override_cover": "/covers/override.jpg",
+            "override_background": "/covers/override.jpg",
             "custom_hint": None,
         }
     ]
@@ -284,6 +284,60 @@ def test_list_blindtests_impacted_by_song_ids_returns_distinct_blindtests(
     assert blindtest_repository.list_blindtests_impacted_by_song_ids([]) == []
 
 
+def test_delete_blindtest_removes_slots_and_tag_links(monkeypatch, tmp_path) -> None:
+    database_path = tmp_path / "blindup.db"
+    monkeypatch.setattr(
+        db_module,
+        "settings",
+        config_module.Settings(database_path=database_path),
+    )
+
+    db_module.init_db()
+    with db_module.get_connection() as connection:
+        connection.execute(
+            """
+            INSERT INTO blindtests (id, title, updated_at)
+            VALUES (?, ?, ?);
+            """,
+            (1, "Delete me", "2026-03-06T11:00:00+00:00"),
+        )
+        connection.execute(
+            """
+            INSERT INTO blindtest_tags (id, name)
+            VALUES (?, ?);
+            """,
+            (1, "Party"),
+        )
+        connection.execute(
+            """
+            INSERT INTO blindtest_tag_links (blindtest_id, tag_id)
+            VALUES (?, ?);
+            """,
+            (1, 1),
+        )
+        connection.execute(
+            """
+            INSERT INTO blindtest_songs (blindtest_id, song_id, order_index, slot_status)
+            VALUES (?, ?, ?, ?);
+            """,
+            (1, None, 0, "missing"),
+        )
+
+    assert blindtest_repository.delete_blindtest(1) is True
+    assert blindtest_repository.get_blindtest(1) is None
+    assert blindtest_repository.delete_blindtest(1) is False
+
+    with db_module.get_connection() as connection:
+        assert connection.execute(
+            "SELECT COUNT(*) FROM blindtest_songs WHERE blindtest_id = ?;",
+            (1,),
+        ).fetchone()[0] == 0
+        assert connection.execute(
+            "SELECT COUNT(*) FROM blindtest_tag_links WHERE blindtest_id = ?;",
+            (1,),
+        ).fetchone()[0] == 0
+
+
 def test_save_blindtest_preserves_missing_slot_snapshot(monkeypatch, tmp_path) -> None:
     database_path = tmp_path / "blindup.db"
     monkeypatch.setattr(
@@ -307,7 +361,7 @@ def test_save_blindtest_preserves_missing_slot_snapshot(monkeypatch, tmp_path) -
                     source_album="Lost album",
                     source_year=2004,
                     source_genre="Electro",
-                    source_cover="/covers/lost.jpg",
+                    source_background="/covers/lost.jpg",
                     custom_hint="important slide",
                 )
             ],
@@ -328,13 +382,13 @@ def test_save_blindtest_preserves_missing_slot_snapshot(monkeypatch, tmp_path) -
             "source_album": "Lost album",
             "source_year": 2004,
             "source_genre": "Electro",
-            "source_cover": "/covers/lost.jpg",
+            "source_background": "/covers/lost.jpg",
             "override_title": None,
             "override_artist": None,
             "override_album": None,
             "override_year": None,
             "override_genre": None,
-            "override_cover": None,
+            "override_background": None,
             "custom_hint": "important slide",
         }
     ]
@@ -615,8 +669,8 @@ def test_normalize_blindtest_media_updates_raw_image_paths(
                 song_id,
                 order_index,
                 slot_status,
-                source_cover,
-                override_cover
+                source_background,
+                override_background
             )
             VALUES (?, ?, ?, ?, ?, ?);
             """,
@@ -629,8 +683,10 @@ def test_normalize_blindtest_media_updates_raw_image_paths(
     assert updated == 2
     assert blindtest is not None
     assert blindtest["background_image"].startswith("/media/backgrounds/")
-    assert blindtest["songs"][0]["source_cover"].startswith("/media/covers/")
-    assert blindtest["songs"][0]["override_cover"].startswith("/media/covers/")
+    assert blindtest["songs"][0]["source_background"].startswith("/media/backgrounds/")
+    assert blindtest["songs"][0]["override_background"].startswith(
+        "/media/backgrounds/"
+    )
 
 
 def test_normalize_blindtest_media_leaves_public_paths_unchanged(
@@ -666,8 +722,8 @@ def test_normalize_blindtest_media_leaves_public_paths_unchanged(
                 song_id,
                 order_index,
                 slot_status,
-                source_cover,
-                override_cover
+                source_background,
+                override_background
             )
             VALUES (?, ?, ?, ?, ?, ?);
             """,
@@ -676,8 +732,8 @@ def test_normalize_blindtest_media_leaves_public_paths_unchanged(
                 None,
                 0,
                 "missing",
-                "/media/covers/source.jpg",
-                "/media/covers/override.jpg",
+                "/media/backgrounds/source.jpg",
+                "/media/backgrounds/override.jpg",
             ),
         )
 

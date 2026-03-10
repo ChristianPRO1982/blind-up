@@ -7,9 +7,11 @@ services:
     environment:
       BLINDUP_DB_PATH: /data/blindup.db
       BLINDUP_LIBRARY_ROOT_PATH: /music-library
+      BLINDUP_COVERS_DIR: /covers
     volumes:
       - blindup-data:/data
       - /home/christianpro1982/Musique/blind-up:/music-library:ro
+      - /home/christianpro1982/Images/blind-up:/covers
 
 volumes:
   blindup-data:

@@ -24,29 +24,35 @@ async def lifespan(_: FastAPI):
 
 
 settings.storage_dir.mkdir(parents=True, exist_ok=True)
+settings.covers_dir.mkdir(parents=True, exist_ok=True)
 app = FastAPI(title=settings.project_name, lifespan=lifespan)
 templates = Jinja2Templates(directory=settings.templates_dir)
 app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")
+app.mount(
+    "/media/covers",
+    StaticFiles(directory=settings.covers_dir),
+    name="media-covers",
+)
 app.mount("/media", StaticFiles(directory=settings.storage_dir), name="media")
 
-EDITOR_COVER_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+EDITOR_BACKGROUND_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 
 
-def get_editor_cover_gallery() -> list[dict[str, str]]:
-    gallery_dir = settings.static_dir / "editor-covers"
+def get_editor_background_gallery() -> list[dict[str, str]]:
+    gallery_dir = settings.static_dir / "editor-backgrounds"
     if not gallery_dir.exists():
         return []
     gallery = []
     for file_path in sorted(gallery_dir.iterdir(), key=lambda path: path.name.lower()):
         if (
             not file_path.is_file()
-            or file_path.suffix.lower() not in EDITOR_COVER_EXTENSIONS
+            or file_path.suffix.lower() not in EDITOR_BACKGROUND_EXTENSIONS
         ):
             continue
         gallery.append(
             {
                 "name": file_path.stem.replace("_", " ").strip() or file_path.name,
-                "url": f"/static/editor-covers/{file_path.name}",
+                "url": f"/static/editor-backgrounds/{file_path.name}",
             }
         )
     return gallery
@@ -92,7 +98,7 @@ async def editor_new_page(request: Request):
             "page_title": "Blindtest editor",
             "editor_mode": "new",
             "blindtest_id": None,
-            "cover_gallery": get_editor_cover_gallery(),
+            "background_gallery": get_editor_background_gallery(),
         },
     )
 
@@ -107,7 +113,7 @@ async def editor_page(request: Request, blindtest_id: int):
             "page_title": "Blindtest editor",
             "editor_mode": "existing",
             "blindtest_id": blindtest_id,
-            "cover_gallery": get_editor_cover_gallery(),
+            "background_gallery": get_editor_background_gallery(),
         },
     )
 
@@ -140,13 +146,13 @@ class BlindtestSongPayload(BaseModel):
     source_album: str | None = None
     source_year: int | None = None
     source_genre: str | None = None
-    source_cover: str | None = None
+    source_background: str | None = None
     override_title: str | None = None
     override_artist: str | None = None
     override_album: str | None = None
     override_year: int | None = None
     override_genre: str | None = None
-    override_cover: str | None = None
+    override_background: str | None = None
     custom_hint: str | None = None
 
 
@@ -313,6 +319,13 @@ async def get_blindtest(blindtest_id: int) -> dict[str, object]:
     return {"blindtest": blindtest}
 
 
+@app.delete("/api/blindtest/{blindtest_id}")
+async def delete_blindtest(blindtest_id: int) -> dict[str, object]:
+    if not blindtest_repository.delete_blindtest(blindtest_id):
+        raise HTTPException(status_code=404, detail="Blindtest not found")
+    return {"status": "ok"}
+
+
 @app.post("/api/blindtest")
 async def save_blindtest(payload: BlindtestPayload) -> dict[str, object]:
     blindtest = blindtest_repository.save_blindtest(
@@ -341,13 +354,13 @@ async def save_blindtest(payload: BlindtestPayload) -> dict[str, object]:
                     source_album=song.source_album,
                     source_year=song.source_year,
                     source_genre=song.source_genre,
-                    source_cover=song.source_cover,
+                    source_background=song.source_background,
                     override_title=song.override_title,
                     override_artist=song.override_artist,
                     override_album=song.override_album,
                     override_year=song.override_year,
                     override_genre=song.override_genre,
-                    override_cover=song.override_cover,
+                    override_background=song.override_background,
                     custom_hint=song.custom_hint,
                 )
                 for song in payload.songs
