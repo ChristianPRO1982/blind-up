@@ -521,6 +521,15 @@
         homeBlindtestList: document.getElementById("home-blindtest-list"),
         openScanButton: document.getElementById("open-scan-button"),
         newBlindtestButton: document.getElementById("new-blindtest-button"),
+        deleteBlindtestModal: document.getElementById("delete-blindtest-modal"),
+        closeDeleteBlindtestModalButton: document.getElementById(
+          "close-delete-blindtest-modal-button"
+        ),
+        deleteBlindtestModalCopy: document.getElementById("delete-blindtest-modal-copy"),
+        cancelDeleteBlindtestButton: document.getElementById("cancel-delete-blindtest-button"),
+        confirmDeleteBlindtestButton: document.getElementById(
+          "confirm-delete-blindtest-button"
+        ),
         scanLayout: document.getElementById("scan-layout"),
         scanRootPath: document.getElementById("scan-root-path"),
         scanToggleButton: document.getElementById("scan-toggle-button"),
@@ -633,6 +642,8 @@
       this.editorMode = document.body.dataset.editorMode || "";
       this.currentView = this.page;
       this.homeBlindtests = [];
+      this.pendingDeleteBlindtestId = null;
+      this.deleteBlindtestReturnFocus = null;
       this.scanState = { status: "idle", summary: null, error: null };
       this.scanPollInterval = null;
       this.latestScanSummaryKey = "";
@@ -681,6 +692,9 @@
       document.addEventListener("keydown", (event) => {
         if (event.key !== "Escape") {
           return;
+        }
+        if (this.pendingDeleteBlindtestId !== null) {
+          this.hideDeleteBlindtestModal();
         }
         if (this.pendingRemoveSlotId !== null) {
           this.hideRemoveSongModal();
@@ -852,6 +866,29 @@
       if (this.elements.newBlindtestButton !== null) {
         this.elements.newBlindtestButton.addEventListener("click", () => {
           this.startNewBlindtest();
+        });
+      }
+      if (this.elements.deleteBlindtestModal !== null) {
+        this.elements.deleteBlindtestModal.addEventListener("click", (event) => {
+          const action = event.target.closest("[data-action='close']");
+          if (action !== null || event.target === this.elements.deleteBlindtestModal) {
+            this.hideDeleteBlindtestModal();
+          }
+        });
+      }
+      if (this.elements.closeDeleteBlindtestModalButton !== null) {
+        this.elements.closeDeleteBlindtestModalButton.addEventListener("click", () => {
+          this.hideDeleteBlindtestModal();
+        });
+      }
+      if (this.elements.cancelDeleteBlindtestButton !== null) {
+        this.elements.cancelDeleteBlindtestButton.addEventListener("click", () => {
+          this.hideDeleteBlindtestModal();
+        });
+      }
+      if (this.elements.confirmDeleteBlindtestButton !== null) {
+        this.elements.confirmDeleteBlindtestButton.addEventListener("click", () => {
+          this.confirmDeleteBlindtest().catch(() => {});
         });
       }
       if (this.elements.scanToggleButton !== null) {
@@ -1339,20 +1376,95 @@
 
       for (const blindtest of blindtests) {
         const item = document.createElement("article");
-        item.className = "home-blindtest-card";
+        item.className = "home-blindtest-card action-tile";
+        item.tabIndex = 0;
+        item.setAttribute("role", "button");
+        item.setAttribute("aria-label", `Open blindtest ${blindtest.title || "Untitled blindtest"}`);
         item.innerHTML = `
-          <div class="home-blindtest-meta">
-            <div class="home-blindtest-title">${this.escapeHtml(blindtest.title || "Untitled blindtest")}</div>
-            <div class="home-blindtest-updated">${this.escapeHtml(this.formatUpdatedAt(blindtest.updated_at))}</div>
-          </div>
-          <button class="button-secondary button-compact" type="button">Open</button>
+          <span class="home-blindtest-meta">
+            <span class="home-blindtest-title">${this.escapeHtml(blindtest.title || "Untitled blindtest")}</span>
+            <span class="home-blindtest-updated">${this.escapeHtml(this.formatUpdatedAt(blindtest.updated_at))}</span>
+          </span>
+          <button class="button-danger button-compact home-blindtest-delete" type="button">Delete</button>
         `;
-        const button = item.querySelector("button");
-        button.addEventListener("click", () => {
+        const deleteButton = item.querySelector(".home-blindtest-delete");
+        item.addEventListener("click", () => {
           this.openBlindtest(blindtest.id).catch(() => {});
         });
+        item.addEventListener("keydown", (event) => {
+          if (event.target !== item) {
+            return;
+          }
+          if (event.key !== "Enter" && event.key !== " ") {
+            return;
+          }
+          event.preventDefault();
+          this.openBlindtest(blindtest.id).catch(() => {});
+        });
+        if (deleteButton !== null) {
+          deleteButton.addEventListener("click", (event) => {
+            event.stopPropagation();
+            this.showDeleteBlindtestModal(blindtest, deleteButton);
+          });
+        }
         list.appendChild(item);
       }
+    }
+
+    showDeleteBlindtestModal(blindtest, triggerElement) {
+      if (
+        this.elements.deleteBlindtestModal === null ||
+        this.elements.deleteBlindtestModalCopy === null ||
+        this.elements.confirmDeleteBlindtestButton === null
+      ) {
+        return;
+      }
+      const title = blindtest && blindtest.title ? blindtest.title : "Untitled blindtest";
+      this.pendingDeleteBlindtestId = blindtest.id;
+      this.deleteBlindtestReturnFocus =
+        triggerElement instanceof HTMLElement ? triggerElement : null;
+      this.elements.deleteBlindtestModalCopy.textContent =
+        `Delete "${title}" from local blindtests? This action cannot be undone.`;
+      this.elements.confirmDeleteBlindtestButton.disabled = false;
+      this.elements.deleteBlindtestModal.hidden = false;
+      document.body.classList.add("modal-open");
+      this.elements.confirmDeleteBlindtestButton.focus();
+    }
+
+    hideDeleteBlindtestModal() {
+      this.pendingDeleteBlindtestId = null;
+      if (this.elements.deleteBlindtestModal !== null) {
+        this.elements.deleteBlindtestModal.hidden = true;
+      }
+      if (this.elements.confirmDeleteBlindtestButton !== null) {
+        this.elements.confirmDeleteBlindtestButton.disabled = false;
+      }
+      document.body.classList.remove("modal-open");
+      if (this.deleteBlindtestReturnFocus instanceof HTMLElement) {
+        this.deleteBlindtestReturnFocus.focus();
+      }
+      this.deleteBlindtestReturnFocus = null;
+    }
+
+    async confirmDeleteBlindtest() {
+      if (this.pendingDeleteBlindtestId === null) {
+        return;
+      }
+      const blindtestId = this.pendingDeleteBlindtestId;
+      if (this.elements.confirmDeleteBlindtestButton !== null) {
+        this.elements.confirmDeleteBlindtestButton.disabled = true;
+      }
+      const response = await fetch(`/api/blindtest/${blindtestId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        if (this.elements.confirmDeleteBlindtestButton !== null) {
+          this.elements.confirmDeleteBlindtestButton.disabled = false;
+        }
+        return;
+      }
+      this.hideDeleteBlindtestModal();
+      await this.refreshBlindtests();
     }
 
     renderScan() {

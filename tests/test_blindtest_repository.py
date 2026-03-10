@@ -284,6 +284,60 @@ def test_list_blindtests_impacted_by_song_ids_returns_distinct_blindtests(
     assert blindtest_repository.list_blindtests_impacted_by_song_ids([]) == []
 
 
+def test_delete_blindtest_removes_slots_and_tag_links(monkeypatch, tmp_path) -> None:
+    database_path = tmp_path / "blindup.db"
+    monkeypatch.setattr(
+        db_module,
+        "settings",
+        config_module.Settings(database_path=database_path),
+    )
+
+    db_module.init_db()
+    with db_module.get_connection() as connection:
+        connection.execute(
+            """
+            INSERT INTO blindtests (id, title, updated_at)
+            VALUES (?, ?, ?);
+            """,
+            (1, "Delete me", "2026-03-06T11:00:00+00:00"),
+        )
+        connection.execute(
+            """
+            INSERT INTO blindtest_tags (id, name)
+            VALUES (?, ?);
+            """,
+            (1, "Party"),
+        )
+        connection.execute(
+            """
+            INSERT INTO blindtest_tag_links (blindtest_id, tag_id)
+            VALUES (?, ?);
+            """,
+            (1, 1),
+        )
+        connection.execute(
+            """
+            INSERT INTO blindtest_songs (blindtest_id, song_id, order_index, slot_status)
+            VALUES (?, ?, ?, ?);
+            """,
+            (1, None, 0, "missing"),
+        )
+
+    assert blindtest_repository.delete_blindtest(1) is True
+    assert blindtest_repository.get_blindtest(1) is None
+    assert blindtest_repository.delete_blindtest(1) is False
+
+    with db_module.get_connection() as connection:
+        assert connection.execute(
+            "SELECT COUNT(*) FROM blindtest_songs WHERE blindtest_id = ?;",
+            (1,),
+        ).fetchone()[0] == 0
+        assert connection.execute(
+            "SELECT COUNT(*) FROM blindtest_tag_links WHERE blindtest_id = ?;",
+            (1,),
+        ).fetchone()[0] == 0
+
+
 def test_save_blindtest_preserves_missing_slot_snapshot(monkeypatch, tmp_path) -> None:
     database_path = tmp_path / "blindup.db"
     monkeypatch.setattr(

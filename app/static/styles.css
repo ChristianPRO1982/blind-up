@@ -246,7 +246,6 @@ input:disabled {
 
 .button-compact,
 .song-card-actions button,
-.home-blindtest-card button,
 .panel-action-button {
   padding: 0.58rem 0.9rem;
   font-size: 0.92rem;
@@ -795,14 +794,32 @@ body.modal-open {
 .home-blindtest-card {
   display: flex;
   gap: 1rem;
+  width: 100%;
   align-items: center;
   justify-content: space-between;
   padding: 1rem 1.05rem;
+  border-radius: 1.15rem;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease;
+}
+
+.home-blindtest-card:hover,
+.home-blindtest-card:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(255, 79, 184, 0.46);
+  box-shadow: var(--glow-secondary), 0 16px 30px rgba(20, 9, 31, 0.3);
+  outline: none;
 }
 
 .home-blindtest-meta {
   display: grid;
   gap: 0.24rem;
+  min-width: 0;
 }
 
 .home-blindtest-title,
@@ -815,6 +832,12 @@ body.modal-open {
   font-family: var(--font-display);
   letter-spacing: 0.03em;
   text-transform: uppercase;
+}
+
+.home-blindtest-delete {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 1;
 }
 
 .empty-state,
