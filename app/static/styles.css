@@ -1502,6 +1502,11 @@ body.modal-open {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.scan-summary-grid div {
+  min-width: 0;
+  padding: 0.95rem 1rem;
+}
+
 .scan-summary-grid dt,
 .time-grid dt,
 .scan-impact-block h3,
@@ -1513,9 +1518,11 @@ body.modal-open {
 }
 
 .scan-summary-grid dd {
+  margin-left: 0;
   margin-top: 0.35rem;
   font-family: var(--font-display);
   font-size: 1.6rem;
+  line-height: 1.1;
   color: #f8fbff;
 }
 
