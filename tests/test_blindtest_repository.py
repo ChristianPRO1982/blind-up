@@ -317,7 +317,12 @@ def test_delete_blindtest_removes_slots_and_tag_links(monkeypatch, tmp_path) -> 
         )
         connection.execute(
             """
-            INSERT INTO blindtest_songs (blindtest_id, song_id, order_index, slot_status)
+            INSERT INTO blindtest_songs (
+                blindtest_id,
+                song_id,
+                order_index,
+                slot_status
+            )
             VALUES (?, ?, ?, ?);
             """,
             (1, None, 0, "missing"),
@@ -328,14 +333,20 @@ def test_delete_blindtest_removes_slots_and_tag_links(monkeypatch, tmp_path) -> 
     assert blindtest_repository.delete_blindtest(1) is False
 
     with db_module.get_connection() as connection:
-        assert connection.execute(
-            "SELECT COUNT(*) FROM blindtest_songs WHERE blindtest_id = ?;",
-            (1,),
-        ).fetchone()[0] == 0
-        assert connection.execute(
-            "SELECT COUNT(*) FROM blindtest_tag_links WHERE blindtest_id = ?;",
-            (1,),
-        ).fetchone()[0] == 0
+        assert (
+            connection.execute(
+                "SELECT COUNT(*) FROM blindtest_songs WHERE blindtest_id = ?;",
+                (1,),
+            ).fetchone()[0]
+            == 0
+        )
+        assert (
+            connection.execute(
+                "SELECT COUNT(*) FROM blindtest_tag_links WHERE blindtest_id = ?;",
+                (1,),
+            ).fetchone()[0]
+            == 0
+        )
 
 
 def test_save_blindtest_preserves_missing_slot_snapshot(monkeypatch, tmp_path) -> None:

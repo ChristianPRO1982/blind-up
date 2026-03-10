@@ -740,11 +740,18 @@ body.modal-open {
 }
 
 .home-blindtest-list,
-.song-list,
 .scan-impact-list {
   display: grid;
   gap: 0.85rem;
   align-content: start;
+}
+
+.song-list {
+  display: grid;
+  gap: 0.85rem;
+  align-content: start;
+  max-height: 800px;
+  overflow-y: auto;
 }
 
 .library-list,

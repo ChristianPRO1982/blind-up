@@ -1139,6 +1139,29 @@ def test_blindtest_route_returns_404_for_missing_blindtest(monkeypatch) -> None:
     assert response.json() == {"detail": "Blindtest not found"}
 
 
+def test_delete_blindtest_route_returns_404_for_missing_blindtest(
+    monkeypatch,
+) -> None:
+    async def delete_blindtest_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.delete("/api/blindtest/999")
+
+    monkeypatch.setattr(
+        main_module.blindtest_repository,
+        "delete_blindtest",
+        lambda _: False,
+    )
+
+    response = asyncio.run(delete_blindtest_response())
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Blindtest not found"}
+
+
 def test_library_scan_controller_tracks_success(monkeypatch) -> None:
     controller = main_module.LibraryScanController()
 
