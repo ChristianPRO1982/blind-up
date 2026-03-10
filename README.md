@@ -15,6 +15,7 @@
 
 ---
 
+
 **FR 🇫🇷 Transforme ta bibliothèque audio locale en blind test de soirée, nerveux, festif et prêt à mettre toute la salle en jeu autour d'un seul animateur.**
 
 **Nouveauté : le mode BlindUp fusionne Blind Test et Time's Up en 3 manches aux règles différentes (classique, reverse, escalation).**
