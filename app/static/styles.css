@@ -747,6 +747,7 @@ body.modal-open {
 }
 
 .song-list {
+  padding: 0.15rem;
   display: grid;
   gap: 0.85rem;
   align-content: start;
@@ -1526,6 +1527,16 @@ body.modal-open {
   color: #f8fbff;
 }
 
+.time-grid dd {
+  margin-left: 0;
+  margin-top: 0.35rem;
+  font-family: var(--font-display);
+  font-size: 4rem;
+  line-height: 1;
+  color: #f8fbff;
+  font-variant-numeric: tabular-nums;
+}
+
 .scan-impact-block {
   margin-top: 1rem;
   padding: 1rem;
@@ -1728,6 +1739,12 @@ body[data-page="player"] .app-shell {
 .player-countdown {
   color: #fbfdff;
   box-shadow: var(--glow-primary);
+}
+
+#player-countdown.player-countdown {
+  font-size: 4rem !important;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .player-error {
