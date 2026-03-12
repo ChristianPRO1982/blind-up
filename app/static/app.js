@@ -48,6 +48,11 @@
     return `${value || ""}`.trim();
   }
 
+  function isRenderableHintText(value) {
+    const normalized = normalizeText(value);
+    return normalized !== "" && normalized !== "-";
+  }
+
   function appendMultilineText(container, value) {
     const lines = `${value || ""}`.split(/\r?\n/);
     lines.forEach((line, index) => {
@@ -3739,28 +3744,28 @@
       }
 
       if (this.playerState.current_round === 2) {
-        return normalizeText(song.custom_hint)
+        return isRenderableHintText(song.custom_hint)
           ? [{ label: "Hint", type: "text", value: normalizeText(song.custom_hint) }]
           : [];
       }
 
       const hints = [];
-      if (normalizeText(song.custom_hint)) {
+      if (isRenderableHintText(song.custom_hint)) {
         hints.push({ label: "Hint", type: "text", value: normalizeText(song.custom_hint) });
       }
-      if (display.year) {
+      if (isRenderableHintText(display.year)) {
         hints.push({ label: "Year", type: "text", value: display.year });
       }
-      if (display.genre) {
+      if (isRenderableHintText(display.genre)) {
         hints.push({ label: "Genre", type: "text", value: display.genre });
       }
-      if (display.album) {
+      if (isRenderableHintText(display.album)) {
         hints.push({ label: "Album", type: "text", value: display.album });
       }
       if (cover) {
         hints.push({ label: "Cover", type: "cover", value: cover });
       }
-      if (display.artist) {
+      if (isRenderableHintText(display.artist)) {
         hints.push({ label: "Artist", type: "text", value: display.artist });
       }
       return hints;
@@ -3858,11 +3863,11 @@
       const display = this.getSongDisplay(song);
       const answer = this.ensurePlayerAnswerElements();
       this.playerElements.mainTitle.textContent = display.title;
-      answer.title.textContent = display.title;
-      answer.artist.textContent = display.artist || " ";
-      answer.album.textContent = display.album || " ";
-      answer.year.textContent = display.year || " ";
-      answer.genre.textContent = display.genre || " ";
+      this.setPlayerAnswerField(answer.title, display.title);
+      this.setPlayerAnswerField(answer.artist, display.artist);
+      this.setPlayerAnswerField(answer.album, display.album);
+      this.setPlayerAnswerField(answer.year, display.year);
+      this.setPlayerAnswerField(answer.genre, display.genre);
       answer.background.innerHTML = "";
       const coverPath = this.getSongAnswerCover(song);
       answer.background.hidden = !coverPath;
@@ -3872,6 +3877,16 @@
         image.alt = display.title;
         answer.background.appendChild(image);
       }
+    }
+
+    setPlayerAnswerField(field, value) {
+      const normalized = normalizeText(value);
+      const shouldRender = isRenderableHintText(normalized);
+      const item = field.closest(".player-answer-item");
+      if (item !== null) {
+        item.hidden = !shouldRender;
+      }
+      field.textContent = shouldRender ? normalized : "";
     }
 
     ensurePlayerAnswerElements() {
