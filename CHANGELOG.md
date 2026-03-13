@@ -1,6 +1,23 @@
 # CHANGELOG
 
 
+## v1.2.0 (2026-03-13)
+
+### Features
+
+- Blindtests can be saved add load in json files
+  ([`4d78d80`](https://github.com/ChristianPRO1982/blind-up/commit/4d78d80cc6f193b22e44c43e41292d34b9eeeaea))
+
+- Blindtests can be saved add load in json files
+  ([`c825aff`](https://github.com/ChristianPRO1982/blind-up/commit/c825affb14e938c5da69319d5f43a9d95f4d1f1b))
+
+- Blindtests can be saved add load in json files
+  ([`62966ec`](https://github.com/ChristianPRO1982/blind-up/commit/62966ecca47089dc2107a29f7dfa648c23ca8fe2))
+
+- Blindtests can be saved add load in json files
+  ([`a053af1`](https://github.com/ChristianPRO1982/blind-up/commit/a053af179a53ec01ebf23e8a64d3a73178e6e200))
+
+
 ## v1.1.0 (2026-03-13)
 
 ### Bug Fixes
