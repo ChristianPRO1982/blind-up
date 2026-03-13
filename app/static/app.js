@@ -566,6 +566,8 @@
         editorLayout: document.querySelector(".editor-layout"),
         addSongButton: document.getElementById("add-song-button"),
         songList: document.getElementById("song-list"),
+        editorPrevSongButton: document.getElementById("editor-prev-song-button"),
+        editorNextSongButton: document.getElementById("editor-next-song-button"),
         songEditorContent: document.getElementById("song-editor-content"),
         metadataForm: document.getElementById("song-metadata-form"),
         overrideTitle: document.getElementById("override-title"),
@@ -736,6 +738,7 @@
           this.hideRoundOrderModal();
         }
       });
+      document.addEventListener("keydown", (event) => this.handleEditorKeydown(event));
       this.bindHome();
       this.bindForm();
       this.bindPlayerControls();
@@ -1002,6 +1005,12 @@
       });
       this.elements.addSongButton.addEventListener("click", () => {
         this.appendPendingSlot();
+      });
+      this.elements.editorPrevSongButton.addEventListener("click", () => {
+        this.selectAdjacentSlot(-1);
+      });
+      this.elements.editorNextSongButton.addEventListener("click", () => {
+        this.selectAdjacentSlot(1);
       });
       this.elements.closeLibraryButton.addEventListener("click", () => {
         this.setSidebarPanel(null);
@@ -1936,6 +1945,7 @@
 
     renderEditor() {
       const slot = this.getActiveSlot();
+      this.updateEditorNavigationButtons();
       this.renderBackgroundGallery();
       if (slot === null) {
         this.showEditorEmpty();
@@ -2200,6 +2210,89 @@
 
     getActiveSlot() {
       return this.blindtest.songs.find((slot) => slot.slot_id === this.activeSlotId) || null;
+    }
+
+    getActiveSlotIndex() {
+      return this.blindtest.songs.findIndex((slot) => slot.slot_id === this.activeSlotId);
+    }
+
+    isTypingTarget(target) {
+      if (!(target instanceof HTMLElement)) {
+        return false;
+      }
+      const tagName = target.tagName;
+      return (
+        tagName === "INPUT" ||
+        tagName === "TEXTAREA" ||
+        tagName === "SELECT" ||
+        target.isContentEditable
+      );
+    }
+
+    updateEditorNavigationButtons() {
+      const activeIndex = this.getActiveSlotIndex();
+      const hasPrevious = activeIndex > 0;
+      const hasNext =
+        activeIndex !== -1 && activeIndex < this.blindtest.songs.length - 1;
+      if (this.elements.editorPrevSongButton !== null) {
+        this.elements.editorPrevSongButton.disabled = !hasPrevious;
+      }
+      if (this.elements.editorNextSongButton !== null) {
+        this.elements.editorNextSongButton.disabled = !hasNext;
+      }
+    }
+
+    selectAdjacentSlot(direction) {
+      const activeIndex = this.getActiveSlotIndex();
+      if (activeIndex === -1) {
+        return;
+      }
+      const nextIndex = activeIndex + direction;
+      if (nextIndex < 0 || nextIndex >= this.blindtest.songs.length) {
+        return;
+      }
+      this.setActiveSlot(this.blindtest.songs[nextIndex].slot_id);
+      this.scrollSongListToActiveSlot();
+    }
+
+    scrollSongListToActiveSlot() {
+      if (this.elements.songList === null || this.activeSlotId === null) {
+        return;
+      }
+      const activeCard = this.elements.songList.querySelector(
+        `[data-slot-id="${this.activeSlotId}"]`
+      );
+      if (!(activeCard instanceof HTMLElement)) {
+        return;
+      }
+
+      const topOffset = activeCard.offsetTop - this.elements.songList.offsetTop;
+      this.elements.songList.scrollTo({
+        top: Math.max(0, topOffset),
+        behavior: "smooth",
+      });
+    }
+
+    handleEditorKeydown(event) {
+      if (this.currentView !== "editor") {
+        return;
+      }
+      if (!event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) {
+        return;
+      }
+      if (this.isTypingTarget(event.target)) {
+        return;
+      }
+
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        this.selectAdjacentSlot(-1);
+        return;
+      }
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        this.selectAdjacentSlot(1);
+      }
     }
 
     setActiveSlot(slotId) {

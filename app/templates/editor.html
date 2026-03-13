@@ -120,8 +120,26 @@
     </section>
 
     <section class="song-editor-panel panel" aria-labelledby="song-editor-title">
-      <div class="panel-heading">
+      <div class="panel-heading panel-heading-split">
         <h2 id="song-editor-title">Song editor</h2>
+        <div class="song-editor-nav">
+          <button
+            id="editor-prev-song-button"
+            class="button-secondary button-compact song-editor-nav-prev"
+            type="button"
+            aria-label="Previous song"
+          >
+            <span class="song-editor-nav-icon" aria-hidden="true">➫</span>
+          </button>
+          <button
+            id="editor-next-song-button"
+            class="button-secondary button-compact"
+            type="button"
+            aria-label="Next song"
+          >
+            <span class="song-editor-nav-icon" aria-hidden="true">➫</span>
+          </button>
+        </div>
       </div>
 
       <div id="song-editor-content" hidden>

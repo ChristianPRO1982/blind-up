@@ -612,6 +612,28 @@ body.modal-open {
   gap: 0.8rem;
 }
 
+.song-editor-nav {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  gap: 0.55rem;
+}
+
+.song-editor-nav button {
+  min-width: 2.6rem;
+  padding-inline: 0;
+  font-size: 1.05rem;
+}
+
+.song-editor-nav-icon {
+  display: inline-block;
+  line-height: 1;
+}
+
+.song-editor-nav-prev .song-editor-nav-icon {
+  transform: scaleX(-1);
+}
+
 .panel-heading h2,
 .panel-heading-split h2 {
   display: inline-flex;
