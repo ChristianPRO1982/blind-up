@@ -102,9 +102,15 @@ def list_blindtests() -> list[dict[str, object]]:
     with get_connection() as connection:
         rows = connection.execute(
             """
-            SELECT id, title, updated_at
+            SELECT
+                blindtests.id,
+                blindtests.title,
+                blindtests.updated_at,
+                COUNT(blindtest_songs.id) AS songs_count
             FROM blindtests
-            ORDER BY updated_at DESC, id DESC;
+            LEFT JOIN blindtest_songs ON blindtest_songs.blindtest_id = blindtests.id
+            GROUP BY blindtests.id, blindtests.title, blindtests.updated_at
+            ORDER BY blindtests.updated_at DESC, blindtests.id DESC;
             """
         ).fetchall()
     return [dict(row) for row in rows]

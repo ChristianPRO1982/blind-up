@@ -522,8 +522,12 @@
     constructor() {
       this.elements = {
         pageTitle: document.getElementById("page-title"),
+        pageSongCount: document.getElementById("page-song-count"),
+        pageSongCountValue: document.getElementById("page-song-count-value"),
         homeLayout: document.getElementById("home-layout"),
         homeBlindtestList: document.getElementById("home-blindtest-list"),
+        homeBlindtestCount: document.getElementById("home-blindtest-count"),
+        homeBlindtestCountValue: document.getElementById("home-blindtest-count-value"),
         openScanButton: document.getElementById("open-scan-button"),
         newBlindtestButton: document.getElementById("new-blindtest-button"),
         deleteBlindtestModal: document.getElementById("delete-blindtest-modal"),
@@ -1455,6 +1459,13 @@
       const blindtests = this.homeBlindtests
         .slice()
         .sort((left, right) => blindtestUpdatedAtValue(right) - blindtestUpdatedAtValue(left));
+      if (
+        this.elements.homeBlindtestCount !== null &&
+        this.elements.homeBlindtestCountValue !== null
+      ) {
+        this.elements.homeBlindtestCount.hidden = false;
+        this.elements.homeBlindtestCountValue.textContent = String(blindtests.length);
+      }
       if (blindtests.length === 0) {
         return;
       }
@@ -1465,9 +1476,14 @@
         item.tabIndex = 0;
         item.setAttribute("role", "button");
         item.setAttribute("aria-label", `Open blindtest ${blindtest.title || "Untitled blindtest"}`);
+        const songsCount =
+          Number.isInteger(blindtest.songs_count) || typeof blindtest.songs_count === "number"
+            ? blindtest.songs_count
+            : 0;
         item.innerHTML = `
           <span class="home-blindtest-meta">
             <span class="home-blindtest-title">${this.escapeHtml(blindtest.title || "Untitled blindtest")}</span>
+            <span class="home-blindtest-count">${this.escapeHtml(String(songsCount))} song${songsCount === 1 ? "" : "s"}</span>
             <span class="home-blindtest-updated">${this.escapeHtml(this.formatUpdatedAt(blindtest.updated_at))}</span>
           </span>
           <button class="button-danger button-compact home-blindtest-delete" type="button">Delete</button>
@@ -1723,6 +1739,7 @@
     }
 
     renderSongList() {
+      this.updatePageSongCount();
       this.elements.songList.innerHTML = "";
       for (const slot of this.blindtest.songs) {
         const source = this.getSlotSource(slot);
@@ -1890,6 +1907,23 @@
         });
         this.elements.libraryList.appendChild(item);
       }
+    }
+
+    updatePageSongCount() {
+      if (
+        this.elements.pageSongCount === null ||
+        this.elements.pageSongCountValue === null
+      ) {
+        return;
+      }
+
+      const isEditorView = this.currentView === "editor";
+      this.elements.pageSongCount.hidden = !isEditorView;
+      if (!isEditorView) {
+        return;
+      }
+
+      this.elements.pageSongCountValue.textContent = String(this.blindtest.songs.length);
     }
 
     renderBackgroundGallery() {
