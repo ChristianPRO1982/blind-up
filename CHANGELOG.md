@@ -1,6 +1,48 @@
 # CHANGELOG
 
 
+## v1.1.0 (2026-03-13)
+
+### Bug Fixes
+
+- Editor: design
+  ([`b10477d`](https://github.com/ChristianPRO1982/blind-up/commit/b10477d7c6b4449e34454d35531ec97baa3d0d85))
+
+- Editor: design
+  ([`86abf0e`](https://github.com/ChristianPRO1982/blind-up/commit/86abf0efc05dff8d9415139ec57d7ca474c85994))
+
+- Editor: design
+  ([`faad63b`](https://github.com/ChristianPRO1982/blind-up/commit/faad63b7a6b083c54659a7c32ccd5fec3eaab3c9))
+
+- Hints display
+  ([`97f96ab`](https://github.com/ChristianPRO1982/blind-up/commit/97f96ab693be4795d001de4bbeaa271210c461fe))
+
+- Player: timers bigger
+  ([`4b5ed95`](https://github.com/ChristianPRO1982/blind-up/commit/4b5ed955051029b1c146168beafe9ae49511ed2f))
+
+- Run without internet
+  ([`c8c2fc4`](https://github.com/ChristianPRO1982/blind-up/commit/c8c2fc48d8773cf06c19986a43e674a1b502dc76))
+
+- Size of timers
+  ([`6468a8d`](https://github.com/ChristianPRO1982/blind-up/commit/6468a8dcf7add601bf9ddb1b69e996be8504b867))
+
+### Chores
+
+- Rename backgrounds
+  ([`54b28d8`](https://github.com/ChristianPRO1982/blind-up/commit/54b28d8652de428bc76b9eac0eb92df63f859c06))
+
+- Rename backgrounds
+  ([`78f51cb`](https://github.com/ChristianPRO1982/blind-up/commit/78f51cb3e2a96c1ec8404111d1a42013f6af5276))
+
+### Features
+
+- Add nomber of songs or blindtest
+  ([`dcc661a`](https://github.com/ChristianPRO1982/blind-up/commit/dcc661a96bb37183d4a966ec6699eb65f3363cf6))
+
+- Editor: add "next song" and "previous song" buttons
+  ([`44ebb46`](https://github.com/ChristianPRO1982/blind-up/commit/44ebb46fc88ca3534eef1d7246417632ce233a7f))
+
+
 ## v1.0.2 (2026-03-10)
 
 ### Bug Fixes
