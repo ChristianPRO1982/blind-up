@@ -1553,7 +1553,7 @@ body.modal-open {
   margin-left: 0;
   margin-top: 0.35rem;
   font-family: var(--font-display);
-  font-size: 4rem;
+  font-size: 2rem;
   line-height: 1;
   color: #f8fbff;
   font-variant-numeric: tabular-nums;
