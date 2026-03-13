@@ -2302,8 +2302,10 @@
     }
 
     appendPendingSlot() {
-      const slot = this.createSlot(null, this.blindtest.songs.length);
-      this.blindtest.songs.push(slot);
+      const activeIndex = this.getActiveSlotIndex();
+      const insertIndex = activeIndex === -1 ? this.blindtest.songs.length : activeIndex + 1;
+      const slot = this.createSlot(null, insertIndex);
+      this.blindtest.songs.splice(insertIndex, 0, slot);
       this.reindexSongs();
       this.setActiveSlot(slot.slot_id);
       this.setSidebarPanel("library");
