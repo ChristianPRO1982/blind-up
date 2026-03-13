@@ -296,6 +296,7 @@ async def songs() -> dict[str, list[dict[str, object]]]:
         "songs": [
             {
                 "id": song["id"],
+                "file_path": song["file_path"],
                 "title": song["title"],
                 "artist": song["artist"],
                 "album": song["album"],

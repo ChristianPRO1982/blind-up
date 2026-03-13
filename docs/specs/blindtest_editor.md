@@ -8,10 +8,12 @@ This panel allows a user to:
 
 * configure a blindtest
 * add songs from the library
+* import songs from a blindtest JSON file without changing global settings
 * override metadata
 * select the `La la la...` region using a waveform editor
 * reorder songs
 * configure global gameplay parameters
+* export the blindtest as JSON
 
 Frontend uses:
 
@@ -53,6 +55,11 @@ Example:
 ```
 [ Title input ]        [Save] [Launch] [Back]
 ```
+
+Additional import/export controls may be exposed in or near the header.
+The detailed JSON exchange behavior is specified separately in:
+
+* `docs/specs/blindtest_json_exchange.md`
 
 ### Back Button Behavior
 

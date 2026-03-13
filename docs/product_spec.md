@@ -14,6 +14,12 @@ BlindUp is designed for **single-host usage**:
 
 The application runs locally and uses a **local music library** provided by the user.
 
+Blindtests may also be exchanged through portable files:
+
+* blindtest JSON exports
+* a JSON contract describing the format
+* `song_list.tsv` exports for prompt-driven generation workflows
+
 ---
 
 # Core Concepts
@@ -58,6 +64,8 @@ A blindtest defines:
 * gameplay parameters
 
 Blindtests are stored in the application database.
+
+Blindtests may also be exported to and imported from a portable JSON format.
 
 If a blindtest uses a background image, that image must also be referenced through a backend-served URL.
 
