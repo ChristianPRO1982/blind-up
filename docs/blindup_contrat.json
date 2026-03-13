@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blindup_contrat.json",
+  "title": "BlindUp Blindtest Contract",
+  "description": "Portable contract for BlindUp blindtest JSON exchange files.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "version",
+    "blindtest"
+  ],
+  "properties": {
+    "format": {
+      "type": "string",
+      "const": "blindup_blindtest"
+    },
+    "version": {
+      "type": "integer",
+      "const": 1
+    },
+    "blindtest": {
+      "$ref": "#/$defs/blindtest"
+    }
+  },
+  "$defs": {
+    "nullableString": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "nullableInteger": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "nullableNumber": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "songSlot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "order_index",
+        "slot_status",
+        "start_sec",
+        "duration_sec",
+        "source_title",
+        "source_artist",
+        "source_album",
+        "source_year",
+        "source_genre",
+        "source_background",
+        "override_title",
+        "override_artist",
+        "override_album",
+        "override_year",
+        "override_genre",
+        "override_background",
+        "custom_hint"
+      ],
+      "properties": {
+        "order_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "slot_status": {
+          "type": "string",
+          "enum": [
+            "ok",
+            "missing",
+            "pending"
+          ]
+        },
+        "start_sec": {
+          "$ref": "#/$defs/nullableNumber"
+        },
+        "duration_sec": {
+          "$ref": "#/$defs/nullableNumber"
+        },
+        "source_title": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "source_artist": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "source_album": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "source_year": {
+          "$ref": "#/$defs/nullableInteger"
+        },
+        "source_genre": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "source_background": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "override_title": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "override_artist": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "override_album": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "override_year": {
+          "$ref": "#/$defs/nullableInteger"
+        },
+        "override_genre": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "override_background": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "custom_hint": {
+          "$ref": "#/$defs/nullableString"
+        }
+      }
+    },
+    "blindtest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "background_image",
+        "game_mode",
+        "pre_play_delay_sec",
+        "auto_enabled_default",
+        "hints_enabled_default",
+        "answer_timer_enabled",
+        "answer_duration_sec",
+        "round3_step_durations",
+        "round3_step_gap_sec",
+        "round3_progression_mode",
+        "songs"
+      ],
+      "properties": {
+        "title": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "background_image": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "game_mode": {
+          "type": "string",
+          "enum": [
+            "blind_test",
+            "blindup"
+          ]
+        },
+        "pre_play_delay_sec": {
+          "type": "number",
+          "minimum": 0
+        },
+        "auto_enabled_default": {
+          "type": "boolean"
+        },
+        "hints_enabled_default": {
+          "type": "boolean"
+        },
+        "answer_timer_enabled": {
+          "type": "boolean"
+        },
+        "answer_duration_sec": {
+          "type": "number",
+          "minimum": 0
+        },
+        "round3_step_durations": {
+          "type": "string"
+        },
+        "round3_step_gap_sec": {
+          "type": "number",
+          "minimum": 0
+        },
+        "round3_progression_mode": {
+          "type": "string",
+          "enum": [
+            "fixed_start",
+            "continuous"
+          ]
+        },
+        "songs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/songSlot"
+          }
+        }
+      }
+    }
+  },
+  "x-blindup-rules": {
+    "notes": [
+      "The contract is portable and must not depend on internal database ids.",
+      "Song import into an existing blindtest may reuse only the blindtest.songs array and ignore global settings.",
+      "Image paths must remain browser-loadable HTTP or app-relative media paths."
+    ]
+  }
+}

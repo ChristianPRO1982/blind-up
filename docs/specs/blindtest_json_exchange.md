@@ -70,7 +70,7 @@ A machine-readable contract describing the blindtest JSON format.
 Suggested filename:
 
 ```text
-blindtest_contract.v1.json
+blindup_contrat.json
 ```
 
 This file is not a blindtest instance.

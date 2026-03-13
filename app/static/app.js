@@ -553,6 +553,7 @@
         title: document.getElementById("blindtest-title"),
         toggleLibraryButton: document.getElementById("toggle-library-button"),
         saveButton: document.getElementById("save-button"),
+        exportJsonButton: document.getElementById("export-json-button"),
         launchButton: document.getElementById("launch-button"),
         backButton: document.getElementById("back-button"),
         gameMode: Array.from(document.querySelectorAll('input[name="game-mode"]')),
@@ -993,6 +994,11 @@
       this.elements.saveButton.addEventListener("click", () => {
         this.saveBlindtest().catch(() => {});
       });
+      if (this.elements.exportJsonButton !== null) {
+        this.elements.exportJsonButton.addEventListener("click", () => {
+          this.exportBlindtestJson().catch(() => {});
+        });
+      }
       if (this.elements.showRoundOrderButton !== null) {
         this.elements.showRoundOrderButton.addEventListener("click", () => {
           this.showRoundOrderModal();
@@ -3034,40 +3040,7 @@
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          id: this.blindtest.id,
-          title: this.blindtest.title,
-          background_image: this.blindtest.background_image,
-          game_mode: this.blindtest.game_mode,
-          pre_play_delay_sec: this.blindtest.pre_play_delay_sec,
-          auto_enabled_default: this.blindtest.auto_enabled_default,
-          hints_enabled_default: this.blindtest.hints_enabled_default,
-          answer_timer_enabled: this.blindtest.answer_timer_enabled,
-          answer_duration_sec: this.blindtest.answer_duration_sec,
-          round3_step_durations: this.blindtest.round3_step_durations,
-            round3_step_gap_sec: this.blindtest.round3_step_gap_sec,
-            round3_progression_mode: this.blindtest.round3_progression_mode,
-            songs: this.blindtest.songs.map((slot) => ({
-              song_id: slot.song_id,
-              order_index: slot.order_index,
-              slot_status: slot.slot_status,
-              start_sec: slot.start_sec,
-              duration_sec: slot.duration_sec,
-              source_title: normalizeText(slot.source_title) || null,
-              source_artist: normalizeText(slot.source_artist) || null,
-              source_album: normalizeText(slot.source_album) || null,
-              source_year: slot.source_year === "" ? null : numberOrNull(slot.source_year),
-              source_genre: normalizeText(slot.source_genre) || null,
-              source_background: normalizeText(slot.source_background) || null,
-              override_title: normalizeText(slot.override_title) || null,
-              override_artist: normalizeText(slot.override_artist) || null,
-              override_album: normalizeText(slot.override_album) || null,
-            override_year: slot.override_year === "" ? null : numberOrNull(slot.override_year),
-            override_genre: normalizeText(slot.override_genre) || null,
-            override_background: normalizeText(slot.override_background) || null,
-            custom_hint: normalizeText(slot.custom_hint) || null,
-          })),
-        }),
+        body: JSON.stringify(this.buildBlindtestSavePayload()),
       });
       const payload = await response.json();
       this.hydrateBlindtest(payload.blindtest);
@@ -3076,6 +3049,130 @@
       document.body.dataset.blindtestId = String(this.blindtest.id);
       this.pageBlindtestId = this.blindtest.id;
       this.renderEditorPage();
+    }
+
+    buildBlindtestSongsPayload(includeSongId = true) {
+      return this.blindtest.songs.map((slot) => {
+        const payload = {
+          order_index: slot.order_index,
+          slot_status: slot.slot_status,
+          start_sec: slot.start_sec,
+          duration_sec: slot.duration_sec,
+          source_title: normalizeText(slot.source_title) || null,
+          source_artist: normalizeText(slot.source_artist) || null,
+          source_album: normalizeText(slot.source_album) || null,
+          source_year: slot.source_year === "" ? null : numberOrNull(slot.source_year),
+          source_genre: normalizeText(slot.source_genre) || null,
+          source_background: normalizeText(slot.source_background) || null,
+          override_title: normalizeText(slot.override_title) || null,
+          override_artist: normalizeText(slot.override_artist) || null,
+          override_album: normalizeText(slot.override_album) || null,
+          override_year: slot.override_year === "" ? null : numberOrNull(slot.override_year),
+          override_genre: normalizeText(slot.override_genre) || null,
+          override_background: normalizeText(slot.override_background) || null,
+          custom_hint: normalizeText(slot.custom_hint) || null,
+        };
+        if (includeSongId) {
+          payload.song_id = slot.song_id;
+        }
+        return payload;
+      });
+    }
+
+    buildBlindtestSavePayload() {
+      return {
+        id: this.blindtest.id,
+        title: this.blindtest.title,
+        background_image: this.blindtest.background_image,
+        game_mode: this.blindtest.game_mode,
+        pre_play_delay_sec: this.blindtest.pre_play_delay_sec,
+        auto_enabled_default: this.blindtest.auto_enabled_default,
+        hints_enabled_default: this.blindtest.hints_enabled_default,
+        answer_timer_enabled: this.blindtest.answer_timer_enabled,
+        answer_duration_sec: this.blindtest.answer_duration_sec,
+        round3_step_durations: this.blindtest.round3_step_durations,
+        round3_step_gap_sec: this.blindtest.round3_step_gap_sec,
+        round3_progression_mode: this.blindtest.round3_progression_mode,
+        songs: this.buildBlindtestSongsPayload(true),
+      };
+    }
+
+    buildBlindtestExportPayload() {
+      return {
+        format: "blindup_blindtest",
+        version: 1,
+        blindtest: {
+          title: normalizeText(this.blindtest.title) || null,
+          background_image: normalizeText(this.blindtest.background_image) || null,
+          game_mode: this.blindtest.game_mode,
+          pre_play_delay_sec: this.blindtest.pre_play_delay_sec,
+          auto_enabled_default: this.blindtest.auto_enabled_default,
+          hints_enabled_default: this.blindtest.hints_enabled_default,
+          answer_timer_enabled: this.blindtest.answer_timer_enabled,
+          answer_duration_sec: this.blindtest.answer_duration_sec,
+          round3_step_durations: this.blindtest.round3_step_durations,
+          round3_step_gap_sec: this.blindtest.round3_step_gap_sec,
+          round3_progression_mode: this.blindtest.round3_progression_mode,
+          songs: this.buildBlindtestSongsPayload(false),
+        },
+      };
+    }
+
+    sanitizeExportFilenamePart(value) {
+      const sanitized = (normalizeText(value) || "untitled-blindtest")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+      return sanitized || "untitled-blindtest";
+    }
+
+    getBlindtestExportFilename() {
+      return `${this.sanitizeExportFilenamePart(this.blindtest.title)}.json`;
+    }
+
+    triggerJsonDownload(filename, content) {
+      const blob = new Blob([content], {
+        type: "application/json;charset=utf-8",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 0);
+    }
+
+    async exportBlindtestJson() {
+      const filename = this.getBlindtestExportFilename();
+      const content = `${JSON.stringify(this.buildBlindtestExportPayload(), null, 2)}\n`;
+      if ("showSaveFilePicker" in window) {
+        try {
+          const fileHandle = await window.showSaveFilePicker({
+            suggestedName: filename,
+            types: [
+              {
+                description: "JSON files",
+                accept: {
+                  "application/json": [".json"],
+                },
+              },
+            ],
+          });
+          const writable = await fileHandle.createWritable();
+          await writable.write(content);
+          await writable.close();
+          return;
+        } catch (error) {
+          if (error && error.name === "AbortError") {
+            return;
+          }
+        }
+      }
+      this.triggerJsonDownload(filename, content);
     }
 
     showHomeView() {
