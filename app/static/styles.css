@@ -635,14 +635,16 @@ body.modal-open {
 }
 
 .panel-heading h2,
-.panel-heading-split h2 {
+.panel-heading-split h2,
+.title-field-label {
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
 }
 
 .panel-heading h2::before,
-.panel-heading-split h2::before {
+.panel-heading-split h2::before,
+.title-field-label::before {
   content: "";
   width: 0.72rem;
   height: 0.72rem;
