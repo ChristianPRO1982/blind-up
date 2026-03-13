@@ -789,6 +789,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
     main_module.song_repository.list_songs = lambda: [
         {
             "id": 1,
+            "file_path": "/music/song-1.mp3",
             "title": "Song 1",
             "artist": "Artist 1",
             "album": "Album 1",
@@ -967,6 +968,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
             "songs": [
                 {
                     "id": 1,
+                    "file_path": "/music/song-1.mp3",
                     "title": "Song 1",
                     "artist": "Artist 1",
                     "album": "Album 1",

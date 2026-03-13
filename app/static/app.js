@@ -675,6 +675,7 @@
       this.latestScanSummaryKey = "";
       this.librarySongs = [];
       this.librarySongMap = new Map();
+      this.librarySongPathMap = new Map();
       this.backgroundGallery = this.readBackgroundGallery();
       this.activeSidebarPanel = null;
       this.pendingRemoveSlotId = null;
@@ -1233,6 +1234,11 @@
       const payload = await response.json();
       this.librarySongs = payload.songs || [];
       this.librarySongMap = new Map(this.librarySongs.map((song) => [song.id, song]));
+      this.librarySongPathMap = new Map(
+        this.librarySongs
+          .filter((song) => normalizeText(song.file_path))
+          .map((song) => [normalizeText(song.file_path), song])
+      );
     }
 
     async loadEditorBlindtest() {
@@ -3065,7 +3071,12 @@
 
     buildBlindtestSongsPayload(includeSongId = true) {
       return this.blindtest.songs.map((slot) => {
+        const librarySong =
+          Number.isInteger(slot.song_id) && this.librarySongMap.has(slot.song_id)
+            ? this.librarySongMap.get(slot.song_id)
+            : null;
         const payload = {
+          file_path: normalizeText(librarySong && librarySong.file_path) || null,
           order_index: slot.order_index,
           slot_status: slot.slot_status,
           start_sec: slot.start_sec,
@@ -3243,15 +3254,15 @@
     }
 
     buildImportedSongSlot(rawSong, orderIndex) {
-      const importedSongId = numberOrNull(rawSong && rawSong.song_id);
-      const hasLibrarySong = Number.isInteger(importedSongId) && this.librarySongMap.has(importedSongId);
-      const sourceSnapshot = hasLibrarySong ? this.snapshotFromLibrarySong(importedSongId) : null;
+      const resolvedSongId = this.resolveImportedSongId(rawSong);
+      const hasLibrarySong = Number.isInteger(resolvedSongId) && this.librarySongMap.has(resolvedSongId);
+      const sourceSnapshot = hasLibrarySong ? this.snapshotFromLibrarySong(resolvedSongId) : null;
       let slotStatus = normalizeText(rawSong && rawSong.slot_status);
       if (slotStatus !== "ok" && slotStatus !== "missing" && slotStatus !== "pending") {
         slotStatus = null;
       }
 
-      const songId = hasLibrarySong ? importedSongId : null;
+      const songId = hasLibrarySong ? resolvedSongId : null;
       if (songId === null) {
         slotStatus = "missing";
       } else if (slotStatus === null || slotStatus === "pending") {
@@ -3327,9 +3338,9 @@
     }
 
     buildImportedSongPayload(rawSong, orderIndex) {
-      const importedSongId = numberOrNull(rawSong && rawSong.song_id);
+      const resolvedSongId = this.resolveImportedSongId(rawSong);
       return {
-        song_id: Number.isInteger(importedSongId) ? importedSongId : null,
+        song_id: Number.isInteger(resolvedSongId) ? resolvedSongId : null,
         order_index: Number.isInteger(numberOrNull(rawSong && rawSong.order_index))
           ? numberOrNull(rawSong && rawSong.order_index)
           : orderIndex,
@@ -3356,6 +3367,18 @@
         override_background: normalizeText(rawSong && rawSong.override_background) || null,
         custom_hint: normalizeText(rawSong && rawSong.custom_hint) || null,
       };
+    }
+
+    resolveImportedSongId(rawSong) {
+      const importedSongId = numberOrNull(rawSong && rawSong.song_id);
+      if (Number.isInteger(importedSongId) && this.librarySongMap.has(importedSongId)) {
+        return importedSongId;
+      }
+      const importedFilePath = normalizeText(rawSong && rawSong.file_path);
+      if (importedFilePath && this.librarySongPathMap.has(importedFilePath)) {
+        return this.librarySongPathMap.get(importedFilePath).id;
+      }
+      return null;
     }
 
     buildImportedBlindtestSavePayload(payload) {
@@ -3444,8 +3467,8 @@
         const content = await file.text();
         const payload = JSON.parse(content);
         const savePayload = this.buildImportedBlindtestSavePayload(payload);
-        if (savePayload === null || savePayload.songs.length === 0) {
-          window.alert("No blindtest songs were found in this JSON file.");
+        if (savePayload === null) {
+          window.alert("No blindtest payload was found in this JSON file.");
           return;
         }
         const response = await fetch("/api/blindtest", {

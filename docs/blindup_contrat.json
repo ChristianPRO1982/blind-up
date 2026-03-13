@@ -68,6 +68,9 @@
         "song_id": {
           "$ref": "#/$defs/nullableInteger"
         },
+        "file_path": {
+          "$ref": "#/$defs/nullableString"
+        },
         "order_index": {
           "type": "integer",
           "minimum": 0
