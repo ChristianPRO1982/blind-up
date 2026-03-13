@@ -529,6 +529,7 @@
         homeBlindtestCount: document.getElementById("home-blindtest-count"),
         homeBlindtestCountValue: document.getElementById("home-blindtest-count-value"),
         openScanButton: document.getElementById("open-scan-button"),
+        importBlindtestJsonButton: document.getElementById("import-blindtest-json-button"),
         newBlindtestButton: document.getElementById("new-blindtest-button"),
         deleteBlindtestModal: document.getElementById("delete-blindtest-modal"),
         closeDeleteBlindtestModalButton: document.getElementById(
@@ -554,6 +555,7 @@
         toggleLibraryButton: document.getElementById("toggle-library-button"),
         saveButton: document.getElementById("save-button"),
         exportJsonButton: document.getElementById("export-json-button"),
+        importJsonSongsButton: document.getElementById("import-json-songs-button"),
         launchButton: document.getElementById("launch-button"),
         backButton: document.getElementById("back-button"),
         gameMode: Array.from(document.querySelectorAll('input[name="game-mode"]')),
@@ -895,6 +897,11 @@
           this.showScanView();
         });
       }
+      if (this.elements.importBlindtestJsonButton !== null) {
+        this.elements.importBlindtestJsonButton.addEventListener("click", () => {
+          this.importBlindtestFromJson().catch(() => {});
+        });
+      }
       if (this.elements.newBlindtestButton !== null) {
         this.elements.newBlindtestButton.addEventListener("click", () => {
           this.startNewBlindtest();
@@ -997,6 +1004,11 @@
       if (this.elements.exportJsonButton !== null) {
         this.elements.exportJsonButton.addEventListener("click", () => {
           this.exportBlindtestJson().catch(() => {});
+        });
+      }
+      if (this.elements.importJsonSongsButton !== null) {
+        this.elements.importJsonSongsButton.addEventListener("click", () => {
+          this.importSongsFromJson().catch(() => {});
         });
       }
       if (this.elements.showRoundOrderButton !== null) {
@@ -3113,7 +3125,7 @@
           round3_step_durations: this.blindtest.round3_step_durations,
           round3_step_gap_sec: this.blindtest.round3_step_gap_sec,
           round3_progression_mode: this.blindtest.round3_progression_mode,
-          songs: this.buildBlindtestSongsPayload(false),
+          songs: this.buildBlindtestSongsPayload(true),
         },
       };
     }
@@ -3127,7 +3139,7 @@
     }
 
     getBlindtestExportFilename() {
-      return `${this.sanitizeExportFilenamePart(this.blindtest.title)}.json`;
+      return `blindup_${this.sanitizeExportFilenamePart(this.blindtest.title)}.json`;
     }
 
     triggerJsonDownload(filename, content) {
@@ -3173,6 +3185,287 @@
         }
       }
       this.triggerJsonDownload(filename, content);
+    }
+
+    async pickJsonImportFile() {
+      if ("showOpenFilePicker" in window) {
+        const [fileHandle] = await window.showOpenFilePicker({
+          multiple: false,
+          types: [
+            {
+              description: "JSON files",
+              accept: {
+                "application/json": [".json"],
+              },
+            },
+          ],
+        });
+        return fileHandle.getFile();
+      }
+
+      return new Promise((resolve, reject) => {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = ".json,application/json";
+        input.hidden = true;
+        input.addEventListener(
+          "change",
+          () => {
+            const [file] = Array.from(input.files || []);
+            input.remove();
+            if (file) {
+              resolve(file);
+              return;
+            }
+            reject(new DOMException("No file selected", "AbortError"));
+          },
+          { once: true }
+        );
+        document.body.appendChild(input);
+        input.click();
+      });
+    }
+
+    normalizeImportedNumber(value) {
+      const parsed = numberOrNull(value);
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        return null;
+      }
+      return parsed;
+    }
+
+    normalizeImportedIntegerOrEmpty(value) {
+      const parsed = numberOrNull(value);
+      if (!Number.isInteger(parsed)) {
+        return "";
+      }
+      return parsed;
+    }
+
+    buildImportedSongSlot(rawSong, orderIndex) {
+      const importedSongId = numberOrNull(rawSong && rawSong.song_id);
+      const hasLibrarySong = Number.isInteger(importedSongId) && this.librarySongMap.has(importedSongId);
+      const sourceSnapshot = hasLibrarySong ? this.snapshotFromLibrarySong(importedSongId) : null;
+      let slotStatus = normalizeText(rawSong && rawSong.slot_status);
+      if (slotStatus !== "ok" && slotStatus !== "missing" && slotStatus !== "pending") {
+        slotStatus = null;
+      }
+
+      const songId = hasLibrarySong ? importedSongId : null;
+      if (songId === null) {
+        slotStatus = "missing";
+      } else if (slotStatus === null || slotStatus === "pending") {
+        slotStatus = "ok";
+      }
+
+      return {
+        slot_id: this.nextSlotId++,
+        song_id: songId,
+        order_index: orderIndex,
+        slot_status: slotStatus,
+        start_sec: this.normalizeImportedNumber(rawSong && rawSong.start_sec),
+        duration_sec: this.normalizeImportedNumber(rawSong && rawSong.duration_sec),
+        source_title:
+          normalizeText(rawSong && rawSong.source_title) ||
+          normalizeText(sourceSnapshot && sourceSnapshot.source_title) ||
+          "",
+        source_artist:
+          normalizeText(rawSong && rawSong.source_artist) ||
+          normalizeText(sourceSnapshot && sourceSnapshot.source_artist) ||
+          "",
+        source_album:
+          normalizeText(rawSong && rawSong.source_album) ||
+          normalizeText(sourceSnapshot && sourceSnapshot.source_album) ||
+          "",
+        source_year:
+          this.normalizeImportedIntegerOrEmpty(rawSong && rawSong.source_year) !== ""
+            ? this.normalizeImportedIntegerOrEmpty(rawSong && rawSong.source_year)
+            : sourceSnapshot && sourceSnapshot.source_year !== undefined
+              ? sourceSnapshot.source_year
+              : "",
+        source_genre:
+          normalizeText(rawSong && rawSong.source_genre) ||
+          normalizeText(sourceSnapshot && sourceSnapshot.source_genre) ||
+          "",
+        source_background: normalizeText(rawSong && rawSong.source_background) || "",
+        override_title: normalizeText(rawSong && rawSong.override_title) || "",
+        override_artist: normalizeText(rawSong && rawSong.override_artist) || "",
+        override_album: normalizeText(rawSong && rawSong.override_album) || "",
+        override_year: this.normalizeImportedIntegerOrEmpty(rawSong && rawSong.override_year),
+        override_genre: normalizeText(rawSong && rawSong.override_genre) || "",
+        override_background: normalizeText(rawSong && rawSong.override_background) || "",
+        custom_hint: normalizeText(rawSong && rawSong.custom_hint) || "",
+      };
+    }
+
+    extractImportedSongs(payload) {
+      if (payload && Array.isArray(payload.songs)) {
+        return payload.songs;
+      }
+      if (payload && payload.blindtest && Array.isArray(payload.blindtest.songs)) {
+        return payload.blindtest.songs;
+      }
+      return [];
+    }
+
+    extractImportedBlindtest(payload) {
+      if (payload && payload.blindtest && typeof payload.blindtest === "object") {
+        return payload.blindtest;
+      }
+      if (payload && typeof payload === "object") {
+        return payload;
+      }
+      return null;
+    }
+
+    normalizeImportedSlotStatus(value, fallback = "missing") {
+      const slotStatus = normalizeText(value);
+      if (slotStatus === "ok" || slotStatus === "missing" || slotStatus === "pending") {
+        return slotStatus;
+      }
+      return fallback;
+    }
+
+    buildImportedSongPayload(rawSong, orderIndex) {
+      const importedSongId = numberOrNull(rawSong && rawSong.song_id);
+      return {
+        song_id: Number.isInteger(importedSongId) ? importedSongId : null,
+        order_index: Number.isInteger(numberOrNull(rawSong && rawSong.order_index))
+          ? numberOrNull(rawSong && rawSong.order_index)
+          : orderIndex,
+        slot_status: this.normalizeImportedSlotStatus(rawSong && rawSong.slot_status),
+        start_sec: this.normalizeImportedNumber(rawSong && rawSong.start_sec),
+        duration_sec: this.normalizeImportedNumber(rawSong && rawSong.duration_sec),
+        source_title: normalizeText(rawSong && rawSong.source_title) || null,
+        source_artist: normalizeText(rawSong && rawSong.source_artist) || null,
+        source_album: normalizeText(rawSong && rawSong.source_album) || null,
+        source_year:
+          this.normalizeImportedIntegerOrEmpty(rawSong && rawSong.source_year) === ""
+            ? null
+            : this.normalizeImportedIntegerOrEmpty(rawSong && rawSong.source_year),
+        source_genre: normalizeText(rawSong && rawSong.source_genre) || null,
+        source_background: normalizeText(rawSong && rawSong.source_background) || null,
+        override_title: normalizeText(rawSong && rawSong.override_title) || null,
+        override_artist: normalizeText(rawSong && rawSong.override_artist) || null,
+        override_album: normalizeText(rawSong && rawSong.override_album) || null,
+        override_year:
+          this.normalizeImportedIntegerOrEmpty(rawSong && rawSong.override_year) === ""
+            ? null
+            : this.normalizeImportedIntegerOrEmpty(rawSong && rawSong.override_year),
+        override_genre: normalizeText(rawSong && rawSong.override_genre) || null,
+        override_background: normalizeText(rawSong && rawSong.override_background) || null,
+        custom_hint: normalizeText(rawSong && rawSong.custom_hint) || null,
+      };
+    }
+
+    buildImportedBlindtestSavePayload(payload) {
+      const rawBlindtest = this.extractImportedBlindtest(payload);
+      if (rawBlindtest === null) {
+        return null;
+      }
+      const defaults = this.createDefaultBlindtest();
+      const rawSongs = this.extractImportedSongs(rawBlindtest);
+      return {
+        id: null,
+        title: normalizeText(rawBlindtest.title) || "",
+        background_image: normalizeText(rawBlindtest.background_image) || null,
+        game_mode:
+          rawBlindtest.game_mode === "blindup" ? "blindup" : defaults.game_mode,
+        pre_play_delay_sec:
+          this.normalizeImportedNumber(rawBlindtest.pre_play_delay_sec) ??
+          defaults.pre_play_delay_sec,
+        auto_enabled_default:
+          typeof rawBlindtest.auto_enabled_default === "boolean"
+            ? rawBlindtest.auto_enabled_default
+            : defaults.auto_enabled_default,
+        hints_enabled_default:
+          typeof rawBlindtest.hints_enabled_default === "boolean"
+            ? rawBlindtest.hints_enabled_default
+            : defaults.hints_enabled_default,
+        answer_timer_enabled:
+          typeof rawBlindtest.answer_timer_enabled === "boolean"
+            ? rawBlindtest.answer_timer_enabled
+            : defaults.answer_timer_enabled,
+        answer_duration_sec:
+          this.normalizeImportedNumber(rawBlindtest.answer_duration_sec) ??
+          defaults.answer_duration_sec,
+        round3_step_durations:
+          normalizeText(rawBlindtest.round3_step_durations) ||
+          defaults.round3_step_durations,
+        round3_step_gap_sec:
+          this.normalizeImportedNumber(rawBlindtest.round3_step_gap_sec) ??
+          defaults.round3_step_gap_sec,
+        round3_progression_mode:
+          rawBlindtest.round3_progression_mode === "continuous"
+            ? "continuous"
+            : defaults.round3_progression_mode,
+        songs: rawSongs.map((song, index) => this.buildImportedSongPayload(song, index)),
+      };
+    }
+
+    insertImportedSongSlots(importedSlots) {
+      if (importedSlots.length === 0) {
+        return;
+      }
+      const activeIndex = this.getActiveSlotIndex();
+      const insertIndex = activeIndex === -1 ? this.blindtest.songs.length : activeIndex + 1;
+      this.blindtest.songs.splice(insertIndex, 0, ...importedSlots);
+      this.reindexSongs();
+      this.setActiveSlot(importedSlots[0].slot_id);
+      this.scrollSongListToActiveSlot();
+    }
+
+    async importSongsFromJson() {
+      try {
+        const file = await this.pickJsonImportFile();
+        const content = await file.text();
+        const payload = JSON.parse(content);
+        const rawSongs = this.extractImportedSongs(payload);
+        if (rawSongs.length === 0) {
+          window.alert("No songs were found in this JSON file.");
+          return;
+        }
+        const importedSlots = rawSongs.map((song, index) =>
+          this.buildImportedSongSlot(song, index)
+        );
+        this.insertImportedSongSlots(importedSlots);
+      } catch (error) {
+        if (error && error.name === "AbortError") {
+          return;
+        }
+        console.error("Unable to import songs from JSON", error);
+        window.alert("Unable to import songs from this JSON file.");
+      }
+    }
+
+    async importBlindtestFromJson() {
+      try {
+        const file = await this.pickJsonImportFile();
+        const content = await file.text();
+        const payload = JSON.parse(content);
+        const savePayload = this.buildImportedBlindtestSavePayload(payload);
+        if (savePayload === null || savePayload.songs.length === 0) {
+          window.alert("No blindtest songs were found in this JSON file.");
+          return;
+        }
+        const response = await fetch("/api/blindtest", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(savePayload),
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        await this.refreshBlindtests();
+      } catch (error) {
+        if (error && error.name === "AbortError") {
+          return;
+        }
+        console.error("Unable to import blindtest from JSON", error);
+        window.alert("Unable to create a new blindtest from this JSON file.");
+      }
     }
 
     showHomeView() {

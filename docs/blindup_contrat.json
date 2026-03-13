@@ -65,6 +65,9 @@
         "custom_hint"
       ],
       "properties": {
+        "song_id": {
+          "$ref": "#/$defs/nullableInteger"
+        },
         "order_index": {
           "type": "integer",
           "minimum": 0
