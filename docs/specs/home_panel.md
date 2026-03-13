@@ -11,6 +11,7 @@ It allows the host to:
 * view all blindtests stored locally
 * open a specific blindtest in the editor
 * create a new blindtest
+* create a new blindtest from a JSON file
 * open the Library scan panel
 
 The Home panel is intentionally simple and local-first.
@@ -93,6 +94,7 @@ Navigation for this feature is intentionally shallow:
 
 * `Home -> Open -> Editor`
 * `Home -> New blindtest -> Editor`
+* `Home -> Import JSON -> New blindtest`
 * `Home -> Library scan`
 * `Editor -> Back -> Home`
 
@@ -124,6 +126,12 @@ Each summary should include at least:
 * `updated_at`
 
 Optional summary fields may be added if useful, but MVP should remain minimal.
+
+Home may also expose an import flow for portable blindtest JSON.
+
+The detailed behavior of JSON import/export is specified separately in:
+
+* `docs/specs/blindtest_json_exchange.md`
 
 ## `GET /api/blindtest/{id}`
 

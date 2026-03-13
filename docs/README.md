@@ -83,6 +83,7 @@ Each file describes **one isolated feature** that can be implemented independent
 Example files:
 
 * `blindtest_editor.md`
+* `blindtest_json_exchange.md`
 * `blindtest_player.md`
 * `home_panel.md`
 * `library_scan.md`
