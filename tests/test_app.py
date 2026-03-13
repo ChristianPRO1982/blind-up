@@ -804,6 +804,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
             "id": 1,
             "title": "Stored blindtest",
             "updated_at": "2026-03-06T12:00:00+00:00",
+            "songs_count": 0,
         }
     ]
     main_module.blindtest_repository.get_blindtest = lambda _: {
@@ -983,6 +984,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
                     "id": 1,
                     "title": "Stored blindtest",
                     "updated_at": "2026-03-06T12:00:00+00:00",
+                    "songs_count": 0,
                 }
             ]
         }

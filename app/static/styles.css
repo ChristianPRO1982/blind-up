@@ -396,9 +396,21 @@ h3 {
   pointer-events: none;
 }
 
-.eyebrow {
+.page-header-main {
   position: relative;
   z-index: 1;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.page-header-copy {
+  min-width: 0;
+}
+
+.eyebrow {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
@@ -424,10 +436,43 @@ h3 {
 }
 
 .page-header h1 {
-  position: relative;
-  z-index: 1;
   max-width: 14ch;
   text-shadow: 0 0 26px rgba(103, 232, 249, 0.12);
+}
+
+.page-song-count {
+  display: grid;
+  justify-items: end;
+  flex: 0 0 auto;
+  text-align: right;
+}
+
+.page-song-count-value {
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 5vw, 4.1rem);
+  line-height: 0.9;
+  color: #f8fbff;
+  text-shadow: 0 0 26px rgba(103, 232, 249, 0.16);
+}
+
+.page-song-count-label {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.page-song-count-inline {
+  align-items: end;
+}
+
+.page-song-count-inline .page-song-count-value {
+  font-size: clamp(1.8rem, 3vw, 2.8rem);
+}
+
+.page-song-count-inline .page-song-count-label {
+  font-size: 0.72rem;
 }
 
 .brand-mark {
@@ -612,15 +657,39 @@ body.modal-open {
   gap: 0.8rem;
 }
 
+.song-editor-nav {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  gap: 0.55rem;
+}
+
+.song-editor-nav button {
+  min-width: 2.6rem;
+  padding-inline: 0;
+  font-size: 1.05rem;
+}
+
+.song-editor-nav-icon {
+  display: inline-block;
+  line-height: 1;
+}
+
+.song-editor-nav-prev .song-editor-nav-icon {
+  transform: scaleX(-1);
+}
+
 .panel-heading h2,
-.panel-heading-split h2 {
+.panel-heading-split h2,
+.title-field-label {
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
 }
 
 .panel-heading h2::before,
-.panel-heading-split h2::before {
+.panel-heading-split h2::before,
+.title-field-label::before {
   content: "";
   width: 0.72rem;
   height: 0.72rem;
@@ -732,6 +801,7 @@ body.modal-open {
 .library-item-subtitle,
 .song-card-times,
 .library-item-details,
+.home-blindtest-count,
 .home-blindtest-updated,
 .player-position,
 .player-panel-label,
@@ -747,6 +817,7 @@ body.modal-open {
 }
 
 .song-list {
+  padding: 0.15rem;
   display: grid;
   gap: 0.85rem;
   align-content: start;
@@ -1526,6 +1597,16 @@ body.modal-open {
   color: #f8fbff;
 }
 
+.time-grid dd {
+  margin-left: 0;
+  margin-top: 0.35rem;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  line-height: 1;
+  color: #f8fbff;
+  font-variant-numeric: tabular-nums;
+}
+
 .scan-impact-block {
   margin-top: 1rem;
   padding: 1rem;
@@ -1730,6 +1811,12 @@ body[data-page="player"] .app-shell {
   box-shadow: var(--glow-primary);
 }
 
+#player-countdown.player-countdown {
+  font-size: 4rem !important;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
 .player-error {
   border-color: rgba(255, 138, 106, 0.44);
   color: #ffe1d7;
@@ -1875,6 +1962,14 @@ body[data-page="player"] .app-shell {
 }
 
 @media (max-width: 820px) {
+  .page-header-main {
+    align-items: start;
+  }
+
+  .page-song-count-value {
+    font-size: clamp(2rem, 8vw, 3rem);
+  }
+
   .home-action-buttons,
   .scan-summary-grid,
   .time-grid {

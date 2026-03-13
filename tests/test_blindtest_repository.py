@@ -193,17 +193,33 @@ def test_list_blindtests_orders_by_last_update_desc(monkeypatch, tmp_path) -> No
             """,
             (2, "Newer", "2026-03-06T11:00:00+00:00"),
         )
+        connection.execute(
+            """
+            INSERT INTO blindtest_songs (blindtest_id, song_id, order_index)
+            VALUES (?, ?, ?);
+            """,
+            (2, None, 0),
+        )
+        connection.execute(
+            """
+            INSERT INTO blindtest_songs (blindtest_id, song_id, order_index)
+            VALUES (?, ?, ?);
+            """,
+            (2, None, 1),
+        )
 
     assert blindtest_repository.list_blindtests() == [
         {
             "id": 2,
             "title": "Newer",
             "updated_at": "2026-03-06T11:00:00+00:00",
+            "songs_count": 2,
         },
         {
             "id": 1,
             "title": "Older",
             "updated_at": "2026-03-06T10:00:00+00:00",
+            "songs_count": 0,
         },
     ]
 

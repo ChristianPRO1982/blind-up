@@ -10,8 +10,8 @@ services:
       BLINDUP_COVERS_DIR: /covers
     volumes:
       - blindup-data:/data
-      - /home/christianpro1982/Musique/blind-up:/music-library:ro
-      - /home/christianpro1982/Images/blind-up:/covers
+      - /home/utilisateur/Musique/Blind-Up:/music-library:ro
+      - /home/utilisateur/Images/blind-up:/covers
 
 volumes:
   blindup-data:

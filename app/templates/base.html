@@ -19,8 +19,21 @@
     <main class="app-shell">
       {% if page_id != "home" %}
         <header class="page-header">
-          <p class="eyebrow">BlindUp</p>
-          <h1 id="page-title">{{ page_title }}</h1>
+          <div class="page-header-main">
+            <div class="page-header-copy">
+              <p class="eyebrow">BlindUp</p>
+              <h1 id="page-title">{{ page_title }}</h1>
+            </div>
+            <div
+              id="page-song-count"
+              class="page-song-count"
+              aria-live="polite"
+              hidden
+            >
+              <span id="page-song-count-value" class="page-song-count-value">0</span>
+              <span class="page-song-count-label">songs</span>
+            </div>
+          </div>
         </header>
       {% else %}
         <h1 id="page-title" class="visually-hidden">{{ page_title }}</h1>

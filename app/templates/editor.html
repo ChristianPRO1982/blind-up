@@ -4,11 +4,10 @@
   <section class="editor-layout" aria-label="Blindtest editor">
     <header class="topbar">
       <label class="title-field" for="blindtest-title">
-        Title
+        <h2 class="title-field-label">Title</h2>
         <input id="blindtest-title" type="text" placeholder="Blindtest title" />
       </label>
       <div class="header-actions">
-        <button id="toggle-library-button" class="button-secondary" type="button">Show library</button>
         <button id="save-button" class="button-secondary" type="button">Save</button>
         <button id="launch-button" class="button-primary" type="button">Launch</button>
         <button id="back-button" class="button-ghost" type="button">Back</button>
@@ -96,7 +95,7 @@
               name="round3-progression-mode"
               value="fixed_start"
             />
-            fixed_start
+            fixed start
           </label>
           <label>
             <input
@@ -114,14 +113,35 @@
     <section class="song-list-panel panel" aria-labelledby="song-list-title">
       <div class="panel-heading panel-heading-split">
         <h2 id="song-list-title">Song list</h2>
-        <button id="add-song-button" class="panel-action-button button-secondary" type="button">Add song</button>
+        <div class="header-actions">
+          <button id="add-song-button" class="panel-action-button button-secondary" type="button">Add song</button>
+          <button id="toggle-library-button" class="panel-action-button button-secondary" type="button">Show library</button>
+        </div>
       </div>
       <div id="song-list" class="song-list"></div>
     </section>
 
     <section class="song-editor-panel panel" aria-labelledby="song-editor-title">
-      <div class="panel-heading">
+      <div class="panel-heading panel-heading-split">
         <h2 id="song-editor-title">Song editor</h2>
+        <div class="song-editor-nav">
+          <button
+            id="editor-prev-song-button"
+            class="button-secondary button-compact song-editor-nav-prev"
+            type="button"
+            aria-label="Previous song"
+          >
+            <span class="song-editor-nav-icon" aria-hidden="true">➫</span>
+          </button>
+          <button
+            id="editor-next-song-button"
+            class="button-secondary button-compact"
+            type="button"
+            aria-label="Next song"
+          >
+            <span class="song-editor-nav-icon" aria-hidden="true">➫</span>
+          </button>
+        </div>
       </div>
 
       <div id="song-editor-content" hidden>

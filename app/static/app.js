@@ -48,6 +48,11 @@
     return `${value || ""}`.trim();
   }
 
+  function isRenderableHintText(value) {
+    const normalized = normalizeText(value);
+    return normalized !== "" && normalized !== "-";
+  }
+
   function appendMultilineText(container, value) {
     const lines = `${value || ""}`.split(/\r?\n/);
     lines.forEach((line, index) => {
@@ -517,8 +522,12 @@
     constructor() {
       this.elements = {
         pageTitle: document.getElementById("page-title"),
+        pageSongCount: document.getElementById("page-song-count"),
+        pageSongCountValue: document.getElementById("page-song-count-value"),
         homeLayout: document.getElementById("home-layout"),
         homeBlindtestList: document.getElementById("home-blindtest-list"),
+        homeBlindtestCount: document.getElementById("home-blindtest-count"),
+        homeBlindtestCountValue: document.getElementById("home-blindtest-count-value"),
         openScanButton: document.getElementById("open-scan-button"),
         newBlindtestButton: document.getElementById("new-blindtest-button"),
         deleteBlindtestModal: document.getElementById("delete-blindtest-modal"),
@@ -561,6 +570,8 @@
         editorLayout: document.querySelector(".editor-layout"),
         addSongButton: document.getElementById("add-song-button"),
         songList: document.getElementById("song-list"),
+        editorPrevSongButton: document.getElementById("editor-prev-song-button"),
+        editorNextSongButton: document.getElementById("editor-next-song-button"),
         songEditorContent: document.getElementById("song-editor-content"),
         metadataForm: document.getElementById("song-metadata-form"),
         overrideTitle: document.getElementById("override-title"),
@@ -731,6 +742,7 @@
           this.hideRoundOrderModal();
         }
       });
+      document.addEventListener("keydown", (event) => this.handleEditorKeydown(event));
       this.bindHome();
       this.bindForm();
       this.bindPlayerControls();
@@ -997,6 +1009,12 @@
       });
       this.elements.addSongButton.addEventListener("click", () => {
         this.appendPendingSlot();
+      });
+      this.elements.editorPrevSongButton.addEventListener("click", () => {
+        this.selectAdjacentSlot(-1);
+      });
+      this.elements.editorNextSongButton.addEventListener("click", () => {
+        this.selectAdjacentSlot(1);
       });
       this.elements.closeLibraryButton.addEventListener("click", () => {
         this.setSidebarPanel(null);
@@ -1441,6 +1459,13 @@
       const blindtests = this.homeBlindtests
         .slice()
         .sort((left, right) => blindtestUpdatedAtValue(right) - blindtestUpdatedAtValue(left));
+      if (
+        this.elements.homeBlindtestCount !== null &&
+        this.elements.homeBlindtestCountValue !== null
+      ) {
+        this.elements.homeBlindtestCount.hidden = false;
+        this.elements.homeBlindtestCountValue.textContent = String(blindtests.length);
+      }
       if (blindtests.length === 0) {
         return;
       }
@@ -1451,9 +1476,14 @@
         item.tabIndex = 0;
         item.setAttribute("role", "button");
         item.setAttribute("aria-label", `Open blindtest ${blindtest.title || "Untitled blindtest"}`);
+        const songsCount =
+          Number.isInteger(blindtest.songs_count) || typeof blindtest.songs_count === "number"
+            ? blindtest.songs_count
+            : 0;
         item.innerHTML = `
           <span class="home-blindtest-meta">
             <span class="home-blindtest-title">${this.escapeHtml(blindtest.title || "Untitled blindtest")}</span>
+            <span class="home-blindtest-count">${this.escapeHtml(String(songsCount))} song${songsCount === 1 ? "" : "s"}</span>
             <span class="home-blindtest-updated">${this.escapeHtml(this.formatUpdatedAt(blindtest.updated_at))}</span>
           </span>
           <button class="button-danger button-compact home-blindtest-delete" type="button">Delete</button>
@@ -1709,6 +1739,7 @@
     }
 
     renderSongList() {
+      this.updatePageSongCount();
       this.elements.songList.innerHTML = "";
       for (const slot of this.blindtest.songs) {
         const source = this.getSlotSource(slot);
@@ -1878,6 +1909,23 @@
       }
     }
 
+    updatePageSongCount() {
+      if (
+        this.elements.pageSongCount === null ||
+        this.elements.pageSongCountValue === null
+      ) {
+        return;
+      }
+
+      const isEditorView = this.currentView === "editor";
+      this.elements.pageSongCount.hidden = !isEditorView;
+      if (!isEditorView) {
+        return;
+      }
+
+      this.elements.pageSongCountValue.textContent = String(this.blindtest.songs.length);
+    }
+
     renderBackgroundGallery() {
       if (this.elements.backgroundGallery === null) {
         return;
@@ -1931,6 +1979,7 @@
 
     renderEditor() {
       const slot = this.getActiveSlot();
+      this.updateEditorNavigationButtons();
       this.renderBackgroundGallery();
       if (slot === null) {
         this.showEditorEmpty();
@@ -2197,6 +2246,89 @@
       return this.blindtest.songs.find((slot) => slot.slot_id === this.activeSlotId) || null;
     }
 
+    getActiveSlotIndex() {
+      return this.blindtest.songs.findIndex((slot) => slot.slot_id === this.activeSlotId);
+    }
+
+    isTypingTarget(target) {
+      if (!(target instanceof HTMLElement)) {
+        return false;
+      }
+      const tagName = target.tagName;
+      return (
+        tagName === "INPUT" ||
+        tagName === "TEXTAREA" ||
+        tagName === "SELECT" ||
+        target.isContentEditable
+      );
+    }
+
+    updateEditorNavigationButtons() {
+      const activeIndex = this.getActiveSlotIndex();
+      const hasPrevious = activeIndex > 0;
+      const hasNext =
+        activeIndex !== -1 && activeIndex < this.blindtest.songs.length - 1;
+      if (this.elements.editorPrevSongButton !== null) {
+        this.elements.editorPrevSongButton.disabled = !hasPrevious;
+      }
+      if (this.elements.editorNextSongButton !== null) {
+        this.elements.editorNextSongButton.disabled = !hasNext;
+      }
+    }
+
+    selectAdjacentSlot(direction) {
+      const activeIndex = this.getActiveSlotIndex();
+      if (activeIndex === -1) {
+        return;
+      }
+      const nextIndex = activeIndex + direction;
+      if (nextIndex < 0 || nextIndex >= this.blindtest.songs.length) {
+        return;
+      }
+      this.setActiveSlot(this.blindtest.songs[nextIndex].slot_id);
+      this.scrollSongListToActiveSlot();
+    }
+
+    scrollSongListToActiveSlot() {
+      if (this.elements.songList === null || this.activeSlotId === null) {
+        return;
+      }
+      const activeCard = this.elements.songList.querySelector(
+        `[data-slot-id="${this.activeSlotId}"]`
+      );
+      if (!(activeCard instanceof HTMLElement)) {
+        return;
+      }
+
+      const topOffset = activeCard.offsetTop - this.elements.songList.offsetTop;
+      this.elements.songList.scrollTo({
+        top: Math.max(0, topOffset),
+        behavior: "smooth",
+      });
+    }
+
+    handleEditorKeydown(event) {
+      if (this.currentView !== "editor") {
+        return;
+      }
+      if (!event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) {
+        return;
+      }
+      if (this.isTypingTarget(event.target)) {
+        return;
+      }
+
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        this.selectAdjacentSlot(-1);
+        return;
+      }
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        this.selectAdjacentSlot(1);
+      }
+    }
+
     setActiveSlot(slotId) {
       this.activeSlotId = slotId;
       this.renderSongList();
@@ -2204,8 +2336,10 @@
     }
 
     appendPendingSlot() {
-      const slot = this.createSlot(null, this.blindtest.songs.length);
-      this.blindtest.songs.push(slot);
+      const activeIndex = this.getActiveSlotIndex();
+      const insertIndex = activeIndex === -1 ? this.blindtest.songs.length : activeIndex + 1;
+      const slot = this.createSlot(null, insertIndex);
+      this.blindtest.songs.splice(insertIndex, 0, slot);
       this.reindexSongs();
       this.setActiveSlot(slot.slot_id);
       this.setSidebarPanel("library");
@@ -3739,28 +3873,28 @@
       }
 
       if (this.playerState.current_round === 2) {
-        return normalizeText(song.custom_hint)
+        return isRenderableHintText(song.custom_hint)
           ? [{ label: "Hint", type: "text", value: normalizeText(song.custom_hint) }]
           : [];
       }
 
       const hints = [];
-      if (normalizeText(song.custom_hint)) {
+      if (isRenderableHintText(song.custom_hint)) {
         hints.push({ label: "Hint", type: "text", value: normalizeText(song.custom_hint) });
       }
-      if (display.year) {
+      if (isRenderableHintText(display.year)) {
         hints.push({ label: "Year", type: "text", value: display.year });
       }
-      if (display.genre) {
+      if (isRenderableHintText(display.genre)) {
         hints.push({ label: "Genre", type: "text", value: display.genre });
       }
-      if (display.album) {
+      if (isRenderableHintText(display.album)) {
         hints.push({ label: "Album", type: "text", value: display.album });
       }
       if (cover) {
         hints.push({ label: "Cover", type: "cover", value: cover });
       }
-      if (display.artist) {
+      if (isRenderableHintText(display.artist)) {
         hints.push({ label: "Artist", type: "text", value: display.artist });
       }
       return hints;
@@ -3858,11 +3992,11 @@
       const display = this.getSongDisplay(song);
       const answer = this.ensurePlayerAnswerElements();
       this.playerElements.mainTitle.textContent = display.title;
-      answer.title.textContent = display.title;
-      answer.artist.textContent = display.artist || " ";
-      answer.album.textContent = display.album || " ";
-      answer.year.textContent = display.year || " ";
-      answer.genre.textContent = display.genre || " ";
+      this.setPlayerAnswerField(answer.title, display.title);
+      this.setPlayerAnswerField(answer.artist, display.artist);
+      this.setPlayerAnswerField(answer.album, display.album);
+      this.setPlayerAnswerField(answer.year, display.year);
+      this.setPlayerAnswerField(answer.genre, display.genre);
       answer.background.innerHTML = "";
       const coverPath = this.getSongAnswerCover(song);
       answer.background.hidden = !coverPath;
@@ -3872,6 +4006,16 @@
         image.alt = display.title;
         answer.background.appendChild(image);
       }
+    }
+
+    setPlayerAnswerField(field, value) {
+      const normalized = normalizeText(value);
+      const shouldRender = isRenderableHintText(normalized);
+      const item = field.closest(".player-answer-item");
+      if (item !== null) {
+        item.hidden = !shouldRender;
+      }
+      field.textContent = shouldRender ? normalized : "";
     }
 
     ensurePlayerAnswerElements() {
