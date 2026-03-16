@@ -10,8 +10,7 @@ import pytest
 import app.config as config_module
 import app.db as db_module
 import app.main as main_module
-from app.services import audio_metadata_service
-from app.services import song_file_service
+from app.services import audio_metadata_service, song_file_service
 from app.services.library_scan_service import ScanSummary
 
 

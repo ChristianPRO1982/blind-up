@@ -119,7 +119,11 @@ def test_update_song_file_location_refreshes_scan_fields(monkeypatch, tmp_path) 
         "settings",
         config_module.Settings(database_path=database_path),
     )
-    monkeypatch.setattr(song_repository, "_timestamp", lambda: "2026-03-16T10:15:00+00:00")
+    monkeypatch.setattr(
+        song_repository,
+        "_timestamp",
+        lambda: "2026-03-16T10:15:00+00:00",
+    )
 
     db_module.init_db()
     song_repository.upsert_song(

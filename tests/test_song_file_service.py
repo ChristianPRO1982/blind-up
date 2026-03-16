@@ -28,7 +28,9 @@ def test_resolve_song_file_path_returns_existing_file_without_repair(
     assert resolved_path == audio_path
 
 
-def test_resolve_song_file_path_repairs_legacy_path_by_hash(monkeypatch, tmp_path) -> None:
+def test_resolve_song_file_path_repairs_legacy_path_by_hash(
+    monkeypatch, tmp_path
+) -> None:
     library_root = tmp_path / "music-library"
     nested_dir = library_root / "album"
     nested_dir.mkdir(parents=True)

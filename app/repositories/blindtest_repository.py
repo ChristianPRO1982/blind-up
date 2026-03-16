@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from pathlib import Path
 
 from app.db import get_connection
 from app.services.media_path_service import import_image_reference
@@ -278,7 +277,9 @@ def validate_blindtest_links(blindtest_id: int) -> dict[str, int]:
             linked_song = dict(row)
             file_path = row["file_path"]
             linked_row_exists = file_path is not None
-            resolved_file = resolve_song_file_path(linked_song) if linked_row_exists else None
+            resolved_file = (
+                resolve_song_file_path(linked_song) if linked_row_exists else None
+            )
             file_exists = resolved_file is not None and resolved_file.is_file()
             if linked_row_exists and file_exists:
                 continue

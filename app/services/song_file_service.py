@@ -6,7 +6,10 @@ from pathlib import Path
 
 from app.config import settings
 from app.repositories import song_repository
-from app.services.audio_metadata_service import compute_file_hash, is_supported_audio_file
+from app.services.audio_metadata_service import (
+    compute_file_hash,
+    is_supported_audio_file,
+)
 
 logger = logging.getLogger(__name__)
 
