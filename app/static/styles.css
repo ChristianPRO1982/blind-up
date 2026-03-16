@@ -1567,6 +1567,25 @@ body.modal-open {
   min-width: 0;
 }
 
+.scan-export-status {
+  margin: 0;
+  padding: 0.75rem 0.95rem;
+  border: 1px solid rgba(118, 246, 195, 0.28);
+  border-radius: 1rem;
+  color: #d9fff0;
+  background:
+    linear-gradient(180deg, rgba(11, 46, 39, 0.78), rgba(8, 28, 24, 0.84)),
+    linear-gradient(90deg, rgba(118, 246, 195, 0.12), rgba(103, 232, 249, 0.06));
+}
+
+.scan-export-status[data-state="error"] {
+  border-color: rgba(255, 138, 106, 0.42);
+  color: #ffe3da;
+  background:
+    linear-gradient(180deg, rgba(86, 24, 17, 0.78), rgba(42, 15, 12, 0.84)),
+    linear-gradient(90deg, rgba(255, 158, 87, 0.14), rgba(255, 79, 184, 0.04));
+}
+
 .scan-summary-grid {
   display: grid;
   gap: 0.8rem;

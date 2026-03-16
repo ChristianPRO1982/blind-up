@@ -544,6 +544,8 @@
         scanRootPath: document.getElementById("scan-root-path"),
         scanLightButton: document.getElementById("scan-light-button"),
         scanHeavyButton: document.getElementById("scan-heavy-button"),
+        scanSongListButton: document.getElementById("scan-song-list-button"),
+        scanSongListStatus: document.getElementById("scan-song-list-status"),
         scanBackButton: document.getElementById("scan-back-button"),
         scanStatus: document.getElementById("scan-status"),
         scanError: document.getElementById("scan-error"),
@@ -671,6 +673,7 @@
       this.pendingDeleteBlindtestId = null;
       this.deleteBlindtestReturnFocus = null;
       this.scanState = { status: "idle", mode: null, summary: null, error: null };
+      this.scanSongListState = { message: "", error: false, busy: false };
       this.scanPollInterval = null;
       this.latestScanSummaryKey = "";
       this.librarySongs = [];
@@ -939,6 +942,11 @@
       if (this.elements.scanHeavyButton !== null) {
         this.elements.scanHeavyButton.addEventListener("click", () => {
           this.handleScanAction("update").catch(() => {});
+        });
+      }
+      if (this.elements.scanSongListButton !== null) {
+        this.elements.scanSongListButton.addEventListener("click", () => {
+          this.handleSongListExport().catch(() => {});
         });
       }
       if (this.elements.scanBackButton !== null) {
@@ -1615,6 +1623,20 @@
         this.elements.scanHeavyButton.disabled = isRunning && !isActive;
         this.elements.scanHeavyButton.classList.toggle("button-danger", isActive);
         this.elements.scanHeavyButton.classList.toggle("button-secondary", !isActive);
+      }
+      if (this.elements.scanSongListButton !== null) {
+        this.elements.scanSongListButton.disabled = this.scanSongListState.busy;
+        this.elements.scanSongListButton.textContent = this.scanSongListState.busy
+          ? "Creating..."
+          : "Song list";
+      }
+      if (this.elements.scanSongListStatus !== null) {
+        const message = normalizeText(this.scanSongListState.message);
+        this.elements.scanSongListStatus.hidden = message === "";
+        this.elements.scanSongListStatus.textContent = message;
+        this.elements.scanSongListStatus.dataset.state = this.scanSongListState.error
+          ? "error"
+          : "success";
       }
       this.elements.scanStatus.textContent = this.formatScanStatus(
         state.status,
@@ -3014,6 +3036,48 @@
         this.latestScanSummaryKey = summaryKey;
         await this.refreshSongs();
       }
+      this.renderScan();
+    }
+
+    async handleSongListExport() {
+      this.scanSongListState = {
+        message: "",
+        error: false,
+        busy: true,
+      };
+      this.renderScan();
+
+      try {
+        const response = await fetch("/api/library/song-list", {
+          method: "POST",
+        });
+        let payload = {};
+        try {
+          payload = await response.json();
+        } catch (error) {
+          payload = {};
+        }
+        if (!response.ok) {
+          throw new Error(normalizeText(payload.detail) || `HTTP ${response.status}`);
+        }
+        this.scanSongListState = {
+          message: `Created ${
+            normalizeText(payload.path) || "song_list.tsv"
+          }`,
+          error: false,
+          busy: false,
+        };
+      } catch (error) {
+        this.scanSongListState = {
+          message:
+            error instanceof Error && normalizeText(error.message)
+              ? error.message
+              : "Unable to create song_list.tsv",
+          error: true,
+          busy: false,
+        };
+      }
+
       this.renderScan();
     }
 

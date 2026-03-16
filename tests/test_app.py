@@ -582,7 +582,7 @@ def test_schema_constraints_are_enforced(monkeypatch, tmp_path) -> None:
             )
 
 
-def test_fastapi_routes_serve_expected_responses() -> None:
+def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
     async def get_health_response() -> httpx.Response:
         transport = httpx.ASGITransport(app=main_module.app)
         async with httpx.AsyncClient(
@@ -665,6 +665,14 @@ def test_fastapi_routes_serve_expected_responses() -> None:
             base_url="http://testserver",
         ) as client:
             return await client.get("/api/songs")
+
+    async def post_song_list_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.post("/api/library/song-list")
 
     async def get_blindtests_response() -> httpx.Response:
         transport = httpx.ASGITransport(app=main_module.app)
@@ -752,12 +760,13 @@ def test_fastapi_routes_serve_expected_responses() -> None:
     original_delete_blindtest = main_module.blindtest_repository.delete_blindtest
     original_save_blindtest = main_module.blindtest_repository.save_blindtest
     scan_start_calls: list[tuple[str, str]] = []
-    configured_scan_root_path = "/music/library"
+    configured_scan_root_path = tmp_path / "music-library"
+    configured_scan_root_path.mkdir()
     main_module.settings = config_module.Settings(
         database_path=main_module.settings.database_path,
         static_dir=main_module.settings.static_dir,
         templates_dir=main_module.settings.templates_dir,
-        library_root_path=Path(configured_scan_root_path),
+        library_root_path=configured_scan_root_path,
         storage_dir=main_module.settings.storage_dir,
         covers_dir=main_module.settings.covers_dir,
     )
@@ -880,6 +889,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
     scan_stop_response = asyncio.run(post_scan_stop_response())
     scan_status_response = asyncio.run(get_scan_status_response())
     songs_response = asyncio.run(get_songs_response())
+    song_list_response = asyncio.run(post_song_list_response())
     blindtests_response = asyncio.run(get_blindtests_response())
     blindtest_response = asyncio.run(get_blindtest_response())
     delete_blindtest_result = asyncio.run(delete_blindtest_response())
@@ -909,6 +919,9 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         assert any(
             route.path == "/api/library/scan/status" for route in main_module.app.routes
         )
+        assert any(
+            route.path == "/api/library/song-list" for route in main_module.app.routes
+        )
         assert any(route.path == "/api/blindtests" for route in main_module.app.routes)
         assert any(
             route.path == "/api/blindtest/{blindtest_id}"
@@ -928,6 +941,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         assert 'placeholder="/users/moi/music/"' not in scan_page_response.text
         assert f'value="{configured_scan_root_path}"' in scan_page_response.text
         assert "readonly" in scan_page_response.text
+        assert "Song list" in scan_page_response.text
         assert scan_page_response.text.index(
             "Library root path"
         ) < scan_page_response.text.index("Scan info")
@@ -942,7 +956,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         assert "Blindtest player" in player_page_response.text
         assert scan_start_response.status_code == 200
         assert scan_start_response.json() == {"status": "running", "mode": "light"}
-        assert scan_start_calls == [(configured_scan_root_path, "light")]
+        assert scan_start_calls == [(str(configured_scan_root_path), "light")]
         assert scan_stop_response.status_code == 200
         assert scan_stop_response.json() == {"status": "stopping", "mode": "light"}
         assert scan_status_response.status_code == 200
@@ -964,6 +978,18 @@ def test_fastapi_routes_serve_expected_responses() -> None:
             "error": None,
         }
         assert songs_response.status_code == 200
+        assert song_list_response.status_code == 200
+        assert song_list_response.json() == {
+            "status": "ok",
+            "path": str(configured_scan_root_path / "song_list.tsv"),
+            "filename": "song_list.tsv",
+        }
+        assert (configured_scan_root_path / "song_list.tsv").read_text(
+            encoding="utf-8"
+        ) == (
+            "title\tartist\talbum\tyear\tgenre\n"
+            "Song 1\tArtist 1\tAlbum 1\t2001\tRock\n"
+        )
         assert songs_response.json() == {
             "songs": [
                 {
@@ -1077,6 +1103,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         assert 'window.location.assign("/player")' in script_text
         assert "window.sessionStorage" in script_text
         assert "handleScanAction" in script_text
+        assert "handleSongListExport" in script_text
         assert "showScanView" in script_text
         assert "openBlindtest" in script_text
         assert "showHomeView" in script_text

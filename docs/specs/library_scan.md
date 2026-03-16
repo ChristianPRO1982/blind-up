@@ -70,6 +70,7 @@ The panel must include:
 * a visible field showing the configured `root_path`
 * a `Start scan` action
 * a `Stop scan` action while a scan is running
+* a `Song list` action that writes `song_list.tsv` at the root of the library
 
 The same primary control may change label between:
 
@@ -89,6 +90,24 @@ At minimum it shows:
 The panel remains visible after the scan finishes.
 
 The host stays on the Library scan panel after completion.
+
+## Song list export
+
+The panel also exposes a `Song list` button.
+
+When used, it creates a TSV file at the root of the configured music library:
+
+```text
+/music-library/song_list.tsv
+```
+
+The file must include a header row and the following columns:
+
+* `title`
+* `artist`
+* `album`
+* `year`
+* `genre`
 
 ---
 

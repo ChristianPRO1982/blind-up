@@ -16,6 +16,7 @@ from app.repositories import (
     song_repository,
 )
 from app.services.library_scan_service import ScanCancelled, scan_library
+from app.services.song_list_export_service import export_song_list_tsv
 
 
 @asynccontextmanager
@@ -307,6 +308,27 @@ async def songs() -> dict[str, list[dict[str, object]]]:
             }
             for song in song_repository.list_songs()
         ]
+    }
+
+
+@app.post("/api/library/song-list")
+async def export_song_list() -> dict[str, object]:
+    try:
+        export_path = export_song_list_tsv(settings.library_root_path)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except NotADirectoryError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except OSError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unable to write song list: {exc}",
+        ) from exc
+
+    return {
+        "status": "ok",
+        "path": str(export_path),
+        "filename": export_path.name,
     }
 
 
