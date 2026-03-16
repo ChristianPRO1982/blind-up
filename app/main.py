@@ -1,3 +1,4 @@
+import mimetypes
 import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -37,6 +38,28 @@ app.mount(
 app.mount("/media", StaticFiles(directory=settings.storage_dir), name="media")
 
 EDITOR_BACKGROUND_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+KNOWN_AUDIO_MEDIA_TYPES = {
+    ".aac": "audio/aac",
+    ".flac": "audio/flac",
+    ".m4a": "audio/mp4",
+    ".mp3": "audio/mpeg",
+    ".oga": "audio/ogg",
+    ".ogg": "audio/ogg",
+    ".opus": "audio/ogg",
+    ".wav": "audio/wav",
+    ".weba": "audio/webm",
+    ".wma": "audio/x-ms-wma",
+}
+
+
+def static_asset_version(asset_name: str) -> int:
+    asset_path = settings.static_dir / asset_name
+    if not asset_path.is_file():
+        return 0
+    return int(asset_path.stat().st_mtime_ns)
+
+
+templates.env.globals["static_asset_version"] = static_asset_version
 
 
 def get_editor_background_gallery() -> list[dict[str, str]]:
@@ -57,6 +80,18 @@ def get_editor_background_gallery() -> list[dict[str, str]]:
             }
         )
     return gallery
+
+
+def guess_audio_media_type(file_path: Path) -> str:
+    extension = file_path.suffix.lower()
+    if extension in KNOWN_AUDIO_MEDIA_TYPES:
+        return KNOWN_AUDIO_MEDIA_TYPES[extension]
+
+    guessed_type, _ = mimetypes.guess_type(str(file_path))
+    if guessed_type and guessed_type.startswith("audio/"):
+        return guessed_type
+
+    return "application/octet-stream"
 
 
 @app.get("/", include_in_schema=False)
@@ -320,7 +355,7 @@ async def audio(song_id: int) -> FileResponse:
     if not file_path.is_file():
         raise HTTPException(status_code=404, detail="Audio unavailable")
 
-    return FileResponse(file_path)
+    return FileResponse(file_path, media_type=guess_audio_media_type(file_path))
 
 
 @app.get("/api/blindtests")

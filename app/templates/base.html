@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BlindUp</title>
     <link rel="icon" type="image/x-icon" href="/static/brand/favicon.ico" />
-    <link rel="stylesheet" href="/static/styles.css" />
+    <link rel="stylesheet" href="/static/styles.css?v={{ static_asset_version('styles.css') }}" />
   </head>
   <body
     data-page="{{ page_id }}"
@@ -41,6 +41,6 @@
 
       {% block content %}{% endblock %}
     </main>
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v={{ static_asset_version('app.js') }}"></script>
   </body>
 </html>

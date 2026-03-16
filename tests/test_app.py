@@ -118,6 +118,27 @@ def test_get_editor_background_gallery_handles_missing_and_unsupported_files(
     ]
 
 
+def test_static_asset_version_returns_zero_for_missing_asset(
+    monkeypatch, tmp_path
+) -> None:
+    static_dir = tmp_path / "static"
+    static_dir.mkdir()
+    monkeypatch.setattr(
+        main_module,
+        "settings",
+        config_module.Settings(
+            database_path=main_module.settings.database_path,
+            static_dir=static_dir,
+            templates_dir=main_module.settings.templates_dir,
+            library_root_path=main_module.settings.library_root_path,
+            storage_dir=main_module.settings.storage_dir,
+            covers_dir=main_module.settings.covers_dir,
+        ),
+    )
+
+    assert main_module.static_asset_version("missing.js") == 0
+
+
 def test_get_connection_creates_database_and_enables_foreign_keys(
     monkeypatch,
     tmp_path,
@@ -1351,3 +1372,52 @@ def test_audio_route_returns_404_for_missing_file(monkeypatch, tmp_path) -> None
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Audio unavailable"}
+
+
+def test_audio_route_returns_flac_media_type(monkeypatch, tmp_path) -> None:
+    audio_file = tmp_path / "sample.flac"
+    audio_file.write_bytes(b"fLaC")
+
+    async def get_audio_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.get("/api/audio/1")
+
+    monkeypatch.setattr(
+        main_module.song_repository,
+        "get_song_by_id",
+        lambda song_id: {"id": song_id, "file_path": str(audio_file)},
+    )
+
+    response = asyncio.run(get_audio_response())
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "audio/flac"
+
+
+def test_guess_audio_media_type_uses_mimetypes_for_unknown_audio_extension(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        main_module.mimetypes,
+        "guess_type",
+        lambda _: ("audio/custom", None),
+    )
+
+    assert main_module.guess_audio_media_type(Path("sample.custom")) == "audio/custom"
+
+
+def test_guess_audio_media_type_falls_back_to_octet_stream(monkeypatch) -> None:
+    monkeypatch.setattr(
+        main_module.mimetypes,
+        "guess_type",
+        lambda _: ("text/plain", None),
+    )
+
+    assert (
+        main_module.guess_audio_media_type(Path("sample.unknown"))
+        == "application/octet-stream"
+    )

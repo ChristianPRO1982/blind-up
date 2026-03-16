@@ -11,6 +11,31 @@
   const PLAYER_DRAFT_STORAGE_KEY = "blindup-player-draft";
   const PLAYER_RETURN_URL_STORAGE_KEY = "blindup-player-return-url";
   const RESTORE_EDITOR_DRAFT_STORAGE_KEY = "blindup-restore-editor-draft";
+  let fallbackWaveformAudioContext = null;
+
+  function hasFactoryMethod(candidate) {
+    return candidate !== null && candidate !== undefined && typeof candidate.create === "function";
+  }
+
+  function pickFactory(...candidates) {
+    for (const candidate of candidates) {
+      if (hasFactoryMethod(candidate)) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+
+  function getFallbackWaveformAudioContext() {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) {
+      return null;
+    }
+    if (fallbackWaveformAudioContext === null) {
+      fallbackWaveformAudioContext = new AudioContextClass();
+    }
+    return fallbackWaveformAudioContext;
+  }
 
   function clamp(value, minimum, maximum) {
     return Math.min(Math.max(value, minimum), maximum);
@@ -127,6 +152,8 @@
         this.audio.preload = "metadata";
         this.destroyed = false;
         this.duration = 0;
+        this.waveformLoadToken = 0;
+        this.peaks = null;
         this.resizeObserver = null;
         this.handleTrackClick = this.handleTrackClick.bind(this);
         this.handleTimeUpdate = this.handleTimeUpdate.bind(this);
@@ -134,6 +161,12 @@
         this.handleAudioError = this.handleAudioError.bind(this);
         this.setupDom();
         this.bindAudioEvents();
+        for (const plugin of options.plugins || []) {
+          this.registerPlugin(plugin);
+        }
+        if (options.url) {
+          this.load(options.url);
+        }
       }
 
       setupDom() {
@@ -142,9 +175,15 @@
         this.scroll.className = "waveform-scroll";
         this.track = document.createElement("div");
         this.track.className = "waveform-track";
+        this.waveCanvas = document.createElement("canvas");
+        this.waveCanvas.className = "waveform-canvas";
         this.progress = document.createElement("div");
         this.progress.className = "waveform-progress";
+        this.progressCanvas = document.createElement("canvas");
+        this.progressCanvas.className = "waveform-canvas waveform-canvas-progress";
+        this.track.appendChild(this.waveCanvas);
         this.track.appendChild(this.progress);
+        this.progress.appendChild(this.progressCanvas);
         this.scroll.appendChild(this.track);
         this.container.appendChild(this.scroll);
         this.track.addEventListener("click", this.handleTrackClick);
@@ -195,6 +234,7 @@
         );
         this.track.style.width = `${width}px`;
         this.track.style.height = `${this.options.height || 120}px`;
+        this.drawWaveform();
         this.updateProgress();
         for (const plugin of this.plugins) {
           if (typeof plugin.refresh === "function") {
@@ -217,6 +257,10 @@
         this.audio.pause();
         this.audio.src = url;
         this.audio.load();
+        this.loadWaveformPeaks(url).catch(() => {
+          this.peaks = null;
+          this.render();
+        });
       }
 
       registerPlugin(plugin) {
@@ -271,6 +315,7 @@
         }
 
         this.destroyed = true;
+        this.waveformLoadToken += 1;
         this.audio.pause();
         this.audio.removeEventListener("timeupdate", this.handleTimeUpdate);
         this.audio.removeEventListener("loadedmetadata", this.handleLoadedMetadata);
@@ -285,7 +330,110 @@
         if (this.resizeObserver !== null) {
           this.resizeObserver.disconnect();
         }
+        this.audio.removeAttribute("src");
+        this.audio.load();
         this.container.innerHTML = "";
+      }
+
+      async loadWaveformPeaks(url) {
+        const audioContext = getFallbackWaveformAudioContext();
+        if (audioContext === null) {
+          this.peaks = null;
+          this.render();
+          return;
+        }
+
+        const loadToken = this.waveformLoadToken + 1;
+        this.waveformLoadToken = loadToken;
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error("Audio unavailable");
+        }
+
+        const arrayBuffer = await response.arrayBuffer();
+        const decoded = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+        if (this.destroyed || this.waveformLoadToken !== loadToken) {
+          return;
+        }
+
+        this.peaks = this.buildPeaks(decoded);
+        this.render();
+      }
+
+      buildPeaks(audioBuffer) {
+        const channelCount = audioBuffer.numberOfChannels;
+        const sampleCount = Math.max(320, Math.min(2000, Math.floor(audioBuffer.duration * 18)));
+        const samplesPerPeak = Math.max(1, Math.floor(audioBuffer.length / sampleCount));
+        const peaks = new Array(sampleCount).fill(0);
+
+        for (let peakIndex = 0; peakIndex < sampleCount; peakIndex += 1) {
+          const start = peakIndex * samplesPerPeak;
+          const end = Math.min(audioBuffer.length, start + samplesPerPeak);
+          let maxAmplitude = 0;
+          for (let channelIndex = 0; channelIndex < channelCount; channelIndex += 1) {
+            const channelData = audioBuffer.getChannelData(channelIndex);
+            for (let sampleIndex = start; sampleIndex < end; sampleIndex += 1) {
+              const amplitude = Math.abs(channelData[sampleIndex] || 0);
+              if (amplitude > maxAmplitude) {
+                maxAmplitude = amplitude;
+              }
+            }
+          }
+          peaks[peakIndex] = maxAmplitude;
+        }
+
+        return peaks;
+      }
+
+      drawWaveform() {
+        this.drawWaveformLayer(this.waveCanvas, "base");
+        this.drawWaveformLayer(this.progressCanvas, "progress");
+      }
+
+      drawWaveformLayer(canvas, mode) {
+        const width = Math.max(1, Math.floor(this.track.clientWidth || 1));
+        const height = Math.max(1, Math.floor(this.track.clientHeight || this.options.height || 120));
+        const ratio = window.devicePixelRatio || 1;
+        canvas.width = Math.max(1, Math.floor(width * ratio));
+        canvas.height = Math.max(1, Math.floor(height * ratio));
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        const context = canvas.getContext("2d");
+        if (!context) {
+          return;
+        }
+
+        context.setTransform(1, 0, 0, 1, 0, 0);
+        context.scale(ratio, ratio);
+        context.clearRect(0, 0, width, height);
+
+        const centerY = height / 2;
+        const verticalPadding = 10;
+        const availableHeight = Math.max(12, height - verticalPadding * 2);
+
+        context.strokeStyle =
+          mode === "progress" ? "rgba(255, 230, 107, 0.95)" : "rgba(130, 220, 255, 0.9)";
+        context.lineWidth = 2;
+        context.lineCap = "round";
+
+        if (!Array.isArray(this.peaks) || this.peaks.length === 0) {
+          context.beginPath();
+          context.moveTo(0, centerY);
+          context.lineTo(width, centerY);
+          context.stroke();
+          return;
+        }
+
+        const step = width / this.peaks.length;
+        for (let index = 0; index < this.peaks.length; index += 1) {
+          const amplitude = Math.max(0.03, this.peaks[index]);
+          const barHeight = (availableHeight * amplitude) / 2;
+          const x = index * step + step / 2;
+          context.beginPath();
+          context.moveTo(x, centerY - barHeight);
+          context.lineTo(x, centerY + barHeight);
+          context.stroke();
+        }
       }
     }
 
@@ -880,11 +1028,21 @@
             "https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.esm.js"
           ).catch(() => null),
         ]).then(([waveModule, regionsModule]) => {
-          if (waveModule && waveModule.default) {
-            this.waveSurferLib = waveModule.default;
+          const waveFactory = pickFactory(
+            waveModule && waveModule.default,
+            waveModule && waveModule.WaveSurfer,
+            waveModule
+          );
+          const regionsFactory = pickFactory(
+            regionsModule && regionsModule.default,
+            regionsModule && regionsModule.RegionsPlugin,
+            regionsModule
+          );
+          if (waveFactory !== null) {
+            this.waveSurferLib = waveFactory;
           }
-          if (regionsModule && regionsModule.default) {
-            this.regionsLib = regionsModule.default;
+          if (regionsFactory !== null) {
+            this.regionsLib = regionsFactory;
           }
         });
       }
@@ -2138,14 +2296,7 @@
         return;
       }
 
-      this.regions = this.regionsLib.create();
-      this.wavesurfer = this.waveSurferLib.create({
-        container: "#waveform",
-        height: 120,
-        mediaControls: true,
-        url: `/api/audio/${slot.song_id}`,
-        plugins: [this.regions],
-      });
+      this.initializeWaveform(`/api/audio/${slot.song_id}`);
       this.regions.on("region-updated", (region) => this.syncSelectionFromRegion(region));
       this.regions.on("region-update-end", (region) => this.syncSelectionFromRegion(region));
       this.wavesurfer.on("timeupdate", () => {
@@ -2164,6 +2315,27 @@
         this.updateMarkLabel();
       });
       this.wavesurfer.on("error", () => this.showAudioError());
+    }
+
+    initializeWaveform(audioUrl) {
+      try {
+        this.createWaveformInstance(audioUrl);
+      } catch (error) {
+        this.waveSurferLib = WaveSurferFallback;
+        this.regionsLib = RegionsFallback;
+        this.createWaveformInstance(audioUrl);
+      }
+    }
+
+    createWaveformInstance(audioUrl) {
+      this.regions = this.regionsLib.create();
+      this.wavesurfer = this.waveSurferLib.create({
+        container: "#waveform",
+        height: 120,
+        mediaControls: true,
+        url: audioUrl,
+        plugins: [this.regions],
+      });
     }
 
     createImageThumb(imageUrl, label = "Background") {
