@@ -17,6 +17,8 @@ from app.repositories import (
     song_repository,
 )
 from app.services.library_scan_service import ScanCancelled, scan_library
+from app.services.song_file_service import resolve_song_file_path
+from app.services.song_list_export_service import export_song_list_tsv
 
 
 @asynccontextmanager
@@ -345,14 +347,35 @@ async def songs() -> dict[str, list[dict[str, object]]]:
     }
 
 
+@app.post("/api/library/song-list")
+async def export_song_list() -> dict[str, object]:
+    try:
+        export_path = export_song_list_tsv(settings.library_root_path)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except NotADirectoryError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except OSError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unable to write song list: {exc}",
+        ) from exc
+
+    return {
+        "status": "ok",
+        "path": str(export_path),
+        "filename": export_path.name,
+    }
+
+
 @app.get("/api/audio/{song_id}")
 async def audio(song_id: int) -> FileResponse:
     song = song_repository.get_song_by_id(song_id)
     if song is None:
         raise HTTPException(status_code=404, detail="Song not found")
 
-    file_path = Path(str(song["file_path"]))
-    if not file_path.is_file():
+    file_path = resolve_song_file_path(song)
+    if file_path is None or not file_path.is_file():
         raise HTTPException(status_code=404, detail="Audio unavailable")
 
     return FileResponse(file_path, media_type=guess_audio_media_type(file_path))

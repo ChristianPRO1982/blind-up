@@ -10,6 +10,8 @@ import pytest
 import app.config as config_module
 import app.db as db_module
 import app.main as main_module
+from app.services import audio_metadata_service
+from app.services import song_file_service
 from app.services.library_scan_service import ScanSummary
 
 
@@ -603,7 +605,7 @@ def test_schema_constraints_are_enforced(monkeypatch, tmp_path) -> None:
             )
 
 
-def test_fastapi_routes_serve_expected_responses() -> None:
+def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
     async def get_health_response() -> httpx.Response:
         transport = httpx.ASGITransport(app=main_module.app)
         async with httpx.AsyncClient(
@@ -686,6 +688,14 @@ def test_fastapi_routes_serve_expected_responses() -> None:
             base_url="http://testserver",
         ) as client:
             return await client.get("/api/songs")
+
+    async def post_song_list_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.post("/api/library/song-list")
 
     async def get_blindtests_response() -> httpx.Response:
         transport = httpx.ASGITransport(app=main_module.app)
@@ -773,12 +783,13 @@ def test_fastapi_routes_serve_expected_responses() -> None:
     original_delete_blindtest = main_module.blindtest_repository.delete_blindtest
     original_save_blindtest = main_module.blindtest_repository.save_blindtest
     scan_start_calls: list[tuple[str, str]] = []
-    configured_scan_root_path = "/music/library"
+    configured_scan_root_path = tmp_path / "music-library"
+    configured_scan_root_path.mkdir()
     main_module.settings = config_module.Settings(
         database_path=main_module.settings.database_path,
         static_dir=main_module.settings.static_dir,
         templates_dir=main_module.settings.templates_dir,
-        library_root_path=Path(configured_scan_root_path),
+        library_root_path=configured_scan_root_path,
         storage_dir=main_module.settings.storage_dir,
         covers_dir=main_module.settings.covers_dir,
     )
@@ -901,6 +912,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
     scan_stop_response = asyncio.run(post_scan_stop_response())
     scan_status_response = asyncio.run(get_scan_status_response())
     songs_response = asyncio.run(get_songs_response())
+    song_list_response = asyncio.run(post_song_list_response())
     blindtests_response = asyncio.run(get_blindtests_response())
     blindtest_response = asyncio.run(get_blindtest_response())
     delete_blindtest_result = asyncio.run(delete_blindtest_response())
@@ -930,6 +942,9 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         assert any(
             route.path == "/api/library/scan/status" for route in main_module.app.routes
         )
+        assert any(
+            route.path == "/api/library/song-list" for route in main_module.app.routes
+        )
         assert any(route.path == "/api/blindtests" for route in main_module.app.routes)
         assert any(
             route.path == "/api/blindtest/{blindtest_id}"
@@ -949,6 +964,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         assert 'placeholder="/users/moi/music/"' not in scan_page_response.text
         assert f'value="{configured_scan_root_path}"' in scan_page_response.text
         assert "readonly" in scan_page_response.text
+        assert "Song list" in scan_page_response.text
         assert scan_page_response.text.index(
             "Library root path"
         ) < scan_page_response.text.index("Scan info")
@@ -963,7 +979,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         assert "Blindtest player" in player_page_response.text
         assert scan_start_response.status_code == 200
         assert scan_start_response.json() == {"status": "running", "mode": "light"}
-        assert scan_start_calls == [(configured_scan_root_path, "light")]
+        assert scan_start_calls == [(str(configured_scan_root_path), "light")]
         assert scan_stop_response.status_code == 200
         assert scan_stop_response.json() == {"status": "stopping", "mode": "light"}
         assert scan_status_response.status_code == 200
@@ -985,6 +1001,18 @@ def test_fastapi_routes_serve_expected_responses() -> None:
             "error": None,
         }
         assert songs_response.status_code == 200
+        assert song_list_response.status_code == 200
+        assert song_list_response.json() == {
+            "status": "ok",
+            "path": str(configured_scan_root_path / "song_list.tsv"),
+            "filename": "song_list.tsv",
+        }
+        assert (configured_scan_root_path / "song_list.tsv").read_text(
+            encoding="utf-8"
+        ) == (
+            "file_path\ttitle\tartist\talbum\tyear\tgenre\n"
+            "/music/song-1.mp3\tSong 1\tArtist 1\tAlbum 1\t2001\tRock\n"
+        )
         assert songs_response.json() == {
             "songs": [
                 {
@@ -1098,6 +1126,7 @@ def test_fastapi_routes_serve_expected_responses() -> None:
         assert 'window.location.assign("/player")' in script_text
         assert "window.sessionStorage" in script_text
         assert "handleScanAction" in script_text
+        assert "handleSongListExport" in script_text
         assert "showScanView" in script_text
         assert "openBlindtest" in script_text
         assert "showHomeView" in script_text
@@ -1149,6 +1178,71 @@ def test_library_scan_start_route_returns_409_when_running(monkeypatch) -> None:
 
     assert response.status_code == 409
     assert response.json() == {"detail": "Scan already running"}
+
+
+def test_song_list_route_returns_404_for_missing_library_root(monkeypatch) -> None:
+    async def post_song_list_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.post("/api/library/song-list")
+
+    monkeypatch.setattr(
+        main_module,
+        "export_song_list_tsv",
+        lambda *_args: (_ for _ in ()).throw(FileNotFoundError("/missing")),
+    )
+
+    response = asyncio.run(post_song_list_response())
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "/missing"}
+
+
+def test_song_list_route_returns_400_for_non_directory_root(monkeypatch) -> None:
+    async def post_song_list_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.post("/api/library/song-list")
+
+    monkeypatch.setattr(
+        main_module,
+        "export_song_list_tsv",
+        lambda *_args: (_ for _ in ()).throw(NotADirectoryError("/not-a-directory")),
+    )
+
+    response = asyncio.run(post_song_list_response())
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "/not-a-directory"}
+
+
+def test_song_list_route_returns_500_when_write_fails(monkeypatch) -> None:
+    async def post_song_list_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.post("/api/library/song-list")
+
+    monkeypatch.setattr(
+        main_module,
+        "export_song_list_tsv",
+        lambda *_args: (_ for _ in ()).throw(OSError("read-only file system")),
+    )
+
+    response = asyncio.run(post_song_list_response())
+
+    assert response.status_code == 500
+    assert response.json() == {
+        "detail": "Unable to write song list: read-only file system"
+    }
 
 
 def test_blindtest_route_returns_404_for_missing_blindtest(monkeypatch) -> None:
@@ -1332,6 +1426,69 @@ def test_audio_route_serves_existing_file(monkeypatch, tmp_path) -> None:
 
     assert response.status_code == 200
     assert response.content == b"ID3"
+
+
+def test_audio_route_repairs_legacy_file_path(monkeypatch, tmp_path) -> None:
+    library_root = tmp_path / "music-library"
+    nested_dir = library_root / "disc"
+    nested_dir.mkdir(parents=True)
+    audio_path = nested_dir / "song.mp3"
+    audio_path.write_bytes(b"ID3")
+
+    async def get_audio_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.get("/api/audio/1")
+
+    updated_settings = config_module.Settings(
+        database_path=main_module.settings.database_path,
+        static_dir=main_module.settings.static_dir,
+        templates_dir=main_module.settings.templates_dir,
+        library_root_path=library_root,
+        storage_dir=main_module.settings.storage_dir,
+        covers_dir=main_module.settings.covers_dir,
+    )
+    original_settings = main_module.settings
+    original_song_file_settings = song_file_service.settings
+    main_module.settings = updated_settings
+    song_file_service.settings = updated_settings
+    repair_calls: list[tuple[int, str, int, int]] = []
+    monkeypatch.setattr(
+        main_module.song_repository,
+        "get_song_by_id",
+        lambda song_id: {
+            "id": song_id,
+            "file_hash": audio_metadata_service.compute_file_hash(audio_path),
+            "file_path": "/legacy/music/song.mp3",
+        },
+    )
+    monkeypatch.setattr(
+        main_module.song_repository,
+        "update_song_file_location",
+        lambda song_id, file_path, file_size, file_mtime_ns: repair_calls.append(
+            (song_id, file_path, file_size, file_mtime_ns)
+        ),
+    )
+
+    try:
+        response = asyncio.run(get_audio_response())
+    finally:
+        main_module.settings = original_settings
+        song_file_service.settings = original_song_file_settings
+
+    assert response.status_code == 200
+    assert response.content == b"ID3"
+    assert repair_calls == [
+        (
+            1,
+            str(audio_path.resolve()),
+            audio_path.stat().st_size,
+            audio_path.stat().st_mtime_ns,
+        )
+    ]
 
 
 def test_audio_route_returns_404_for_missing_song(monkeypatch) -> None:

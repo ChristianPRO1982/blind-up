@@ -42,7 +42,6 @@ Each song contains metadata extracted from audio tags:
 * album
 * year
 * genre
-* cover image
 
 Songs are identified internally using a **file hash**.
 
@@ -322,6 +321,7 @@ It allows the host to:
 * enter the library root path to scan
 * start a scan using that exact path
 * stop the current scan
+* generate `song_list.tsv` at the root of the music library
 * read the result summary after the scan finishes
 
 The panel remains visible after the scan finishes.

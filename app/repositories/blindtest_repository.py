@@ -6,6 +6,7 @@ from pathlib import Path
 
 from app.db import get_connection
 from app.services.media_path_service import import_image_reference
+from app.services.song_file_service import resolve_song_file_path
 
 
 @dataclass(frozen=True)
@@ -249,6 +250,7 @@ def validate_blindtest_links(blindtest_id: int) -> dict[str, int]:
                 songs.year,
                 songs.genre,
                 songs.cover_path,
+                songs.file_hash,
                 songs.file_path
             FROM blindtest_songs
             LEFT JOIN songs ON blindtest_songs.song_id = songs.id
@@ -273,14 +275,16 @@ def validate_blindtest_links(blindtest_id: int) -> dict[str, int]:
                     )
                 continue
 
+            linked_song = dict(row)
             file_path = row["file_path"]
             linked_row_exists = file_path is not None
-            file_exists = linked_row_exists and Path(str(file_path)).is_file()
+            resolved_file = resolve_song_file_path(linked_song) if linked_row_exists else None
+            file_exists = resolved_file is not None and resolved_file.is_file()
             if linked_row_exists and file_exists:
                 continue
 
             missing_slots += 1
-            snapshot = _snapshot_from_song(dict(row) if linked_row_exists else None)
+            snapshot = _snapshot_from_song(linked_song if linked_row_exists else None)
             connection.execute(
                 """
                 UPDATE blindtest_songs

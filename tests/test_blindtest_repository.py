@@ -522,6 +522,61 @@ def test_validate_blindtest_links_marks_missing_files(monkeypatch, tmp_path) -> 
     assert blindtest["songs"][0]["source_artist"] == "Artist 1"
 
 
+def test_validate_blindtest_links_keeps_slot_when_file_path_can_be_repaired(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    database_path = tmp_path / "blindup.db"
+    repaired_audio = tmp_path / "music" / "song.mp3"
+    repaired_audio.parent.mkdir()
+    repaired_audio.write_bytes(b"ID3")
+    monkeypatch.setattr(
+        db_module,
+        "settings",
+        config_module.Settings(database_path=database_path),
+    )
+
+    db_module.init_db()
+    with db_module.get_connection() as connection:
+        connection.execute(
+            """
+            INSERT INTO songs (file_hash, file_path, title, artist)
+            VALUES (?, ?, ?, ?);
+            """,
+            ("hash-1", str(tmp_path / "missing.mp3"), "Song 1", "Artist 1"),
+        )
+        connection.execute(
+            "INSERT INTO blindtests (title) VALUES (?);",
+            ("Validation",),
+        )
+        connection.execute(
+            """
+            INSERT INTO blindtest_songs (
+                blindtest_id,
+                song_id,
+                order_index,
+                slot_status
+            )
+            VALUES (?, ?, ?, ?);
+            """,
+            (1, 1, 0, "ok"),
+        )
+
+    monkeypatch.setattr(
+        blindtest_repository,
+        "resolve_song_file_path",
+        lambda song: repaired_audio if int(song["song_id"]) == 1 else None,
+    )
+
+    summary = blindtest_repository.validate_blindtest_links(1)
+    blindtest = blindtest_repository.get_blindtest(1)
+
+    assert summary == {"validated_slots": 1, "missing_slots": 0}
+    assert blindtest is not None
+    assert blindtest["songs"][0]["song_id"] == 1
+    assert blindtest["songs"][0]["slot_status"] == "ok"
+
+
 def test_mark_song_slots_missing_updates_references(monkeypatch, tmp_path) -> None:
     database_path = tmp_path / "blindup.db"
     monkeypatch.setattr(
