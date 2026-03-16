@@ -10,6 +10,8 @@ import pytest
 import app.config as config_module
 import app.db as db_module
 import app.main as main_module
+from app.services import audio_metadata_service
+from app.services import song_file_service
 from app.services.library_scan_service import ScanSummary
 
 
@@ -1403,6 +1405,69 @@ def test_audio_route_serves_existing_file(monkeypatch, tmp_path) -> None:
 
     assert response.status_code == 200
     assert response.content == b"ID3"
+
+
+def test_audio_route_repairs_legacy_file_path(monkeypatch, tmp_path) -> None:
+    library_root = tmp_path / "music-library"
+    nested_dir = library_root / "disc"
+    nested_dir.mkdir(parents=True)
+    audio_path = nested_dir / "song.mp3"
+    audio_path.write_bytes(b"ID3")
+
+    async def get_audio_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.get("/api/audio/1")
+
+    updated_settings = config_module.Settings(
+        database_path=main_module.settings.database_path,
+        static_dir=main_module.settings.static_dir,
+        templates_dir=main_module.settings.templates_dir,
+        library_root_path=library_root,
+        storage_dir=main_module.settings.storage_dir,
+        covers_dir=main_module.settings.covers_dir,
+    )
+    original_settings = main_module.settings
+    original_song_file_settings = song_file_service.settings
+    main_module.settings = updated_settings
+    song_file_service.settings = updated_settings
+    repair_calls: list[tuple[int, str, int, int]] = []
+    monkeypatch.setattr(
+        main_module.song_repository,
+        "get_song_by_id",
+        lambda song_id: {
+            "id": song_id,
+            "file_hash": audio_metadata_service.compute_file_hash(audio_path),
+            "file_path": "/legacy/music/song.mp3",
+        },
+    )
+    monkeypatch.setattr(
+        main_module.song_repository,
+        "update_song_file_location",
+        lambda song_id, file_path, file_size, file_mtime_ns: repair_calls.append(
+            (song_id, file_path, file_size, file_mtime_ns)
+        ),
+    )
+
+    try:
+        response = asyncio.run(get_audio_response())
+    finally:
+        main_module.settings = original_settings
+        song_file_service.settings = original_song_file_settings
+
+    assert response.status_code == 200
+    assert response.content == b"ID3"
+    assert repair_calls == [
+        (
+            1,
+            str(audio_path.resolve()),
+            audio_path.stat().st_size,
+            audio_path.stat().st_mtime_ns,
+        )
+    ]
 
 
 def test_audio_route_returns_404_for_missing_song(monkeypatch) -> None:

@@ -95,6 +95,26 @@ def normalize_song_media_paths() -> int:
     return updated
 
 
+def update_song_file_location(
+    song_id: int,
+    file_path: str,
+    file_size: int | None,
+    file_mtime_ns: int | None,
+) -> None:
+    with get_connection() as connection:
+        connection.execute(
+            """
+            UPDATE songs
+            SET file_path = ?,
+                file_size = ?,
+                file_mtime_ns = ?,
+                updated_at = ?
+            WHERE id = ?;
+            """,
+            (file_path, file_size, file_mtime_ns, _timestamp(), song_id),
+        )
+
+
 def upsert_song(song: SongRecord) -> str:
     now = _timestamp()
     existing = get_song_by_hash(song.file_hash)
