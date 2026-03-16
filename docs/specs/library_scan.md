@@ -103,6 +103,7 @@ When used, it creates a TSV file at the root of the configured music library:
 
 The file must include a header row and the following columns:
 
+* `file_path`
 * `title`
 * `artist`
 * `album`

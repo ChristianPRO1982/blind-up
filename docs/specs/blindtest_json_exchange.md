@@ -258,6 +258,7 @@ The in-memory source may be the current library payload already loaded by the fr
 
 Required columns:
 
+* `file_path`
 * `title`
 * `artist`
 * `album`

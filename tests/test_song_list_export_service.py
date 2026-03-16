@@ -53,9 +53,9 @@ def test_export_song_list_tsv_writes_headers_and_song_rows(
 
     assert export_path == library_root_path / "song_list.tsv"
     assert export_path.read_text(encoding="utf-8") == (
-        "title\tartist\talbum\tyear\tgenre\n"
-        "Song 1\tArtist 1\tAlbum 1\t2001\tRock\n"
-        "Song 2\t\tAlbum 2\t\tPop\n"
+        "file_path\ttitle\tartist\talbum\tyear\tgenre\n"
+        "/music/song-1.mp3\tSong 1\tArtist 1\tAlbum 1\t2001\tRock\n"
+        "/music/song-2.mp3\tSong 2\t\tAlbum 2\t\tPop\n"
     )
 
 

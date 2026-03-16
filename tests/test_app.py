@@ -987,8 +987,8 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
         assert (configured_scan_root_path / "song_list.tsv").read_text(
             encoding="utf-8"
         ) == (
-            "title\tartist\talbum\tyear\tgenre\n"
-            "Song 1\tArtist 1\tAlbum 1\t2001\tRock\n"
+            "file_path\ttitle\tartist\talbum\tyear\tgenre\n"
+            "/music/song-1.mp3\tSong 1\tArtist 1\tAlbum 1\t2001\tRock\n"
         )
         assert songs_response.json() == {
             "songs": [
@@ -1155,6 +1155,71 @@ def test_library_scan_start_route_returns_409_when_running(monkeypatch) -> None:
 
     assert response.status_code == 409
     assert response.json() == {"detail": "Scan already running"}
+
+
+def test_song_list_route_returns_404_for_missing_library_root(monkeypatch) -> None:
+    async def post_song_list_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.post("/api/library/song-list")
+
+    monkeypatch.setattr(
+        main_module,
+        "export_song_list_tsv",
+        lambda *_args: (_ for _ in ()).throw(FileNotFoundError("/missing")),
+    )
+
+    response = asyncio.run(post_song_list_response())
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "/missing"}
+
+
+def test_song_list_route_returns_400_for_non_directory_root(monkeypatch) -> None:
+    async def post_song_list_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.post("/api/library/song-list")
+
+    monkeypatch.setattr(
+        main_module,
+        "export_song_list_tsv",
+        lambda *_args: (_ for _ in ()).throw(NotADirectoryError("/not-a-directory")),
+    )
+
+    response = asyncio.run(post_song_list_response())
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "/not-a-directory"}
+
+
+def test_song_list_route_returns_500_when_write_fails(monkeypatch) -> None:
+    async def post_song_list_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.post("/api/library/song-list")
+
+    monkeypatch.setattr(
+        main_module,
+        "export_song_list_tsv",
+        lambda *_args: (_ for _ in ()).throw(OSError("read-only file system")),
+    )
+
+    response = asyncio.run(post_song_list_response())
+
+    assert response.status_code == 500
+    assert response.json() == {
+        "detail": "Unable to write song list: read-only file system"
+    }
 
 
 def test_blindtest_route_returns_404_for_missing_blindtest(monkeypatch) -> None:
