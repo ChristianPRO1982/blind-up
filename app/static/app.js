@@ -2102,6 +2102,19 @@
       this.elements.pageSongCountValue.textContent = String(count);
     }
 
+    updateAudioTagRowSelection() {
+      if (this.elements.audioTagTableBody === null) {
+        return;
+      }
+      const rows = this.elements.audioTagTableBody.querySelectorAll("tr[data-song-id]");
+      for (const row of rows) {
+        row.classList.toggle(
+          "is-selected",
+          Number(row.dataset.songId) === this.audioTagEditor.selectedSongId
+        );
+      }
+    }
+
     renderAudioTagFolderNode(node) {
       if (this.elements.audioTagFolderTree === null) {
         return;
@@ -2160,6 +2173,7 @@
       for (const song of songs) {
         const row = document.createElement("tr");
         row.tabIndex = 0;
+        row.dataset.songId = String(song.id);
         if (song.id === this.audioTagEditor.selectedSongId) {
           row.classList.add("is-selected");
         }
@@ -2290,8 +2304,11 @@
       if (this.getAudioTagSongById(songId) === null) {
         return;
       }
+      if (this.audioTagEditor.selectedSongId === songId) {
+        return;
+      }
       this.audioTagEditor.selectedSongId = songId;
-      this.renderAudioTagTable();
+      this.updateAudioTagRowSelection();
       this.updateAudioTagSaveButton();
     }
 

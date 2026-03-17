@@ -64,7 +64,13 @@ def list_songs_in_folder(folder_path: str | Path) -> list[dict[str, object]]:
         song_path = Path(str(song.get("file_path") or "")).expanduser().resolve()
         if song_path.parent == resolved_folder:
             songs_in_folder.append(song)
-    return songs_in_folder
+    return sorted(
+        songs_in_folder,
+        key=lambda song: (
+            Path(str(song.get("file_path") or "")).name.lower(),
+            int(song.get("id") or 0),
+        ),
+    )
 
 
 def update_song_tags(

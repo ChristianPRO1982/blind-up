@@ -206,6 +206,69 @@ def test_update_song_tags_refreshes_metadata_fields(monkeypatch, tmp_path) -> No
     assert updated["updated_at"] == "2026-03-17T11:45:00+00:00"
 
 
+def test_list_songs_in_folder_orders_by_file_name(monkeypatch, tmp_path) -> None:
+    database_path = tmp_path / "blindup.db"
+    monkeypatch.setattr(
+        db_module,
+        "settings",
+        config_module.Settings(database_path=database_path),
+    )
+
+    db_module.init_db()
+    song_repository.upsert_song(
+        song_repository.SongRecord(
+            file_hash="hash-c",
+            file_path="/music/folder/zebra.mp3",
+            file_size=None,
+            file_mtime_ns=None,
+            duration_sec=10.0,
+            title="Alpha title",
+            artist=None,
+            album=None,
+            year=None,
+            genre=None,
+            cover_path=None,
+        )
+    )
+    song_repository.upsert_song(
+        song_repository.SongRecord(
+            file_hash="hash-a",
+            file_path="/music/folder/alpha.mp3",
+            file_size=None,
+            file_mtime_ns=None,
+            duration_sec=10.0,
+            title="Zulu title",
+            artist=None,
+            album=None,
+            year=None,
+            genre=None,
+            cover_path=None,
+        )
+    )
+    song_repository.upsert_song(
+        song_repository.SongRecord(
+            file_hash="hash-b",
+            file_path="/music/other/middle.mp3",
+            file_size=None,
+            file_mtime_ns=None,
+            duration_sec=10.0,
+            title="Middle title",
+            artist=None,
+            album=None,
+            year=None,
+            genre=None,
+            cover_path=None,
+        )
+    )
+
+    songs = song_repository.list_songs_in_folder("/music/folder")
+
+    assert [song["file_path"] for song in songs] == [
+        "/music/folder/alpha.mp3",
+        "/music/folder/zebra.mp3",
+    ]
+
+
 def test_delete_songs_missing_from_removes_absent_rows(monkeypatch, tmp_path) -> None:
     database_path = tmp_path / "blindup.db"
     monkeypatch.setattr(

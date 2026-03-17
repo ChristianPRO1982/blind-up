@@ -705,7 +705,7 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
             return await client.get("/api/library/folder-songs", params={"path": path})
 
     async def post_library_song_tags_response(
-        payload: dict[str, object]
+        payload: dict[str, object],
     ) -> httpx.Response:
         transport = httpx.ASGITransport(app=main_module.app)
         async with httpx.AsyncClient(
@@ -930,9 +930,9 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
         ]
     )
     main_module.song_repository.normalize_song_media_paths = lambda: 0
-    main_module.resolve_song_file_path = (
-        lambda song: Path(str(song["file_path"])).resolve()
-    )
+    main_module.resolve_song_file_path = lambda song: Path(
+        str(song["file_path"])
+    ).resolve()
     main_module.save_audio_tags = lambda _path, update: update
     main_module.blindtest_repository.list_blindtests = lambda: [
         {
@@ -1079,8 +1079,7 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
             for route in main_module.app.routes
         )
         assert any(
-            route.path == "/api/library/song-tags"
-            for route in main_module.app.routes
+            route.path == "/api/library/song-tags" for route in main_module.app.routes
         )
         assert any(
             route.path == "/api/library/song-list" for route in main_module.app.routes
