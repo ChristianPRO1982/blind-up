@@ -1409,6 +1409,13 @@
       );
     }
 
+    async ensureSongsLoaded() {
+      if (this.librarySongMap.size > 0 || this.librarySongs.length > 0) {
+        return;
+      }
+      await this.loadSongs();
+    }
+
     async loadEditorBlindtest() {
       const restoredDraft = this.consumeEditorDraftRestore();
       if (restoredDraft !== null) {
@@ -3678,6 +3685,7 @@
 
     async importSongsFromJson() {
       try {
+        await this.ensureSongsLoaded();
         const file = await this.pickJsonImportFile();
         const content = await file.text();
         const payload = JSON.parse(content);
@@ -3701,6 +3709,7 @@
 
     async importBlindtestFromJson() {
       try {
+        await this.ensureSongsLoaded();
         const file = await this.pickJsonImportFile();
         const content = await file.text();
         const payload = JSON.parse(content);
