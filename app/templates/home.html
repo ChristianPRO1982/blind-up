@@ -13,10 +13,16 @@
         <h2 id="home-actions-title">Actions</h2>
       </div>
       <div class="home-action-buttons">
-        <button id="open-scan-button" class="button-secondary action-tile" type="button">
-          <span class="action-tile-title">Library scan</span>
-          <span class="action-tile-copy">Sync the local catalog and detect broken slots.</span>
-        </button>
+        <div class="home-action-row home-action-row-split">
+          <button id="open-scan-button" class="button-secondary action-tile" type="button">
+            <span class="action-tile-title">Library scan</span>
+            <span class="action-tile-copy">Sync the local catalog and detect broken slots.</span>
+          </button>
+          <button id="open-audio-tag-editor-button" class="button-secondary action-tile" type="button">
+            <span class="action-tile-title">Audio tags</span>
+            <span class="action-tile-copy">Browse folders and edit MP3 or FLAC tags.</span>
+          </button>
+        </div>
         <button id="import-blindtest-json-button" class="button-secondary action-tile" type="button">
           <span class="action-tile-title">Import JSON</span>
           <span class="action-tile-copy">Create a new blindtest from a portable JSON file.</span>

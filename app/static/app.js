@@ -73,6 +73,15 @@
     return `${value || ""}`.trim();
   }
 
+  function basenameFromPath(value) {
+    const normalized = normalizeText(value);
+    if (normalized === "") {
+      return "";
+    }
+    const segments = normalized.split("/");
+    return segments[segments.length - 1] || normalized;
+  }
+
   function isRenderableHintText(value) {
     const normalized = normalizeText(value);
     return normalized !== "" && normalized !== "-";
@@ -677,6 +686,7 @@
         homeBlindtestCount: document.getElementById("home-blindtest-count"),
         homeBlindtestCountValue: document.getElementById("home-blindtest-count-value"),
         openScanButton: document.getElementById("open-scan-button"),
+        openAudioTagEditorButton: document.getElementById("open-audio-tag-editor-button"),
         importBlindtestJsonButton: document.getElementById("import-blindtest-json-button"),
         newBlindtestButton: document.getElementById("new-blindtest-button"),
         deleteBlindtestModal: document.getElementById("delete-blindtest-modal"),
@@ -701,6 +711,15 @@
         scanRemovedCount: document.getElementById("scan-removed-count"),
         scanImpactEmpty: document.getElementById("scan-impact-empty"),
         scanImpactList: document.getElementById("scan-impact-list"),
+        audioTagEditorLayout: document.getElementById("audio-tag-editor-layout"),
+        audioTagLibraryRoot: document.getElementById("audio-tag-library-root"),
+        audioTagSaveButton: document.getElementById("audio-tag-save-button"),
+        audioTagBackButton: document.getElementById("audio-tag-back-button"),
+        audioTagSaveStatus: document.getElementById("audio-tag-save-status"),
+        audioTagFolderTree: document.getElementById("audio-tag-folder-tree"),
+        audioTagSelectedFolderName: document.getElementById("audio-tag-selected-folder-name"),
+        audioTagEmptyState: document.getElementById("audio-tag-empty-state"),
+        audioTagTableBody: document.getElementById("audio-tag-table-body"),
         title: document.getElementById("blindtest-title"),
         toggleLibraryButton: document.getElementById("toggle-library-button"),
         saveButton: document.getElementById("save-button"),
@@ -826,6 +845,7 @@
       this.scanSongListState = { message: "", error: false, busy: false };
       this.scanPollInterval = null;
       this.latestScanSummaryKey = "";
+      this.audioTagEditor = this.createAudioTagEditorState();
       this.librarySongs = [];
       this.librarySongMap = new Map();
       this.librarySongPathMap = new Map();
@@ -901,6 +921,7 @@
       });
       document.addEventListener("keydown", (event) => this.handleEditorKeydown(event));
       this.bindHome();
+      this.bindAudioTagEditor();
       this.bindForm();
       this.bindPlayerControls();
       if (this.page === "editor") {
@@ -922,6 +943,24 @@
         console.error("Invalid background gallery payload", error);
         return [];
       }
+    }
+
+    createAudioTagEditorState() {
+      const rootPath =
+        normalizeText(this.elements.audioTagLibraryRoot && this.elements.audioTagLibraryRoot.value) ||
+        "/music-library";
+      return {
+        rootPath,
+        songs: [],
+        tree: null,
+        selectedFolderPath: rootPath,
+        drafts: new Map(),
+        dirtySongIds: new Set(),
+        statusMessage: "",
+        statusError: false,
+        loadingFolders: false,
+        loadingSongs: false,
+      };
     }
 
     createDefaultBlindtest() {
@@ -1061,6 +1100,11 @@
           this.showScanView();
         });
       }
+      if (this.elements.openAudioTagEditorButton !== null) {
+        this.elements.openAudioTagEditorButton.addEventListener("click", () => {
+          this.showAudioTagEditorView();
+        });
+      }
       if (this.elements.importBlindtestJsonButton !== null) {
         this.elements.importBlindtestJsonButton.addEventListener("click", () => {
           this.importBlindtestFromJson().catch(() => {});
@@ -1113,6 +1157,19 @@
         this.elements.scanBackButton.addEventListener("click", () => {
           this.stopScanPolling();
           this.showHomeView();
+        });
+      }
+    }
+
+    bindAudioTagEditor() {
+      if (this.elements.audioTagBackButton !== null) {
+        this.elements.audioTagBackButton.addEventListener("click", () => {
+          this.showHomeView();
+        });
+      }
+      if (this.elements.audioTagSaveButton !== null) {
+        this.elements.audioTagSaveButton.addEventListener("click", () => {
+          this.saveAudioTagChanges();
         });
       }
     }
@@ -1384,6 +1441,13 @@
         return;
       }
 
+      if (this.page === "audio-tags") {
+        await this.loadAudioTagFolders();
+        await this.loadAudioTagSongs(this.audioTagEditor.selectedFolderPath);
+        this.renderAudioTagEditor();
+        return;
+      }
+
       if (this.page === "editor") {
         await this.loadSongs();
         await this.loadEditorBlindtest();
@@ -1645,6 +1709,7 @@
     renderAll() {
       this.renderHome();
       this.renderScan();
+      this.renderAudioTagEditor();
       this.renderSettings();
       this.renderSongList();
       this.renderLibrary();
@@ -1825,6 +1890,349 @@
         item.textContent = blindtest.title || `Blindtest ${blindtest.id}`;
         this.elements.scanImpactList.appendChild(item);
       }
+    }
+
+    async loadAudioTagFolders() {
+      this.audioTagEditor.loadingFolders = true;
+      this.audioTagEditor.statusMessage = "";
+      this.audioTagEditor.statusError = false;
+      try {
+        const response = await fetch("/api/library/folders");
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.detail || `HTTP ${response.status}`);
+        }
+        const tree = payload.tree || null;
+        const rootPath = normalizeText(payload.root_path) || this.audioTagEditor.rootPath;
+        this.audioTagEditor.rootPath = rootPath;
+        this.audioTagEditor.tree = tree;
+        this.audioTagEditor.selectedFolderPath = this.audioTagTreeContainsPath(
+          tree,
+          this.audioTagEditor.selectedFolderPath
+        )
+          ? this.audioTagEditor.selectedFolderPath
+          : rootPath;
+        if (this.elements.audioTagLibraryRoot !== null) {
+          this.elements.audioTagLibraryRoot.value = rootPath;
+        }
+        this.audioTagEditor.statusError = false;
+      } catch (error) {
+        this.audioTagEditor.tree = null;
+        this.audioTagEditor.selectedFolderPath = this.audioTagEditor.rootPath;
+        this.audioTagEditor.statusMessage =
+          error instanceof Error ? error.message : "Unable to load library folders.";
+        this.audioTagEditor.statusError = true;
+      } finally {
+        this.audioTagEditor.loadingFolders = false;
+      }
+    }
+
+    async loadAudioTagSongs(folderPath) {
+      this.audioTagEditor.loadingSongs = true;
+      try {
+        const params = new URLSearchParams();
+        if (normalizeText(folderPath) !== "") {
+          params.set("path", folderPath);
+        }
+        const queryString = params.toString();
+        const response = await fetch(
+          `/api/library/folder-songs${queryString ? `?${queryString}` : ""}`
+        );
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.detail || `HTTP ${response.status}`);
+        }
+        this.audioTagEditor.songs = Array.isArray(payload.songs) ? payload.songs : [];
+        this.audioTagEditor.selectedFolderPath =
+          normalizeText(payload.folder_path) || folderPath;
+        this.audioTagEditor.statusMessage = "";
+        this.audioTagEditor.statusError = false;
+      } catch (error) {
+        this.audioTagEditor.songs = [];
+        this.audioTagEditor.statusMessage =
+          error instanceof Error ? error.message : "Unable to load songs for this folder.";
+        this.audioTagEditor.statusError = true;
+      } finally {
+        this.audioTagEditor.loadingSongs = false;
+      }
+    }
+
+    audioTagTreeContainsPath(node, path) {
+      if (node === null || typeof node !== "object") {
+        return false;
+      }
+      if (normalizeText(node.path) === normalizeText(path)) {
+        return true;
+      }
+      const children = Array.isArray(node.children) ? node.children : [];
+      return children.some((child) => this.audioTagTreeContainsPath(child, path));
+    }
+
+    getAudioTagEditableFields() {
+      return ["title", "artist", "album", "year", "genre"];
+    }
+
+    getAudioTagSongsForFolder(folderPath) {
+      return this.audioTagEditor.songs.filter(
+        (song) => normalizeText(song.folder_path) === normalizeText(folderPath)
+      );
+    }
+
+    getAudioTagSongById(songId) {
+      return this.audioTagEditor.songs.find((song) => song.id === songId) || null;
+    }
+
+    getAudioTagSongDraft(songId) {
+      return this.audioTagEditor.drafts.get(songId) || null;
+    }
+
+    getAudioTagRowValue(song, fieldName) {
+      const draft = this.getAudioTagSongDraft(song.id);
+      if (draft !== null && Object.hasOwn(draft, fieldName)) {
+        return `${draft[fieldName] ?? ""}`;
+      }
+      return `${song[fieldName] ?? ""}`;
+    }
+
+    isAudioTagYearValid(value) {
+      const normalized = normalizeText(value);
+      return normalized === "" || /^[0-9]+$/.test(normalized);
+    }
+
+    isAudioTagDraftDirty(song, draft) {
+      return this.getAudioTagEditableFields().some(
+        (fieldName) => `${song[fieldName] ?? ""}` !== `${draft[fieldName] ?? ""}`
+      );
+    }
+
+    updateAudioTagSaveButton() {
+      if (this.elements.audioTagSaveButton !== null) {
+        const hasDirtyRows = this.audioTagEditor.dirtySongIds.size > 0;
+        const hasInvalidRows = Array.from(this.audioTagEditor.dirtySongIds).some((songId) => {
+          const draft = this.getAudioTagSongDraft(songId);
+          return draft !== null && !this.isAudioTagYearValid(draft.year);
+        });
+        this.elements.audioTagSaveButton.disabled = !hasDirtyRows || hasInvalidRows;
+      }
+      if (this.elements.audioTagSaveStatus !== null) {
+        const message = normalizeText(this.audioTagEditor.statusMessage);
+        this.elements.audioTagSaveStatus.hidden = message === "";
+        this.elements.audioTagSaveStatus.textContent = message;
+        this.elements.audioTagSaveStatus.dataset.state = this.audioTagEditor.statusError
+          ? "error"
+          : "success";
+      }
+    }
+
+    updateAudioTagHeaderCount(count) {
+      if (
+        this.elements.pageSongCount === null ||
+        this.elements.pageSongCountValue === null
+      ) {
+        return;
+      }
+      this.elements.pageSongCount.hidden = false;
+      this.elements.pageSongCountValue.textContent = String(count);
+    }
+
+    renderAudioTagFolderNode(node) {
+      if (this.elements.audioTagFolderTree === null) {
+        return;
+      }
+      const directSongsCount =
+        Number.isInteger(node.direct_audio_files) || typeof node.direct_audio_files === "number"
+          ? Number(node.direct_audio_files)
+          : this.getAudioTagSongsForFolder(node.path).length;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "button-secondary audio-tag-folder-button";
+      button.style.setProperty("--folder-depth", String(node.depth));
+      if (node.path === this.audioTagEditor.selectedFolderPath) {
+        button.classList.add("is-active");
+      }
+      button.innerHTML = `
+        <span class="audio-tag-folder-name">${this.escapeHtml(node.name)}</span>
+        <span class="audio-tag-folder-count">${this.escapeHtml(
+          `${directSongsCount} song${directSongsCount === 1 ? "" : "s"}`
+        )}</span>
+      `;
+      button.addEventListener("click", () => {
+        this.setAudioTagFolder(node.path).catch(() => {});
+      });
+      this.elements.audioTagFolderTree.appendChild(button);
+
+      for (const child of node.children) {
+        this.renderAudioTagFolderNode(child);
+      }
+    }
+
+    renderAudioTagTable() {
+      if (
+        this.elements.audioTagTableBody === null ||
+        this.elements.audioTagEmptyState === null ||
+        this.elements.audioTagSelectedFolderName === null
+      ) {
+        return;
+      }
+
+      const selectedFolder = this.audioTagEditor.selectedFolderPath;
+      const songs = this.getAudioTagSongsForFolder(selectedFolder);
+      this.elements.audioTagSelectedFolderName.textContent = selectedFolder;
+      this.elements.audioTagEmptyState.hidden =
+        this.audioTagEditor.loadingSongs || songs.length > 0;
+      this.elements.audioTagEmptyState.textContent = this.audioTagEditor.loadingSongs
+        ? "Loading songs..."
+        : "No supported audio files are available directly inside this folder.";
+      this.elements.audioTagTableBody.innerHTML = "";
+      this.updateAudioTagHeaderCount(songs.length);
+
+      if (this.audioTagEditor.loadingSongs) {
+        return;
+      }
+
+      for (const song of songs) {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td data-readonly="true">${this.escapeHtml(song.file_name)}</td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+        `;
+
+        this.getAudioTagEditableFields().forEach((fieldName, index) => {
+          const cell = row.children[index + 1];
+          const input = document.createElement("input");
+          input.type = fieldName === "year" ? "text" : "text";
+          input.value = this.getAudioTagRowValue(song, fieldName);
+          input.placeholder = fieldName === "year" ? "YYYY" : "";
+          if (fieldName === "year") {
+            input.inputMode = "numeric";
+            input.classList.add("audio-tag-year-input");
+            input.classList.toggle("is-invalid", !this.isAudioTagYearValid(input.value));
+          }
+          input.addEventListener("input", () => {
+            this.handleAudioTagFieldInput(song.id, fieldName, input.value, input);
+          });
+          cell.appendChild(input);
+        });
+
+        this.elements.audioTagTableBody.appendChild(row);
+      }
+    }
+
+    renderAudioTagEditor() {
+      if (this.elements.audioTagEditorLayout === null) {
+        return;
+      }
+      this.currentView = "audio-tags";
+      if (this.elements.pageTitle !== null) {
+        this.elements.pageTitle.textContent = "Audio tag editor";
+      }
+      if (this.elements.audioTagFolderTree !== null) {
+        this.elements.audioTagFolderTree.innerHTML = "";
+        if (this.audioTagEditor.tree !== null) {
+          this.renderAudioTagFolderNode(this.audioTagEditor.tree);
+        } else if (this.audioTagEditor.loadingFolders) {
+          this.elements.audioTagFolderTree.textContent = "Loading folders...";
+        } else {
+          this.elements.audioTagFolderTree.textContent = "No folders available.";
+        }
+      }
+      this.renderAudioTagTable();
+      this.updateAudioTagSaveButton();
+    }
+
+    async setAudioTagFolder(folderPath) {
+      if (normalizeText(folderPath) === "") {
+        return;
+      }
+      this.audioTagEditor.selectedFolderPath = folderPath;
+      if (!this.audioTagEditor.statusError) {
+        this.audioTagEditor.statusMessage = "";
+      }
+      this.renderAudioTagEditor();
+      await this.loadAudioTagSongs(folderPath);
+      this.renderAudioTagEditor();
+    }
+
+    handleAudioTagFieldInput(songId, fieldName, value, inputElement) {
+      const song = this.getAudioTagSongById(songId);
+      if (song === null) {
+        return;
+      }
+
+      const draft = this.getAudioTagSongDraft(songId) || {
+        title: `${song.title ?? ""}`,
+        artist: `${song.artist ?? ""}`,
+        album: `${song.album ?? ""}`,
+        year: `${song.year ?? ""}`,
+        genre: `${song.genre ?? ""}`,
+      };
+      draft[fieldName] = value;
+
+      if (this.isAudioTagDraftDirty(song, draft)) {
+        this.audioTagEditor.drafts.set(songId, draft);
+        this.audioTagEditor.dirtySongIds.add(songId);
+      } else {
+        this.audioTagEditor.drafts.delete(songId);
+        this.audioTagEditor.dirtySongIds.delete(songId);
+      }
+
+      if (fieldName === "year" && inputElement instanceof HTMLElement) {
+        inputElement.classList.toggle("is-invalid", !this.isAudioTagYearValid(value));
+      }
+
+      if (this.audioTagEditor.dirtySongIds.size > 0) {
+        this.audioTagEditor.statusMessage = `${this.audioTagEditor.dirtySongIds.size} row${
+          this.audioTagEditor.dirtySongIds.size === 1 ? "" : "s"
+        } modified. Frontend preview only.`;
+        this.audioTagEditor.statusError = false;
+      } else {
+        this.audioTagEditor.statusMessage = "";
+        this.audioTagEditor.statusError = false;
+      }
+
+      this.updateAudioTagSaveButton();
+    }
+
+    saveAudioTagChanges() {
+      if (this.audioTagEditor.dirtySongIds.size === 0) {
+        return;
+      }
+
+      for (const songId of this.audioTagEditor.dirtySongIds) {
+        const draft = this.getAudioTagSongDraft(songId);
+        if (draft === null) {
+          continue;
+        }
+        if (!this.isAudioTagYearValid(draft.year)) {
+          this.audioTagEditor.statusMessage =
+            "Year must be empty or contain digits only before saving.";
+          this.audioTagEditor.statusError = true;
+          this.updateAudioTagSaveButton();
+          return;
+        }
+      }
+
+      for (const songId of Array.from(this.audioTagEditor.dirtySongIds)) {
+        const song = this.getAudioTagSongById(songId);
+        const draft = this.getAudioTagSongDraft(songId);
+        if (song === null || draft === null) {
+          continue;
+        }
+        for (const fieldName of this.getAudioTagEditableFields()) {
+          song[fieldName] = `${draft[fieldName] ?? ""}`;
+        }
+      }
+
+      this.audioTagEditor.drafts.clear();
+      this.audioTagEditor.dirtySongIds.clear();
+      this.audioTagEditor.statusMessage =
+        "Changes saved locally in the frontend mock. Backend persistence will come next.";
+      this.audioTagEditor.statusError = false;
+      this.renderAudioTagEditor();
     }
 
     renderSettings() {
@@ -3746,6 +4154,11 @@
     showScanView() {
       this.clearPendingPlayerDraft();
       window.location.assign("/scan");
+    }
+
+    showAudioTagEditorView() {
+      this.clearPendingPlayerDraft();
+      window.location.assign("/audio-tags");
     }
 
     showEditorView() {

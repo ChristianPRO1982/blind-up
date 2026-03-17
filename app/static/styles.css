@@ -758,6 +758,15 @@ body.modal-open {
   grid-template-columns: minmax(0, 1fr);
 }
 
+.home-action-row {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.home-action-row-split {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .action-tile {
   display: grid;
   gap: 0.35rem;
@@ -1554,12 +1563,150 @@ body.modal-open {
   gap: 1rem;
 }
 
+.audio-tag-editor-layout {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(16rem, 1fr) minmax(0, 3fr);
+  align-items: start;
+}
+
+.audio-tag-browser {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
+.audio-tag-table-panel {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+  min-width: 0;
+}
+
 .scan-path-panel {
   gap: 0.95rem;
 }
 
+.audio-tag-root-field {
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+}
+
 .scan-path-field {
   min-width: 0;
+}
+
+.audio-tag-folder-tree {
+  display: grid;
+  gap: 0.45rem;
+  align-content: start;
+}
+
+.audio-tag-folder-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.9rem;
+  width: 100%;
+  padding: 0.85rem 0.95rem;
+  padding-left: calc(0.95rem + var(--folder-depth, 0) * 1rem);
+  border-radius: 1rem;
+  text-align: left;
+}
+
+.audio-tag-folder-button.is-active {
+  box-shadow: var(--glow-primary), 0 16px 30px rgba(4, 28, 52, 0.36);
+}
+
+.audio-tag-folder-name {
+  font-weight: 600;
+}
+
+.audio-tag-folder-count {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.audio-tag-selected-folder {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.audio-tag-selected-folder-label {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.audio-tag-table-shell {
+  overflow: auto;
+  min-height: 32rem;
+  border: 1px solid rgba(129, 180, 255, 0.14);
+  border-radius: 1.15rem;
+  background:
+    linear-gradient(180deg, rgba(18, 31, 53, 0.84), rgba(10, 18, 31, 0.84)),
+    linear-gradient(135deg, rgba(103, 232, 249, 0.05), rgba(255, 79, 184, 0.05));
+}
+
+.audio-tag-table {
+  width: 100%;
+  min-width: 54rem;
+  border-collapse: collapse;
+}
+
+.audio-tag-table th,
+.audio-tag-table td {
+  padding: 0.9rem 0.95rem;
+  border-bottom: 1px solid rgba(129, 180, 255, 0.12);
+  vertical-align: middle;
+}
+
+.audio-tag-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  letter-spacing: 0.14em;
+  text-align: left;
+  text-transform: uppercase;
+  background:
+    linear-gradient(180deg, rgba(13, 23, 40, 0.98), rgba(8, 15, 26, 0.98)),
+    linear-gradient(90deg, rgba(103, 232, 249, 0.08), rgba(255, 79, 184, 0.04));
+}
+
+.audio-tag-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.audio-tag-table td[data-readonly="true"] {
+  color: rgba(214, 229, 255, 0.88);
+  font-weight: 600;
+}
+
+.audio-tag-table input {
+  min-width: 8rem;
+}
+
+.audio-tag-table .audio-tag-year-input {
+  min-width: 5.5rem;
+}
+
+.audio-tag-table input.is-invalid {
+  border-color: rgba(255, 138, 106, 0.58);
+  box-shadow: 0 0 0 1px rgba(255, 138, 106, 0.28);
+}
+
+.audio-tag-empty-state {
+  margin-bottom: 0.95rem;
+  padding: 1rem 1.05rem;
+  border: 1px dashed rgba(129, 180, 255, 0.18);
+  border-radius: 1rem;
+  color: var(--text-muted);
+  background: rgba(9, 16, 29, 0.52);
 }
 
 .scan-export-status {
@@ -2047,6 +2194,10 @@ body[data-page="player"] .app-shell {
     min-height: 0;
   }
 
+  .audio-tag-editor-layout {
+    grid-template-columns: 1fr;
+  }
+
   .settings-grid,
   .metadata-grid {
     grid-template-columns: 1fr;
@@ -2073,6 +2224,10 @@ body[data-page="player"] .app-shell {
   .home-action-buttons,
   .scan-summary-grid,
   .time-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home-action-row-split {
     grid-template-columns: 1fr;
   }
 

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section id="audio-tag-editor-layout" class="audio-tag-editor-layout" aria-label="Audio tag editor panel">
+    <aside class="audio-tag-browser panel" aria-labelledby="audio-tag-browser-title">
+      <div class="panel-heading">
+        <h2 id="audio-tag-browser-title">Folders</h2>
+      </div>
+      <label class="title-field audio-tag-root-field" for="audio-tag-library-root">
+        Library root path
+        <input
+          id="audio-tag-library-root"
+          type="text"
+          value="{{ library_root_path }}"
+          readonly
+        />
+      </label>
+      <div id="audio-tag-folder-tree" class="audio-tag-folder-tree"></div>
+    </aside>
+
+    <section class="audio-tag-table-panel panel" aria-labelledby="audio-tag-table-title">
+      <div class="panel-heading panel-heading-split">
+        <h2 id="audio-tag-table-title">Tags</h2>
+        <div class="header-actions">
+          <button id="audio-tag-save-button" class="button-primary" type="button" disabled>
+            Save changes
+          </button>
+          <button id="audio-tag-back-button" class="button-ghost" type="button">Back</button>
+        </div>
+      </div>
+
+      <div class="audio-tag-selected-folder">
+        <span class="audio-tag-selected-folder-label">Selected folder</span>
+        <strong id="audio-tag-selected-folder-name"></strong>
+      </div>
+
+      <p id="audio-tag-save-status" class="scan-export-status" hidden></p>
+
+      <div id="audio-tag-empty-state" class="audio-tag-empty-state" hidden>
+        No supported audio files are available directly inside this folder.
+      </div>
+
+      <div class="audio-tag-table-shell">
+        <table class="audio-tag-table">
+          <thead>
+            <tr>
+              <th scope="col">File name</th>
+              <th scope="col">Title</th>
+              <th scope="col">Artist</th>
+              <th scope="col">Album</th>
+              <th scope="col">Year</th>
+              <th scope="col">Genre</th>
+            </tr>
+          </thead>
+          <tbody id="audio-tag-table-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </section>
+{% endblock %}

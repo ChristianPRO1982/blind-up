@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
 
 from app.db import get_connection
 from app.services.media_path_service import import_image_reference
@@ -54,6 +55,16 @@ def list_songs() -> list[dict[str, object]]:
             """
         ).fetchall()
     return [dict(row) for row in rows]
+
+
+def list_songs_in_folder(folder_path: str | Path) -> list[dict[str, object]]:
+    resolved_folder = Path(folder_path).expanduser().resolve()
+    songs_in_folder: list[dict[str, object]] = []
+    for song in list_songs():
+        song_path = Path(str(song.get("file_path") or "")).expanduser().resolve()
+        if song_path.parent == resolved_folder:
+            songs_in_folder.append(song)
+    return songs_in_folder
 
 
 def get_song_scan_index() -> dict[str, dict[str, object]]:

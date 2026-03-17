@@ -629,6 +629,14 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
         ) as client:
             return await client.get("/scan")
 
+    async def get_audio_tags_page_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.get("/audio-tags")
+
     async def get_editor_new_page_response() -> httpx.Response:
         transport = httpx.ASGITransport(app=main_module.app)
         async with httpx.AsyncClient(
@@ -679,6 +687,22 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
             base_url="http://testserver",
         ) as client:
             return await client.get("/api/library/scan/status")
+
+    async def get_library_folders_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.get("/api/library/folders")
+
+    async def get_library_folder_songs_response(path: str) -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.get("/api/library/folder-songs", params={"path": path})
 
     async def get_songs_response() -> httpx.Response:
         transport = httpx.ASGITransport(app=main_module.app)
@@ -784,6 +808,23 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
     scan_start_calls: list[tuple[str, str]] = []
     configured_scan_root_path = tmp_path / "music-library"
     configured_scan_root_path.mkdir()
+    (configured_scan_root_path / "root-track.mp3").write_text("root", encoding="utf-8")
+    (configured_scan_root_path / "notes.txt").write_text("skip", encoding="utf-8")
+    (configured_scan_root_path / "Rock").mkdir()
+    (configured_scan_root_path / "Rock" / "anthem.flac").write_text(
+        "rock", encoding="utf-8"
+    )
+    (configured_scan_root_path / "Rock" / "Live").mkdir()
+    (configured_scan_root_path / "Rock" / "Live" / "crowd.mp3").write_text(
+        "live", encoding="utf-8"
+    )
+    configured_root_song_path = (configured_scan_root_path / "root-track.mp3").resolve()
+    configured_rock_song_path = (
+        configured_scan_root_path / "Rock" / "anthem.flac"
+    ).resolve()
+    configured_live_song_path = (
+        configured_scan_root_path / "Rock" / "Live" / "crowd.mp3"
+    ).resolve()
     main_module.settings = config_module.Settings(
         database_path=main_module.settings.database_path,
         static_dir=main_module.settings.static_dir,
@@ -820,15 +861,37 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
     main_module.song_repository.list_songs = lambda: [
         {
             "id": 1,
-            "file_path": "/music/song-1.mp3",
-            "title": "Song 1",
+            "file_path": str(configured_root_song_path),
+            "title": "Root Song",
             "artist": "Artist 1",
             "album": "Album 1",
             "year": 2001,
             "genre": "Rock",
             "cover_path": "/covers/song-1.jpg",
             "duration_sec": 10.0,
-        }
+        },
+        {
+            "id": 2,
+            "file_path": str(configured_rock_song_path),
+            "title": "Rock Song",
+            "artist": "Artist 2",
+            "album": "Album 2",
+            "year": 2002,
+            "genre": "Metal",
+            "cover_path": None,
+            "duration_sec": 20.0,
+        },
+        {
+            "id": 3,
+            "file_path": str(configured_live_song_path),
+            "title": "Live Song",
+            "artist": "Artist 3",
+            "album": "Album 3",
+            "year": 2003,
+            "genre": "Live",
+            "cover_path": None,
+            "duration_sec": 30.0,
+        },
     ]
     main_module.song_repository.normalize_song_media_paths = lambda: 0
     main_module.blindtest_repository.list_blindtests = lambda: [
@@ -904,12 +967,22 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
     health_response = asyncio.run(get_health_response())
     home_page_response = asyncio.run(get_home_page_response())
     scan_page_response = asyncio.run(get_scan_page_response())
+    audio_tags_page_response = asyncio.run(get_audio_tags_page_response())
     editor_new_page_response = asyncio.run(get_editor_new_page_response())
     editor_page_response = asyncio.run(get_editor_page_response())
     player_page_response = asyncio.run(get_player_page_response())
     scan_start_response = asyncio.run(post_scan_start_response())
     scan_stop_response = asyncio.run(post_scan_stop_response())
     scan_status_response = asyncio.run(get_scan_status_response())
+    library_folders_response = asyncio.run(get_library_folders_response())
+    library_root_folder_songs_response = asyncio.run(
+        get_library_folder_songs_response(str(configured_scan_root_path.resolve()))
+    )
+    library_rock_folder_songs_response = asyncio.run(
+        get_library_folder_songs_response(
+            str((configured_scan_root_path / "Rock").resolve())
+        )
+    )
     songs_response = asyncio.run(get_songs_response())
     song_list_response = asyncio.run(post_song_list_response())
     blindtests_response = asyncio.run(get_blindtests_response())
@@ -927,6 +1000,7 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
         assert any(route.name == "media" for route in main_module.app.routes)
         assert any(route.path == "/home" for route in main_module.app.routes)
         assert any(route.path == "/scan" for route in main_module.app.routes)
+        assert any(route.path == "/audio-tags" for route in main_module.app.routes)
         assert any(route.path == "/editor/new" for route in main_module.app.routes)
         assert any(
             route.path == "/editor/{blindtest_id}" for route in main_module.app.routes
@@ -940,6 +1014,13 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
         )
         assert any(
             route.path == "/api/library/scan/status" for route in main_module.app.routes
+        )
+        assert any(
+            route.path == "/api/library/folders" for route in main_module.app.routes
+        )
+        assert any(
+            route.path == "/api/library/folder-songs"
+            for route in main_module.app.routes
         )
         assert any(
             route.path == "/api/library/song-list" for route in main_module.app.routes
@@ -967,6 +1048,10 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
         assert scan_page_response.text.index(
             "Library root path"
         ) < scan_page_response.text.index("Scan info")
+        assert audio_tags_page_response.status_code == 200
+        assert 'data-page="audio-tags"' in audio_tags_page_response.text
+        assert "Audio tag editor" in audio_tags_page_response.text
+        assert f'value="{configured_scan_root_path}"' in audio_tags_page_response.text
         assert editor_new_page_response.status_code == 200
         assert 'data-page="editor"' in editor_new_page_response.text
         assert 'data-editor-mode="new"' in editor_new_page_response.text
@@ -999,6 +1084,71 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
             },
             "error": None,
         }
+        assert library_folders_response.status_code == 200
+        assert library_folders_response.json() == {
+            "root_path": str(configured_scan_root_path.resolve()),
+            "tree": {
+                "path": str(configured_scan_root_path.resolve()),
+                "name": "music-library",
+                "depth": 0,
+                "direct_audio_files": 1,
+                "children": [
+                    {
+                        "path": str((configured_scan_root_path / "Rock").resolve()),
+                        "name": "Rock",
+                        "depth": 1,
+                        "direct_audio_files": 1,
+                        "children": [
+                            {
+                                "path": str(
+                                    (
+                                        configured_scan_root_path / "Rock" / "Live"
+                                    ).resolve()
+                                ),
+                                "name": "Live",
+                                "depth": 2,
+                                "direct_audio_files": 1,
+                                "children": [],
+                            }
+                        ],
+                    }
+                ],
+            },
+        }
+        assert library_root_folder_songs_response.status_code == 200
+        assert library_root_folder_songs_response.json() == {
+            "folder_path": str(configured_scan_root_path.resolve()),
+            "songs": [
+                {
+                    "id": 1,
+                    "file_path": str(configured_root_song_path),
+                    "folder_path": str(configured_scan_root_path.resolve()),
+                    "file_name": "root-track.mp3",
+                    "title": "Root Song",
+                    "artist": "Artist 1",
+                    "album": "Album 1",
+                    "year": 2001,
+                    "genre": "Rock",
+                }
+            ],
+        }
+        assert library_rock_folder_songs_response.status_code == 200
+        assert library_rock_folder_songs_response.json() == {
+            "folder_path": str((configured_scan_root_path / "Rock").resolve()),
+            "songs": [
+                {
+                    "id": 2,
+                    "file_path": str(configured_rock_song_path),
+                    "folder_path": str((configured_scan_root_path / "Rock").resolve()),
+                    "file_name": "anthem.flac",
+                    "title": "Rock Song",
+                    "artist": "Artist 2",
+                    "album": "Album 2",
+                    "year": 2002,
+                    "genre": "Metal",
+                }
+            ],
+        }
         assert songs_response.status_code == 200
         assert song_list_response.status_code == 200
         assert song_list_response.json() == {
@@ -1010,21 +1160,45 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
             encoding="utf-8"
         ) == (
             "file_path\ttitle\tartist\talbum\tyear\tgenre\n"
-            "/music/song-1.mp3\tSong 1\tArtist 1\tAlbum 1\t2001\tRock\n"
+            f"{configured_root_song_path}\tRoot Song\tArtist 1\tAlbum 1\t2001\tRock\n"
+            f"{configured_rock_song_path}\tRock Song\tArtist 2\tAlbum 2\t2002\tMetal\n"
+            f"{configured_live_song_path}\tLive Song\tArtist 3\tAlbum 3\t2003\tLive\n"
         )
         assert songs_response.json() == {
             "songs": [
                 {
                     "id": 1,
-                    "file_path": "/music/song-1.mp3",
-                    "title": "Song 1",
+                    "file_path": str(configured_root_song_path),
+                    "title": "Root Song",
                     "artist": "Artist 1",
                     "album": "Album 1",
                     "year": 2001,
                     "genre": "Rock",
                     "cover_path": "/covers/song-1.jpg",
                     "duration_sec": 10.0,
-                }
+                },
+                {
+                    "id": 2,
+                    "file_path": str(configured_rock_song_path),
+                    "title": "Rock Song",
+                    "artist": "Artist 2",
+                    "album": "Album 2",
+                    "year": 2002,
+                    "genre": "Metal",
+                    "cover_path": None,
+                    "duration_sec": 20.0,
+                },
+                {
+                    "id": 3,
+                    "file_path": str(configured_live_song_path),
+                    "title": "Live Song",
+                    "artist": "Artist 3",
+                    "album": "Album 3",
+                    "year": 2003,
+                    "genre": "Live",
+                    "cover_path": None,
+                    "duration_sec": 30.0,
+                },
             ]
         }
         assert blindtests_response.status_code == 200
@@ -1109,12 +1283,14 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
         assert (templates_dir / "base.html").exists()
         assert (templates_dir / "home.html").exists()
         assert (templates_dir / "scan.html").exists()
+        assert (templates_dir / "audio_tags.html").exists()
         assert (templates_dir / "editor.html").exists()
         assert (templates_dir / "player.html").exists()
         assert static_styles.exists()
         styles_text = static_styles.read_text(encoding="utf-8")
         assert "background" in styles_text
         assert ".scan-layout" in styles_text
+        assert ".audio-tag-editor-layout" in styles_text
         assert ".waveform-region" in styles_text
         assert ".song-card.active" in styles_text
         assert ".player-layout" in styles_text
@@ -1127,7 +1303,9 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
         assert "handleScanAction" in script_text
         assert "handleSongListExport" in script_text
         assert "showScanView" in script_text
+        assert "showAudioTagEditorView" in script_text
         assert "openBlindtest" in script_text
+        assert "renderAudioTagEditor" in script_text
         assert "showHomeView" in script_text
         assert "saveBlindtest" in script_text
         assert "replaceSlotSong" in script_text
@@ -1177,6 +1355,153 @@ def test_library_scan_start_route_returns_409_when_running(monkeypatch) -> None:
 
     assert response.status_code == 409
     assert response.json() == {"detail": "Scan already running"}
+
+
+def test_library_folders_route_returns_404_for_missing_library_root(
+    monkeypatch,
+) -> None:
+    async def get_library_folders_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.get("/api/library/folders")
+
+    monkeypatch.setattr(
+        main_module,
+        "build_library_folder_tree",
+        lambda *_args: (_ for _ in ()).throw(FileNotFoundError("/missing")),
+    )
+
+    response = asyncio.run(get_library_folders_response())
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "/missing"}
+
+
+def test_library_folders_route_returns_400_for_non_directory_root(monkeypatch) -> None:
+    async def get_library_folders_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.get("/api/library/folders")
+
+    monkeypatch.setattr(
+        main_module,
+        "build_library_folder_tree",
+        lambda *_args: (_ for _ in ()).throw(NotADirectoryError("/not-a-directory")),
+    )
+
+    response = asyncio.run(get_library_folders_response())
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "/not-a-directory"}
+
+
+def test_library_folder_songs_route_rejects_folder_outside_library_root(
+    tmp_path,
+) -> None:
+    async def get_library_folder_songs_response(path: str) -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.get("/api/library/folder-songs", params={"path": path})
+
+    library_root = tmp_path / "library"
+    library_root.mkdir()
+    outside_folder = tmp_path / "outside"
+    outside_folder.mkdir()
+    original_settings = main_module.settings
+    main_module.settings = config_module.Settings(
+        database_path=main_module.settings.database_path,
+        static_dir=main_module.settings.static_dir,
+        templates_dir=main_module.settings.templates_dir,
+        library_root_path=library_root,
+        storage_dir=main_module.settings.storage_dir,
+        covers_dir=main_module.settings.covers_dir,
+    )
+
+    try:
+        response = asyncio.run(
+            get_library_folder_songs_response(str(outside_folder.resolve()))
+        )
+    finally:
+        main_module.settings = original_settings
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Folder must stay inside the library root"}
+
+
+def test_library_folder_songs_route_returns_404_for_missing_folder(tmp_path) -> None:
+    async def get_library_folder_songs_response(path: str) -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.get("/api/library/folder-songs", params={"path": path})
+
+    library_root = tmp_path / "library"
+    library_root.mkdir()
+    missing_folder = library_root / "missing"
+    original_settings = main_module.settings
+    main_module.settings = config_module.Settings(
+        database_path=main_module.settings.database_path,
+        static_dir=main_module.settings.static_dir,
+        templates_dir=main_module.settings.templates_dir,
+        library_root_path=library_root,
+        storage_dir=main_module.settings.storage_dir,
+        covers_dir=main_module.settings.covers_dir,
+    )
+
+    try:
+        response = asyncio.run(
+            get_library_folder_songs_response(str(missing_folder.resolve()))
+        )
+    finally:
+        main_module.settings = original_settings
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Folder not found"}
+
+
+def test_library_folder_songs_route_returns_400_for_file_path(tmp_path) -> None:
+    async def get_library_folder_songs_response(path: str) -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.get("/api/library/folder-songs", params={"path": path})
+
+    library_root = tmp_path / "library"
+    library_root.mkdir()
+    file_path = library_root / "track.mp3"
+    file_path.write_text("song", encoding="utf-8")
+    original_settings = main_module.settings
+    main_module.settings = config_module.Settings(
+        database_path=main_module.settings.database_path,
+        static_dir=main_module.settings.static_dir,
+        templates_dir=main_module.settings.templates_dir,
+        library_root_path=library_root,
+        storage_dir=main_module.settings.storage_dir,
+        covers_dir=main_module.settings.covers_dir,
+    )
+
+    try:
+        response = asyncio.run(
+            get_library_folder_songs_response(str(file_path.resolve()))
+        )
+    finally:
+        main_module.settings = original_settings
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Path is not a folder"}
 
 
 def test_song_list_route_returns_404_for_missing_library_root(monkeypatch) -> None:

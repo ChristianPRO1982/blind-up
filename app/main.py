@@ -16,6 +16,7 @@ from app.repositories import (
     blindtest_repository,
     song_repository,
 )
+from app.services.library_navigation_service import build_library_folder_tree
 from app.services.library_scan_service import ScanCancelled, scan_library
 from app.services.song_file_service import resolve_song_file_path
 from app.services.song_list_export_service import export_song_list_tsv
@@ -122,6 +123,19 @@ async def scan_page(request: Request):
             "page_id": "scan",
             "page_title": "Library scan",
             "scan_root_path": str(settings.library_root_path),
+        },
+    )
+
+
+@app.get("/audio-tags", include_in_schema=False)
+async def audio_tags_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "audio_tags.html",
+        {
+            "page_id": "audio-tags",
+            "page_title": "Audio tag editor",
+            "library_root_path": str(settings.library_root_path),
         },
     )
 
@@ -324,6 +338,56 @@ async def library_scan_stop() -> dict[str, object]:
 @app.get("/api/library/scan/status")
 async def library_scan_status() -> dict[str, object]:
     return library_scan_controller.snapshot()
+
+
+@app.get("/api/library/folders")
+async def library_folders() -> dict[str, object]:
+    try:
+        tree = build_library_folder_tree(settings.library_root_path)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except NotADirectoryError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {
+        "root_path": str(settings.library_root_path.expanduser().resolve()),
+        "tree": tree,
+    }
+
+
+@app.get("/api/library/folder-songs")
+async def library_folder_songs(path: str | None = None) -> dict[str, object]:
+    library_root = settings.library_root_path.expanduser().resolve()
+    requested_folder = (
+        Path(path).expanduser().resolve() if path not in (None, "") else library_root
+    )
+
+    if not requested_folder.is_relative_to(library_root):
+        raise HTTPException(
+            status_code=400,
+            detail="Folder must stay inside the library root",
+        )
+    if not requested_folder.exists():
+        raise HTTPException(status_code=404, detail="Folder not found")
+    if not requested_folder.is_dir():
+        raise HTTPException(status_code=400, detail="Path is not a folder")
+
+    return {
+        "folder_path": str(requested_folder),
+        "songs": [
+            {
+                "id": song["id"],
+                "file_path": song["file_path"],
+                "folder_path": str(Path(str(song["file_path"])).parent),
+                "file_name": Path(str(song["file_path"])).name,
+                "title": song["title"],
+                "artist": song["artist"],
+                "album": song["album"],
+                "year": song["year"],
+                "genre": song["genre"],
+            }
+            for song in song_repository.list_songs_in_folder(requested_folder)
+        ],
+    }
 
 
 @app.get("/api/songs")
