@@ -4555,7 +4555,12 @@
         !this.playerState.hints_visible ||
         this.playerHintRevealCount === 0
       ) {
-        this.playerElements.hints.classList.remove("has-background");
+        this.playerElements.hints.classList.remove(
+          "has-background",
+          "has-custom-hint",
+          "has-cover-hint",
+          "has-standard-hints"
+        );
         this.playerElements.hints.hidden = true;
         this.playerElements.hints.innerHTML = "";
         return;
@@ -4563,7 +4568,12 @@
 
       const hints = this.playerHintDefinitions.slice(0, this.playerHintRevealCount);
       if (hints.length === 0) {
-        this.playerElements.hints.classList.remove("has-background");
+        this.playerElements.hints.classList.remove(
+          "has-background",
+          "has-custom-hint",
+          "has-cover-hint",
+          "has-standard-hints"
+        );
         this.playerElements.hints.hidden = true;
         this.playerElements.hints.innerHTML = "";
         return;
@@ -4572,18 +4582,20 @@
       this.playerElements.hints.hidden = false;
       this.playerElements.hints.innerHTML = "";
       const coverHint = hints.find((hint) => hint.type === "cover") || null;
-      const textHints = hints.filter((hint) => hint.type !== "cover");
+      const customHint =
+        hints.find((hint) => hint.type === "text" && hint.label === "Hint") || null;
+      const standardHints = hints.filter((hint) => hint !== coverHint && hint !== customHint);
       const textList = document.createElement("div");
       textList.className = "player-hints-list";
-      if (coverHint !== null) {
-        this.playerElements.hints.classList.add("has-background");
-      } else {
-        this.playerElements.hints.classList.remove("has-background");
-      }
 
-      for (const hint of textHints) {
+      this.playerElements.hints.classList.toggle("has-background", coverHint !== null);
+      this.playerElements.hints.classList.toggle("has-custom-hint", customHint !== null);
+      this.playerElements.hints.classList.toggle("has-cover-hint", coverHint !== null);
+      this.playerElements.hints.classList.toggle("has-standard-hints", standardHints.length > 0);
+
+      const createTextHintNode = (hint, className) => {
         const hintNode = document.createElement("div");
-        hintNode.className = "player-hint";
+        hintNode.className = className;
         const label = document.createElement("span");
         label.className = "player-hint-label";
         label.textContent = hint.label;
@@ -4591,10 +4603,20 @@
         const value = document.createElement("div");
         appendMultilineText(value, hint.value);
         hintNode.appendChild(value);
-        textList.appendChild(hintNode);
+        return hintNode;
+      };
+
+      if (customHint !== null) {
+        this.playerElements.hints.appendChild(
+          createTextHintNode(customHint, "player-hint player-hint-featured player-hint-custom")
+        );
       }
 
-      if (textHints.length > 0) {
+      for (const hint of standardHints) {
+        textList.appendChild(createTextHintNode(hint, "player-hint player-hint-standard"));
+      }
+
+      if (standardHints.length > 0) {
         this.playerElements.hints.appendChild(textList);
       }
 

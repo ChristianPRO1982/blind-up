@@ -1782,18 +1782,20 @@ body[data-page="player"] .app-shell {
 }
 
 .player-main-title {
-  max-width: 14ch;
-  font-size: clamp(2.8rem, 9vw, 6.1rem);
+  width: min(92%, 52rem);
+  max-width: none;
+  font-size: clamp(2.2rem, 5.8vw, 4.7rem);
   line-height: 0.9;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  text-wrap: balance;
   text-shadow:
     0 0 18px rgba(103, 232, 249, 0.16),
     0 0 42px rgba(255, 79, 184, 0.12);
 }
 
 .player-main-title.is-logo {
-  max-width: min(72rem, 92vw);
+  width: min(96%, 72rem);
 }
 
 .player-main-title.is-logo img {
@@ -1839,56 +1841,115 @@ body[data-page="player"] .app-shell {
 }
 
 .player-hints {
-  display: flex;
+  display: grid;
   justify-content: center;
-  width: min(58rem, 100%);
-  margin: 0 auto;
+  align-items: center;
+  width: min(96rem, 100%);
+  margin: -1rem auto 0;
 }
 
-.player-hints.has-background {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(12rem, 16rem);
+.player-hints.has-custom-hint.has-standard-hints.has-cover-hint {
+  grid-template-columns: minmax(27rem, 27rem) minmax(0, 29rem) minmax(27rem, 27rem);
   gap: 1rem;
-  align-items: center;
+}
+
+.player-hints.has-custom-hint.has-standard-hints:not(.has-cover-hint) {
+  grid-template-columns: minmax(27rem, 27rem) minmax(0, 29rem);
+  gap: 1rem;
+}
+
+.player-hints.has-cover-hint.has-standard-hints:not(.has-custom-hint) {
+  grid-template-columns: minmax(0, 29rem) minmax(27rem, 27rem);
+  gap: 1rem;
+}
+
+.player-hints.has-custom-hint.has-cover-hint:not(.has-standard-hints) {
+  grid-template-columns: repeat(2, minmax(27rem, 27rem));
+  gap: 1rem;
+}
+
+.player-hints.has-standard-hints:not(.has-custom-hint):not(.has-cover-hint) {
+  grid-template-columns: minmax(0, 29rem);
+  gap: 1rem;
 }
 
 .player-hints-list {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 14rem));
+  gap: 0.85rem;
   justify-content: center;
-  gap: 0.8rem;
+  width: min(100%, 29rem);
 }
 
 .player-hint {
-  min-width: 11rem;
-  max-width: 16rem;
-  padding: 0.9rem 1rem;
+  width: 100%;
+  min-width: 12rem;
+  max-width: 100%;
+  height: 8.65rem;
+  padding: 1.1rem;
   border: 1px solid rgba(129, 180, 255, 0.18);
   border-radius: 1.15rem;
   background:
     linear-gradient(180deg, rgba(14, 24, 42, 0.76), rgba(8, 15, 27, 0.8)),
     linear-gradient(90deg, rgba(103, 232, 249, 0.06), rgba(255, 79, 184, 0.06));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  font-size: clamp(2.4rem, 4.5vw, 4rem);
+  line-height: 1.05;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  justify-self: center;
+  text-align: center;
+  overflow: hidden;
+}
+
+.player-hint-featured {
+  width: 27rem;
+  height: 18rem;
+  aspect-ratio: auto;
+  align-self: stretch;
+}
+
+.player-hint-standard {
+  height: 8.65rem;
+  aspect-ratio: auto;
 }
 
 .player-hint-background {
   justify-self: center;
-  width: min(16rem, 100%);
+  width: 27rem;
+  height: 18rem;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.player-hint > div {
+  width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .player-hint-label {
   display: block;
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.55rem;
   color: #ffd6ef;
-  font-size: 0.76rem;
+  font-size: clamp(0.92rem, 1.4vw, 1.2rem);
   letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
-.player-hint img,
+.player-hint img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  margin: 0 auto;
+  border-radius: 1rem;
+  border: 1px solid rgba(129, 180, 255, 0.2);
+  box-shadow: 0 20px 34px rgba(0, 0, 0, 0.28);
+}
+
 .player-background-tile img {
   display: block;
-  width: min(16rem, 100%);
+  width: min(28rem, 100%);
   margin: 0 auto;
   border-radius: 1rem;
   border: 1px solid rgba(129, 180, 255, 0.2);
@@ -2050,12 +2111,25 @@ body[data-page="player"] .app-shell {
     flex: 1 1 auto;
   }
 
-  .player-hints.has-background {
+  .player-hints {
     grid-template-columns: 1fr;
+    gap: 0.85rem;
   }
 
+  .player-hints-list {
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .player-hint-featured,
   .player-hint-background {
     justify-self: center;
+    width: min(27rem, 100%);
+  }
+
+  .player-hint-standard {
+    width: min(18rem, 100%);
+    height: 7.5rem;
   }
 
   .player-answer-row {
