@@ -791,6 +791,8 @@
       };
       this.playerElements = {
         layout: document.getElementById("player-layout"),
+        overlay: document.querySelector(".player-overlay"),
+        stage: document.querySelector(".player-stage"),
         backButton: document.getElementById("player-back-button"),
         autoButton: document.getElementById("player-auto-button"),
         hintsButton: document.getElementById("player-hints-button"),
@@ -4063,6 +4065,14 @@
         this.playerTeaserSession = null;
       }
       this.updatePlayerControls();
+      const isTightGameplayPanel =
+        this.playerState.panel === "La la la..." || this.playerState.panel === "answer";
+      if (this.playerElements.overlay !== null) {
+        this.playerElements.overlay.classList.toggle("is-tight-gameplay", isTightGameplayPanel);
+      }
+      if (this.playerElements.stage !== null) {
+        this.playerElements.stage.classList.toggle("is-tight-gameplay", isTightGameplayPanel);
+      }
 
       const song = this.getCurrentPlayerSong();
       if (this.playerState.panel === "waiting") {

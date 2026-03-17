@@ -1759,6 +1759,31 @@ body[data-page="player"] .app-shell {
   overflow: hidden;
 }
 
+.player-overlay.is-tight-gameplay .player-panel-label,
+.player-overlay.is-tight-gameplay .player-countdown {
+  position: absolute;
+  left: 50%;
+  z-index: 2;
+  margin: 0;
+  transform: translateX(-50%);
+}
+
+.player-overlay.is-tight-gameplay .player-panel-label {
+  top: 0.45rem;
+}
+
+.player-overlay.is-tight-gameplay .player-countdown {
+  top: 2.7rem;
+}
+
+.player-stage.is-tight-gameplay {
+  place-items: initial;
+  align-content: start;
+  justify-items: center;
+  gap: 0.55rem;
+  padding: 6.1rem 0 0.35rem;
+}
+
 .player-panel-label {
   display: inline-flex;
   align-items: center;
@@ -2109,6 +2134,18 @@ body[data-page="player"] .app-shell {
   .player-toolbar-actions button,
   .player-controls button {
     flex: 1 1 auto;
+  }
+
+  .player-overlay.is-tight-gameplay .player-panel-label {
+    top: 0.3rem;
+  }
+
+  .player-overlay.is-tight-gameplay .player-countdown {
+    top: 2.35rem;
+  }
+
+  .player-stage.is-tight-gameplay {
+    padding-top: 5.6rem;
   }
 
   .player-hints {
