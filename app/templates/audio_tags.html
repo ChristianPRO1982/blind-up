@@ -22,6 +22,9 @@
       <div class="panel-heading panel-heading-split">
         <h2 id="audio-tag-table-title">Tags</h2>
         <div class="header-actions">
+          <button id="audio-tag-apply-tags-button" class="button-secondary" type="button" disabled>
+            Apply tags
+          </button>
           <button id="audio-tag-save-button" class="button-primary" type="button" disabled>
             Save changes
           </button>
@@ -57,4 +60,35 @@
       </div>
     </section>
   </section>
+
+  <div id="audio-tag-apply-modal" class="modal-shell" hidden>
+    <div class="modal-backdrop" data-action="close"></div>
+    <section
+      class="modal-card panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="audio-tag-apply-modal-title"
+    >
+      <div class="panel-heading panel-heading-split">
+        <h2 id="audio-tag-apply-modal-title">Apply tags to folder</h2>
+        <button
+          id="close-audio-tag-apply-modal-button"
+          class="panel-close-button"
+          type="button"
+          aria-label="Close apply tags confirmation"
+        >
+          ×
+        </button>
+      </div>
+      <p id="audio-tag-apply-modal-copy" class="modal-copy"></p>
+      <div class="modal-actions">
+        <button id="cancel-audio-tag-apply-button" class="button-secondary" type="button">
+          Cancel
+        </button>
+        <button id="confirm-audio-tag-apply-button" class="button-primary" type="button">
+          Apply tags
+        </button>
+      </div>
+    </section>
+  </div>
 {% endblock %}

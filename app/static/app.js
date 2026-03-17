@@ -713,6 +713,7 @@
         scanImpactList: document.getElementById("scan-impact-list"),
         audioTagEditorLayout: document.getElementById("audio-tag-editor-layout"),
         audioTagLibraryRoot: document.getElementById("audio-tag-library-root"),
+        audioTagApplyTagsButton: document.getElementById("audio-tag-apply-tags-button"),
         audioTagSaveButton: document.getElementById("audio-tag-save-button"),
         audioTagBackButton: document.getElementById("audio-tag-back-button"),
         audioTagSaveStatus: document.getElementById("audio-tag-save-status"),
@@ -720,6 +721,13 @@
         audioTagSelectedFolderName: document.getElementById("audio-tag-selected-folder-name"),
         audioTagEmptyState: document.getElementById("audio-tag-empty-state"),
         audioTagTableBody: document.getElementById("audio-tag-table-body"),
+        audioTagApplyModal: document.getElementById("audio-tag-apply-modal"),
+        closeAudioTagApplyModalButton: document.getElementById(
+          "close-audio-tag-apply-modal-button"
+        ),
+        audioTagApplyModalCopy: document.getElementById("audio-tag-apply-modal-copy"),
+        cancelAudioTagApplyButton: document.getElementById("cancel-audio-tag-apply-button"),
+        confirmAudioTagApplyButton: document.getElementById("confirm-audio-tag-apply-button"),
         title: document.getElementById("blindtest-title"),
         toggleLibraryButton: document.getElementById("toggle-library-button"),
         saveButton: document.getElementById("save-button"),
@@ -846,6 +854,7 @@
       this.scanPollInterval = null;
       this.latestScanSummaryKey = "";
       this.audioTagEditor = this.createAudioTagEditorState();
+      this.audioTagApplyReturnFocus = null;
       this.librarySongs = [];
       this.librarySongMap = new Map();
       this.librarySongPathMap = new Map();
@@ -901,6 +910,12 @@
           this.hideRemoveSongModal();
         }
         if (
+          this.elements.audioTagApplyModal !== null &&
+          !this.elements.audioTagApplyModal.hidden
+        ) {
+          this.hideAudioTagApplyModal();
+        }
+        if (
           this.elements.backgroundPreviewModal !== null &&
           !this.elements.backgroundPreviewModal.hidden
         ) {
@@ -954,12 +969,14 @@
         songs: [],
         tree: null,
         selectedFolderPath: rootPath,
+        selectedSongId: null,
         drafts: new Map(),
         dirtySongIds: new Set(),
         statusMessage: "",
         statusError: false,
         loadingFolders: false,
         loadingSongs: false,
+        savingSongs: false,
       };
     }
 
@@ -1162,6 +1179,11 @@
     }
 
     bindAudioTagEditor() {
+      if (this.elements.audioTagApplyTagsButton !== null) {
+        this.elements.audioTagApplyTagsButton.addEventListener("click", () => {
+          this.showAudioTagApplyModal();
+        });
+      }
       if (this.elements.audioTagBackButton !== null) {
         this.elements.audioTagBackButton.addEventListener("click", () => {
           this.showHomeView();
@@ -1170,6 +1192,29 @@
       if (this.elements.audioTagSaveButton !== null) {
         this.elements.audioTagSaveButton.addEventListener("click", () => {
           this.saveAudioTagChanges();
+        });
+      }
+      if (this.elements.audioTagApplyModal !== null) {
+        this.elements.audioTagApplyModal.addEventListener("click", (event) => {
+          const action = event.target.closest("[data-action='close']");
+          if (action !== null || event.target === this.elements.audioTagApplyModal) {
+            this.hideAudioTagApplyModal();
+          }
+        });
+      }
+      if (this.elements.closeAudioTagApplyModalButton !== null) {
+        this.elements.closeAudioTagApplyModalButton.addEventListener("click", () => {
+          this.hideAudioTagApplyModal();
+        });
+      }
+      if (this.elements.cancelAudioTagApplyButton !== null) {
+        this.elements.cancelAudioTagApplyButton.addEventListener("click", () => {
+          this.hideAudioTagApplyModal();
+        });
+      }
+      if (this.elements.confirmAudioTagApplyButton !== null) {
+        this.elements.confirmAudioTagApplyButton.addEventListener("click", () => {
+          this.confirmApplyAudioTags();
         });
       }
     }
@@ -1945,10 +1990,13 @@
         this.audioTagEditor.songs = Array.isArray(payload.songs) ? payload.songs : [];
         this.audioTagEditor.selectedFolderPath =
           normalizeText(payload.folder_path) || folderPath;
+        const normalizedFolderPath = normalizeText(this.audioTagEditor.selectedFolderPath);
+        this.audioTagEditor.songs = this.audioTagEditor.songs
+          .filter((song) => normalizeText(song.folder_path) !== normalizedFolderPath)
+          .concat(Array.isArray(payload.songs) ? payload.songs : []);
         this.audioTagEditor.statusMessage = "";
         this.audioTagEditor.statusError = false;
       } catch (error) {
-        this.audioTagEditor.songs = [];
         this.audioTagEditor.statusMessage =
           error instanceof Error ? error.message : "Unable to load songs for this folder.";
         this.audioTagEditor.statusError = true;
@@ -1982,6 +2030,10 @@
       return this.audioTagEditor.songs.find((song) => song.id === songId) || null;
     }
 
+    getSelectedAudioTagSong() {
+      return this.getAudioTagSongById(this.audioTagEditor.selectedSongId);
+    }
+
     getAudioTagSongDraft(songId) {
       return this.audioTagEditor.drafts.get(songId) || null;
     }
@@ -2006,13 +2058,28 @@
     }
 
     updateAudioTagSaveButton() {
+      const songsInFolder = this.getAudioTagSongsForFolder(
+        this.audioTagEditor.selectedFolderPath
+      );
+      const hasSelectedRow = Number.isInteger(this.audioTagEditor.selectedSongId);
       if (this.elements.audioTagSaveButton !== null) {
         const hasDirtyRows = this.audioTagEditor.dirtySongIds.size > 0;
         const hasInvalidRows = Array.from(this.audioTagEditor.dirtySongIds).some((songId) => {
           const draft = this.getAudioTagSongDraft(songId);
           return draft !== null && !this.isAudioTagYearValid(draft.year);
         });
-        this.elements.audioTagSaveButton.disabled = !hasDirtyRows || hasInvalidRows;
+        this.elements.audioTagSaveButton.disabled =
+          this.audioTagEditor.savingSongs || !hasDirtyRows || hasInvalidRows;
+        this.elements.audioTagSaveButton.textContent = this.audioTagEditor.savingSongs
+          ? "Saving..."
+          : "Save changes";
+      }
+      if (this.elements.audioTagApplyTagsButton !== null) {
+        this.elements.audioTagApplyTagsButton.disabled =
+          this.audioTagEditor.loadingSongs ||
+          this.audioTagEditor.savingSongs ||
+          !hasSelectedRow ||
+          songsInFolder.length < 2;
       }
       if (this.elements.audioTagSaveStatus !== null) {
         const message = normalizeText(this.audioTagEditor.statusMessage);
@@ -2092,6 +2159,10 @@
 
       for (const song of songs) {
         const row = document.createElement("tr");
+        row.tabIndex = 0;
+        if (song.id === this.audioTagEditor.selectedSongId) {
+          row.classList.add("is-selected");
+        }
         row.innerHTML = `
           <td data-readonly="true">${this.escapeHtml(song.file_name)}</td>
           <td></td>
@@ -2100,6 +2171,16 @@
           <td></td>
           <td></td>
         `;
+        row.addEventListener("click", () => {
+          this.selectAudioTagRow(song.id);
+        });
+        row.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter" && event.key !== " ") {
+            return;
+          }
+          event.preventDefault();
+          this.selectAudioTagRow(song.id);
+        });
 
         this.getAudioTagEditableFields().forEach((fieldName, index) => {
           const cell = row.children[index + 1];
@@ -2112,6 +2193,13 @@
             input.classList.add("audio-tag-year-input");
             input.classList.toggle("is-invalid", !this.isAudioTagYearValid(input.value));
           }
+          input.addEventListener("focus", () => {
+            this.selectAudioTagRow(song.id);
+          });
+          input.addEventListener("click", (event) => {
+            event.stopPropagation();
+            this.selectAudioTagRow(song.id);
+          });
           input.addEventListener("input", () => {
             this.handleAudioTagFieldInput(song.id, fieldName, input.value, input);
           });
@@ -2149,6 +2237,7 @@
         return;
       }
       this.audioTagEditor.selectedFolderPath = folderPath;
+      this.audioTagEditor.selectedSongId = null;
       if (!this.audioTagEditor.statusError) {
         this.audioTagEditor.statusMessage = "";
       }
@@ -2197,7 +2286,106 @@
       this.updateAudioTagSaveButton();
     }
 
-    saveAudioTagChanges() {
+    selectAudioTagRow(songId) {
+      if (this.getAudioTagSongById(songId) === null) {
+        return;
+      }
+      this.audioTagEditor.selectedSongId = songId;
+      this.renderAudioTagTable();
+      this.updateAudioTagSaveButton();
+    }
+
+    showAudioTagApplyModal() {
+      if (
+        this.elements.audioTagApplyModal === null ||
+        this.elements.audioTagApplyModalCopy === null ||
+        this.elements.confirmAudioTagApplyButton === null
+      ) {
+        return;
+      }
+      const selectedSong = this.getSelectedAudioTagSong();
+      const songsInFolder = this.getAudioTagSongsForFolder(
+        this.audioTagEditor.selectedFolderPath
+      );
+      if (selectedSong === null || songsInFolder.length < 2) {
+        return;
+      }
+      this.audioTagApplyReturnFocus =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      this.elements.audioTagApplyModalCopy.textContent =
+        `Apply artist, album, year, and genre from "${selectedSong.file_name}" to the other songs in this folder? This prepares the edits, then you still need to save changes.`;
+      this.elements.confirmAudioTagApplyButton.disabled = false;
+      this.elements.audioTagApplyModal.hidden = false;
+      document.body.classList.add("modal-open");
+      this.elements.confirmAudioTagApplyButton.focus();
+    }
+
+    hideAudioTagApplyModal() {
+      if (this.elements.audioTagApplyModal !== null) {
+        this.elements.audioTagApplyModal.hidden = true;
+      }
+      if (this.elements.confirmAudioTagApplyButton !== null) {
+        this.elements.confirmAudioTagApplyButton.disabled = false;
+      }
+      document.body.classList.remove("modal-open");
+      if (this.audioTagApplyReturnFocus instanceof HTMLElement) {
+        this.audioTagApplyReturnFocus.focus();
+      }
+      this.audioTagApplyReturnFocus = null;
+    }
+
+    confirmApplyAudioTags() {
+      const sourceSong = this.getSelectedAudioTagSong();
+      if (sourceSong === null) {
+        this.hideAudioTagApplyModal();
+        return;
+      }
+      const sourceValues = {
+        artist: this.getAudioTagRowValue(sourceSong, "artist"),
+        album: this.getAudioTagRowValue(sourceSong, "album"),
+        year: this.getAudioTagRowValue(sourceSong, "year"),
+        genre: this.getAudioTagRowValue(sourceSong, "genre"),
+      };
+      const songsInFolder = this.getAudioTagSongsForFolder(
+        this.audioTagEditor.selectedFolderPath
+      );
+      let appliedCount = 0;
+
+      for (const song of songsInFolder) {
+        if (song.id === sourceSong.id) {
+          continue;
+        }
+        const draft = this.getAudioTagSongDraft(song.id) || {
+          title: `${song.title ?? ""}`,
+          artist: `${song.artist ?? ""}`,
+          album: `${song.album ?? ""}`,
+          year: `${song.year ?? ""}`,
+          genre: `${song.genre ?? ""}`,
+        };
+        draft.artist = sourceValues.artist;
+        draft.album = sourceValues.album;
+        draft.year = sourceValues.year;
+        draft.genre = sourceValues.genre;
+
+        if (this.isAudioTagDraftDirty(song, draft)) {
+          this.audioTagEditor.drafts.set(song.id, draft);
+          this.audioTagEditor.dirtySongIds.add(song.id);
+        } else {
+          this.audioTagEditor.drafts.delete(song.id);
+          this.audioTagEditor.dirtySongIds.delete(song.id);
+        }
+        appliedCount += 1;
+      }
+
+      this.audioTagEditor.statusMessage = `${appliedCount} row${
+        appliedCount === 1 ? "" : "s"
+      } updated from the selected song. Save changes to persist them.`;
+      this.audioTagEditor.statusError = false;
+      this.hideAudioTagApplyModal();
+      this.renderAudioTagEditor();
+    }
+
+    async saveAudioTagChanges() {
       if (this.audioTagEditor.dirtySongIds.size === 0) {
         return;
       }
@@ -2216,22 +2404,65 @@
         }
       }
 
-      for (const songId of Array.from(this.audioTagEditor.dirtySongIds)) {
-        const song = this.getAudioTagSongById(songId);
-        const draft = this.getAudioTagSongDraft(songId);
-        if (song === null || draft === null) {
-          continue;
-        }
-        for (const fieldName of this.getAudioTagEditableFields()) {
-          song[fieldName] = `${draft[fieldName] ?? ""}`;
-        }
-      }
+      const payload = {
+        songs: Array.from(this.audioTagEditor.dirtySongIds)
+          .map((songId) => {
+            const song = this.getAudioTagSongById(songId);
+            const draft = this.getAudioTagSongDraft(songId);
+            if (song === null || draft === null) {
+              return null;
+            }
+            return {
+              song_id: songId,
+              title: normalizeText(draft.title) || null,
+              artist: normalizeText(draft.artist) || null,
+              album: normalizeText(draft.album) || null,
+              year:
+                normalizeText(draft.year) === ""
+                  ? null
+                  : Number.parseInt(normalizeText(draft.year), 10),
+              genre: normalizeText(draft.genre) || null,
+            };
+          })
+          .filter((song) => song !== null),
+      };
 
-      this.audioTagEditor.drafts.clear();
-      this.audioTagEditor.dirtySongIds.clear();
-      this.audioTagEditor.statusMessage =
-        "Changes saved locally in the frontend mock. Backend persistence will come next.";
-      this.audioTagEditor.statusError = false;
+      this.audioTagEditor.savingSongs = true;
+      this.updateAudioTagSaveButton();
+
+      try {
+        const response = await fetch("/api/library/song-tags", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+        const responsePayload = await response.json();
+        if (!response.ok) {
+          throw new Error(responsePayload.detail || `HTTP ${response.status}`);
+        }
+
+        const updatedSongs = Array.isArray(responsePayload.songs) ? responsePayload.songs : [];
+        const updatedSongsById = new Map(updatedSongs.map((song) => [song.id, song]));
+        this.audioTagEditor.songs = this.audioTagEditor.songs.map((song) =>
+          updatedSongsById.get(song.id) || song
+        );
+        for (const songId of updatedSongsById.keys()) {
+          this.audioTagEditor.drafts.delete(songId);
+          this.audioTagEditor.dirtySongIds.delete(songId);
+        }
+
+        this.audioTagEditor.statusMessage =
+          "Tags saved to audio files and synchronized with the library.";
+        this.audioTagEditor.statusError = false;
+      } catch (error) {
+        this.audioTagEditor.statusMessage =
+          error instanceof Error ? error.message : "Unable to save audio tags.";
+        this.audioTagEditor.statusError = true;
+      } finally {
+        this.audioTagEditor.savingSongs = false;
+      }
       this.renderAudioTagEditor();
     }
 

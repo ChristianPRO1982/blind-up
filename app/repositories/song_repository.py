@@ -67,6 +67,30 @@ def list_songs_in_folder(folder_path: str | Path) -> list[dict[str, object]]:
     return songs_in_folder
 
 
+def update_song_tags(
+    song_id: int,
+    title: str | None,
+    artist: str | None,
+    album: str | None,
+    year: int | None,
+    genre: str | None,
+) -> None:
+    with get_connection() as connection:
+        connection.execute(
+            """
+            UPDATE songs
+            SET title = ?,
+                artist = ?,
+                album = ?,
+                year = ?,
+                genre = ?,
+                updated_at = ?
+            WHERE id = ?;
+            """,
+            (title, artist, album, year, genre, _timestamp(), song_id),
+        )
+
+
 def get_song_scan_index() -> dict[str, dict[str, object]]:
     with get_connection() as connection:
         rows = connection.execute(

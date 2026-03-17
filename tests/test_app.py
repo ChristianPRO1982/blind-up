@@ -704,6 +704,16 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
         ) as client:
             return await client.get("/api/library/folder-songs", params={"path": path})
 
+    async def post_library_song_tags_response(
+        payload: dict[str, object]
+    ) -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.post("/api/library/song-tags", json=payload)
+
     async def get_songs_response() -> httpx.Response:
         transport = httpx.ASGITransport(app=main_module.app)
         async with httpx.AsyncClient(
@@ -788,6 +798,8 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
 
     asyncio.run(run_startup())
     original_list_songs = main_module.song_repository.list_songs
+    original_get_song_by_id = main_module.song_repository.get_song_by_id
+    original_update_song_tags = main_module.song_repository.update_song_tags
     original_normalize_song_media_paths = (
         main_module.song_repository.normalize_song_media_paths
     )
@@ -805,6 +817,8 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
     )
     original_delete_blindtest = main_module.blindtest_repository.delete_blindtest
     original_save_blindtest = main_module.blindtest_repository.save_blindtest
+    original_resolve_song_file_path = main_module.resolve_song_file_path
+    original_save_audio_tags = main_module.save_audio_tags
     scan_start_calls: list[tuple[str, str]] = []
     configured_scan_root_path = tmp_path / "music-library"
     configured_scan_root_path.mkdir()
@@ -858,7 +872,7 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
         },
         "error": None,
     }
-    main_module.song_repository.list_songs = lambda: [
+    library_song_rows = [
         {
             "id": 1,
             "file_path": str(configured_root_song_path),
@@ -893,7 +907,33 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
             "duration_sec": 30.0,
         },
     ]
+    main_module.song_repository.list_songs = lambda: [
+        dict(song) for song in library_song_rows
+    ]
+    main_module.song_repository.get_song_by_id = lambda song_id: next(
+        (dict(song) for song in library_song_rows if song["id"] == song_id),
+        None,
+    )
+    main_module.song_repository.update_song_tags = (
+        lambda song_id, title, artist, album, year, genre: [
+            song.update(
+                {
+                    "title": title,
+                    "artist": artist,
+                    "album": album,
+                    "year": year,
+                    "genre": genre,
+                }
+            )
+            for song in library_song_rows
+            if song["id"] == song_id
+        ]
+    )
     main_module.song_repository.normalize_song_media_paths = lambda: 0
+    main_module.resolve_song_file_path = (
+        lambda song: Path(str(song["file_path"])).resolve()
+    )
+    main_module.save_audio_tags = lambda _path, update: update
     main_module.blindtest_repository.list_blindtests = lambda: [
         {
             "id": 1,
@@ -983,6 +1023,22 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
             str((configured_scan_root_path / "Rock").resolve())
         )
     )
+    library_song_tags_response = asyncio.run(
+        post_library_song_tags_response(
+            {
+                "songs": [
+                    {
+                        "song_id": 2,
+                        "title": "Rock Song Updated",
+                        "artist": "Artist 2 Updated",
+                        "album": "Album 2 Updated",
+                        "year": 2025,
+                        "genre": "Electro rock",
+                    }
+                ]
+            }
+        )
+    )
     songs_response = asyncio.run(get_songs_response())
     song_list_response = asyncio.run(post_song_list_response())
     blindtests_response = asyncio.run(get_blindtests_response())
@@ -1023,6 +1079,10 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
             for route in main_module.app.routes
         )
         assert any(
+            route.path == "/api/library/song-tags"
+            for route in main_module.app.routes
+        )
+        assert any(
             route.path == "/api/library/song-list" for route in main_module.app.routes
         )
         assert any(route.path == "/api/blindtests" for route in main_module.app.routes)
@@ -1051,6 +1111,7 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
         assert audio_tags_page_response.status_code == 200
         assert 'data-page="audio-tags"' in audio_tags_page_response.text
         assert "Audio tag editor" in audio_tags_page_response.text
+        assert "Apply tags" in audio_tags_page_response.text
         assert f'value="{configured_scan_root_path}"' in audio_tags_page_response.text
         assert editor_new_page_response.status_code == 200
         assert 'data-page="editor"' in editor_new_page_response.text
@@ -1149,6 +1210,23 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
                 }
             ],
         }
+        assert library_song_tags_response.status_code == 200
+        assert library_song_tags_response.json() == {
+            "status": "ok",
+            "songs": [
+                {
+                    "id": 2,
+                    "file_path": str(configured_rock_song_path),
+                    "folder_path": str((configured_scan_root_path / "Rock").resolve()),
+                    "file_name": "anthem.flac",
+                    "title": "Rock Song Updated",
+                    "artist": "Artist 2 Updated",
+                    "album": "Album 2 Updated",
+                    "year": 2025,
+                    "genre": "Electro rock",
+                }
+            ],
+        }
         assert songs_response.status_code == 200
         assert song_list_response.status_code == 200
         assert song_list_response.json() == {
@@ -1161,7 +1239,8 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
         ) == (
             "file_path\ttitle\tartist\talbum\tyear\tgenre\n"
             f"{configured_root_song_path}\tRoot Song\tArtist 1\tAlbum 1\t2001\tRock\n"
-            f"{configured_rock_song_path}\tRock Song\tArtist 2\tAlbum 2\t2002\tMetal\n"
+            f"{configured_rock_song_path}\tRock Song Updated\tArtist 2 Updated\t"
+            "Album 2 Updated\t2025\tElectro rock\n"
             f"{configured_live_song_path}\tLive Song\tArtist 3\tAlbum 3\t2003\tLive\n"
         )
         assert songs_response.json() == {
@@ -1180,11 +1259,11 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
                 {
                     "id": 2,
                     "file_path": str(configured_rock_song_path),
-                    "title": "Rock Song",
-                    "artist": "Artist 2",
-                    "album": "Album 2",
-                    "year": 2002,
-                    "genre": "Metal",
+                    "title": "Rock Song Updated",
+                    "artist": "Artist 2 Updated",
+                    "album": "Album 2 Updated",
+                    "year": 2025,
+                    "genre": "Electro rock",
                     "cover_path": None,
                     "duration_sec": 20.0,
                 },
@@ -1291,6 +1370,7 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
         assert "background" in styles_text
         assert ".scan-layout" in styles_text
         assert ".audio-tag-editor-layout" in styles_text
+        assert ".audio-tag-table tbody tr.is-selected td" in styles_text
         assert ".waveform-region" in styles_text
         assert ".song-card.active" in styles_text
         assert ".player-layout" in styles_text
@@ -1306,6 +1386,8 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
         assert "showAudioTagEditorView" in script_text
         assert "openBlindtest" in script_text
         assert "renderAudioTagEditor" in script_text
+        assert "confirmApplyAudioTags" in script_text
+        assert "/api/library/song-tags" in script_text
         assert "showHomeView" in script_text
         assert "saveBlindtest" in script_text
         assert "replaceSlotSong" in script_text
@@ -1316,6 +1398,8 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
     finally:
         main_module.settings = original_settings
         main_module.song_repository.list_songs = original_list_songs
+        main_module.song_repository.get_song_by_id = original_get_song_by_id
+        main_module.song_repository.update_song_tags = original_update_song_tags
         main_module.song_repository.normalize_song_media_paths = (
             original_normalize_song_media_paths
         )
@@ -1332,6 +1416,8 @@ def test_fastapi_routes_serve_expected_responses(tmp_path) -> None:
         )
         main_module.blindtest_repository.delete_blindtest = original_delete_blindtest
         main_module.blindtest_repository.save_blindtest = original_save_blindtest
+        main_module.resolve_song_file_path = original_resolve_song_file_path
+        main_module.save_audio_tags = original_save_audio_tags
 
 
 def test_library_scan_start_route_returns_409_when_running(monkeypatch) -> None:
@@ -1502,6 +1588,131 @@ def test_library_folder_songs_route_returns_400_for_file_path(tmp_path) -> None:
 
     assert response.status_code == 400
     assert response.json() == {"detail": "Path is not a folder"}
+
+
+def test_library_song_tags_route_returns_404_for_missing_song(monkeypatch) -> None:
+    async def post_library_song_tags_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.post(
+                "/api/library/song-tags",
+                json={"songs": [{"song_id": 99, "title": "Updated"}]},
+            )
+
+    monkeypatch.setattr(
+        main_module.song_repository,
+        "get_song_by_id",
+        lambda _song_id: None,
+    )
+
+    response = asyncio.run(post_library_song_tags_response())
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Song not found: 99"}
+
+
+def test_library_song_tags_route_returns_404_for_unavailable_audio(monkeypatch) -> None:
+    async def post_library_song_tags_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.post(
+                "/api/library/song-tags",
+                json={"songs": [{"song_id": 1, "title": "Updated"}]},
+            )
+
+    monkeypatch.setattr(
+        main_module.song_repository,
+        "get_song_by_id",
+        lambda _song_id: {"id": 1, "file_path": "/music/song.mp3"},
+    )
+    monkeypatch.setattr(main_module, "resolve_song_file_path", lambda _song: None)
+
+    response = asyncio.run(post_library_song_tags_response())
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Audio unavailable for song 1"}
+
+
+def test_library_song_tags_route_returns_404_when_tag_service_reports_missing_file(
+    monkeypatch, tmp_path
+) -> None:
+    async def post_library_song_tags_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.post(
+                "/api/library/song-tags",
+                json={"songs": [{"song_id": 1, "title": "Updated"}]},
+            )
+
+    song_path = tmp_path / "song.mp3"
+    song_path.write_text("song", encoding="utf-8")
+    monkeypatch.setattr(
+        main_module.song_repository,
+        "get_song_by_id",
+        lambda _song_id: {"id": 1, "file_path": str(song_path)},
+    )
+    monkeypatch.setattr(
+        main_module,
+        "resolve_song_file_path",
+        lambda _song: song_path,
+    )
+    monkeypatch.setattr(
+        main_module,
+        "save_audio_tags",
+        lambda _path, _update: (_ for _ in ()).throw(FileNotFoundError("/missing.mp3")),
+    )
+
+    response = asyncio.run(post_library_song_tags_response())
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "/missing.mp3"}
+
+
+def test_library_song_tags_route_returns_400_when_tag_service_rejects_payload(
+    monkeypatch, tmp_path
+) -> None:
+    async def post_library_song_tags_response() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main_module.app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.post(
+                "/api/library/song-tags",
+                json={"songs": [{"song_id": 1, "title": "Updated"}]},
+            )
+
+    song_path = tmp_path / "song.mp3"
+    song_path.write_text("song", encoding="utf-8")
+    monkeypatch.setattr(
+        main_module.song_repository,
+        "get_song_by_id",
+        lambda _song_id: {"id": 1, "file_path": str(song_path)},
+    )
+    monkeypatch.setattr(
+        main_module,
+        "resolve_song_file_path",
+        lambda _song: song_path,
+    )
+    monkeypatch.setattr(
+        main_module,
+        "save_audio_tags",
+        lambda _path, _update: (_ for _ in ()).throw(ValueError("bad tags")),
+    )
+
+    response = asyncio.run(post_library_song_tags_response())
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "bad tags"}
 
 
 def test_song_list_route_returns_404_for_missing_library_root(monkeypatch) -> None:

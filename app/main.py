@@ -16,6 +16,7 @@ from app.repositories import (
     blindtest_repository,
     song_repository,
 )
+from app.services.audio_tag_service import AudioTagUpdate, save_audio_tags
 from app.services.library_navigation_service import build_library_folder_tree
 from app.services.library_scan_service import ScanCancelled, scan_library
 from app.services.song_file_service import resolve_song_file_path
@@ -95,6 +96,21 @@ def guess_audio_media_type(file_path: Path) -> str:
         return guessed_type
 
     return "application/octet-stream"
+
+
+def _serialize_library_folder_song(song: dict[str, object]) -> dict[str, object]:
+    file_path = Path(str(song["file_path"]))
+    return {
+        "id": song["id"],
+        "file_path": song["file_path"],
+        "folder_path": str(file_path.parent),
+        "file_name": file_path.name,
+        "title": song["title"],
+        "artist": song["artist"],
+        "album": song["album"],
+        "year": song["year"],
+        "genre": song["genre"],
+    }
 
 
 @app.get("/", include_in_schema=False)
@@ -226,6 +242,19 @@ class BlindtestPayload(BaseModel):
 
 class LibraryScanStartPayload(BaseModel):
     mode: Literal["light", "update"] = "light"
+
+
+class SongTagUpdatePayload(BaseModel):
+    song_id: int
+    title: str | None = None
+    artist: str | None = None
+    album: str | None = None
+    year: int | None = None
+    genre: str | None = None
+
+
+class SongTagBatchPayload(BaseModel):
+    songs: list[SongTagUpdatePayload] = Field(default_factory=list)
 
 
 class LibraryScanController:
@@ -374,17 +403,7 @@ async def library_folder_songs(path: str | None = None) -> dict[str, object]:
     return {
         "folder_path": str(requested_folder),
         "songs": [
-            {
-                "id": song["id"],
-                "file_path": song["file_path"],
-                "folder_path": str(Path(str(song["file_path"])).parent),
-                "file_name": Path(str(song["file_path"])).name,
-                "title": song["title"],
-                "artist": song["artist"],
-                "album": song["album"],
-                "year": song["year"],
-                "genre": song["genre"],
-            }
+            _serialize_library_folder_song(song)
             for song in song_repository.list_songs_in_folder(requested_folder)
         ],
     }
@@ -408,6 +427,59 @@ async def songs() -> dict[str, list[dict[str, object]]]:
             }
             for song in song_repository.list_songs()
         ]
+    }
+
+
+@app.post("/api/library/song-tags")
+async def library_song_tags(payload: SongTagBatchPayload) -> dict[str, object]:
+    updated_songs: list[dict[str, object]] = []
+
+    for update in payload.songs:
+        song = song_repository.get_song_by_id(update.song_id)
+        if song is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Song not found: {update.song_id}",
+            )
+
+        file_path = resolve_song_file_path(song)
+        if file_path is None or not file_path.is_file():
+            raise HTTPException(
+                status_code=404,
+                detail=f"Audio unavailable for song {update.song_id}",
+            )
+
+        try:
+            normalized_update = save_audio_tags(
+                file_path,
+                AudioTagUpdate(
+                    title=update.title,
+                    artist=update.artist,
+                    album=update.album,
+                    year=update.year,
+                    genre=update.genre,
+                ),
+            )
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+        song_repository.update_song_tags(
+            update.song_id,
+            normalized_update.title,
+            normalized_update.artist,
+            normalized_update.album,
+            normalized_update.year,
+            normalized_update.genre,
+        )
+        refreshed_song = song_repository.get_song_by_id(update.song_id)
+        if refreshed_song is not None:
+            updated_songs.append(_serialize_library_folder_song(refreshed_song))
+
+    return {
+        "status": "ok",
+        "songs": updated_songs,
     }
 
 

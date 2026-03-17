@@ -157,6 +157,55 @@ def test_update_song_file_location_refreshes_scan_fields(monkeypatch, tmp_path) 
     assert repaired["updated_at"] == "2026-03-16T10:15:00+00:00"
 
 
+def test_update_song_tags_refreshes_metadata_fields(monkeypatch, tmp_path) -> None:
+    database_path = tmp_path / "blindup.db"
+    monkeypatch.setattr(
+        db_module,
+        "settings",
+        config_module.Settings(database_path=database_path),
+    )
+    monkeypatch.setattr(
+        song_repository,
+        "_timestamp",
+        lambda: "2026-03-17T11:45:00+00:00",
+    )
+
+    db_module.init_db()
+    song_repository.upsert_song(
+        song_repository.SongRecord(
+            file_hash="hash-b",
+            file_path="/music/original.flac",
+            file_size=11,
+            file_mtime_ns=22,
+            duration_sec=10.0,
+            title="Old title",
+            artist="Old artist",
+            album="Old album",
+            year=1999,
+            genre="Old genre",
+            cover_path=None,
+        )
+    )
+
+    song_repository.update_song_tags(
+        1,
+        "New title",
+        "New artist",
+        "New album",
+        2005,
+        "New genre",
+    )
+    updated = song_repository.get_song_by_id(1)
+
+    assert updated is not None
+    assert updated["title"] == "New title"
+    assert updated["artist"] == "New artist"
+    assert updated["album"] == "New album"
+    assert updated["year"] == 2005
+    assert updated["genre"] == "New genre"
+    assert updated["updated_at"] == "2026-03-17T11:45:00+00:00"
+
+
 def test_delete_songs_missing_from_removes_absent_rows(monkeypatch, tmp_path) -> None:
     database_path = tmp_path / "blindup.db"
     monkeypatch.setattr(
