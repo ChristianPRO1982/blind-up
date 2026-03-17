@@ -39,6 +39,7 @@ The backend manages:
 * blindtest persistence
 * gameplay configuration
 * audio file access
+* audio tag updates
 
 ---
 
@@ -52,6 +53,7 @@ Responsibilities:
 * database access
 * music library scanning
 * metadata extraction
+* metadata writing
 * audio file serving
 
 The backend does **not** process audio transformations such as reverse playback.
@@ -90,9 +92,11 @@ Example:
 /users/moi/music/
 ```
 
-The application never moves or modifies these files.
+The application never moves these files.
 
-The backend reads metadata and stores it in the database.
+The application may update metadata tags in place when the host uses the dedicated Audio Tag Editor panel.
+
+The backend reads metadata, may write updated tags on explicit user action, and stores the current tag snapshot in the database.
 
 The frontend loads audio files directly through the backend.
 
@@ -220,6 +224,8 @@ The scan can:
 
 It does **not modify existing metadata automatically**.
 
+Manual metadata editing is handled by the dedicated Audio Tag Editor panel rather than by the scan process.
+
 ---
 
 # Application Panels
@@ -228,6 +234,7 @@ The frontend is composed of several panels:
 
 * Home panel
 * Library scan panel
+* Audio Tag Editor panel
 * Blindtest editor panel
 * Game player panel
 
@@ -242,12 +249,14 @@ The Home panel is responsible for:
 * opening a specific blindtest in the editor
 * starting the creation of a new blindtest
 * opening the Library scan panel
+* opening the Audio Tag Editor panel
 
 The backend therefore exposes:
 
 * a list endpoint for blindtest summaries
 * a read endpoint for a specific blindtest
 * scan control endpoints for the Library scan panel
+* folder and tag update endpoints for the Audio Tag Editor panel
 
 The application should not rely on automatically loading the first blindtest in storage as the primary navigation flow.
 
@@ -257,6 +266,13 @@ The Library scan panel is responsible for:
 * starting a scan for that path
 * stopping a running scan
 * displaying the latest scan summary without leaving the panel
+
+The Audio Tag Editor panel is responsible for:
+
+* browsing folders inside the configured music library
+* listing songs located directly in the selected folder
+* editing source file tags
+* saving those tag changes back to audio files and to the database
 
 Because the scan can be stopped by the host, the backend should expose a cancellable scan lifecycle rather than relying only on a fire-and-forget synchronous HTTP call.
 

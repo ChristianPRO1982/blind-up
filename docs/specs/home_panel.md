@@ -13,6 +13,7 @@ It allows the host to:
 * create a new blindtest
 * create a new blindtest from a JSON file
 * open the Library scan panel
+* open the Audio Tag Editor panel
 
 The Home panel is intentionally simple and local-first.
 
@@ -88,7 +89,23 @@ For MVP, the new blindtest does not need a title before entering the editor.
 
 ---
 
-# 5 Navigation
+# 5 Open Audio Tag Editor
+
+The Home panel exposes an `Audio tag editor` action.
+
+When used:
+
+* the frontend opens the Audio Tag Editor panel
+* the panel starts inside the configured music library root
+* no blindtest needs to be selected first
+
+The detailed behavior of this panel is specified separately in:
+
+* `docs/specs/audio_tag_editor.md`
+
+---
+
+# 6 Navigation
 
 Navigation for this feature is intentionally shallow:
 
@@ -96,13 +113,15 @@ Navigation for this feature is intentionally shallow:
 * `Home -> New blindtest -> Editor`
 * `Home -> Import JSON -> New blindtest`
 * `Home -> Library scan`
+* `Home -> Audio tag editor`
 * `Editor -> Back -> Home`
+* `Audio tag editor -> Back -> Home`
 
 The Home panel is the previous screen for the editor in normal usage.
 
 ---
 
-# 6 Backend API
+# 7 Backend API
 
 The backend must expose a way to list blindtests and a way to fetch one blindtest by identifier.
 
@@ -147,7 +166,7 @@ The endpoint should:
 
 ---
 
-# 7 Persistence Impact
+# 8 Persistence Impact
 
 No database schema change is required for this feature.
 
@@ -155,7 +174,7 @@ The existing `blindtests.updated_at` field is sufficient to support Home panel o
 
 ---
 
-# 8 Correctness
+# 9 Correctness
 
 The Home panel is correct if:
 

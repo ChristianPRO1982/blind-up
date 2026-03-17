@@ -7,6 +7,7 @@ BlindUp is a local web application used to run music quiz sessions based on a bl
 The application allows a host to:
 
 * scan a local music library
+* edit source audio tags from the library
 * create blind tests from the library
 * configure `La la la...` segments for each song
 * run the game in either **Blind Test mode** or **BlindUp mode**
@@ -82,6 +83,7 @@ Each file describes **one isolated feature** that can be implemented independent
 
 Example files:
 
+* `audio_tag_editor.md`
 * `blindtest_editor.md`
 * `blindtest_json_exchange.md`
 * `blindtest_player.md`

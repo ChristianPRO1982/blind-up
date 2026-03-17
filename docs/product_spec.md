@@ -20,6 +20,8 @@ Blindtests may also be exchanged through portable files:
 * a JSON contract describing the format
 * `song_list.tsv` exports for prompt-driven generation workflows
 
+The host can also edit source audio tags directly from the application through a dedicated library panel.
+
 ---
 
 # Core Concepts
@@ -42,6 +44,8 @@ Each song contains metadata extracted from audio tags:
 * album
 * year
 * genre
+
+These tags may be edited later from the dedicated Audio Tag Editor panel.
 
 Songs are identified internally using a **file hash**.
 
@@ -88,6 +92,11 @@ In that case:
 * the slot is preserved
 * the blindtest keeps the last known source metadata
 * the slot is marked as broken and must be repaired manually
+
+Because blindtest overrides and source file tags are distinct concepts:
+
+* the Audio Tag Editor panel modifies the source audio file tags
+* the Blindtest Editor panel modifies only blindtest-specific overrides
 
 ---
 

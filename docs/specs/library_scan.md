@@ -206,6 +206,8 @@ If no cover exists:
 
 The scan must not modify the original audio file.
 
+Source metadata may still be modified later by the dedicated Audio Tag Editor panel.
+
 Example public cover path:
 
 ```text

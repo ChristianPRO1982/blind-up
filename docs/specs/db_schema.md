@@ -64,11 +64,11 @@ CREATE TABLE songs (
 | file_hash    | hash used to identify the file |
 | file_path    | absolute path to audio file    |
 | duration_sec | full song duration             |
-| title        | extracted tag                  |
-| artist       | extracted tag                  |
-| album        | extracted tag                  |
-| year         | extracted tag                  |
-| genre        | extracted tag                  |
+| title        | current file tag snapshot      |
+| artist       | current file tag snapshot      |
+| album        | current file tag snapshot      |
+| year         | current file tag snapshot      |
+| genre        | current file tag snapshot      |
 | cover_path   | optional backend-served cover path |
 | created_at   | creation timestamp             |
 | updated_at   | update timestamp               |
