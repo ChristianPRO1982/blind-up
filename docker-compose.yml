@@ -10,8 +10,8 @@ services:
       BLINDUP_COVERS_DIR: /covers
     volumes:
       - blindup-data:/data
-      - /home/utilisateur/Musique/Blind-Up:/music-library
-      - /home/utilisateur/Images/blind-up:/covers
+      - ${BLINDUP_HOST_MUSIC_LIBRARY}:/music-library
+      - ${BLINDUP_HOST_COVERS_DIR}:/covers
 
 volumes:
   blindup-data:

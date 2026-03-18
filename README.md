@@ -23,26 +23,22 @@
 
 ## Lancer BlindUp en local
 
-### 1. Modifier `docker-compose.yml`
+### 1. Créer ton fichier `.env`
 
-Dans [docker-compose.yml](/home/christianpro1982/Documents/cARThographie/blind-up/docker-compose.yml), configure :
+Copie le fichier d'exemple :
 
-* le chemin hôte de ta bibliothèque audio dans le volume monté sur `/music-library`
-* le chemin hôte utilisé pour stocker les covers extraites dans le volume monté sur `/covers`
-
-Exemple actuel :
-
-```yml
-environment:
-  BLINDUP_DB_PATH: /data/blindup.db
-  BLINDUP_LIBRARY_ROOT_PATH: /music-library
-  BLINDUP_COVERS_DIR: /covers
-
-volumes:
-  - blindup-data:/data
-  - /chemin/vers/tes/fichiers-audio:/music-library:ro
-  - /chemin/vers/ton/dossier-covers:/covers
+```bash
+cp .env.example .env
 ```
+
+Puis adapte les chemins selon ton PC dans `.env` :
+
+```dotenv
+BLINDUP_HOST_MUSIC_LIBRARY=/chemin/vers/tes/fichiers-audio
+BLINDUP_HOST_COVERS_DIR=/chemin/vers/ton/dossier-covers
+```
+
+Ces variables sont injectees dans [docker-compose.yml](/home/christianpro1982/Documents/cARThographie/blind-up/docker-compose.yml) pour monter les volumes `/music-library` et `/covers`.
 
 Le montage `/covers` doit rester **inscriptible**. Ne pas ajouter `:ro`, sinon BlindUp ne pourra pas sauvegarder les images extraites.
 
