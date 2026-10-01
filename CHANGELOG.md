@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.3.0 (2026-10-01)
+
+### Features
+
+- Update configuration for Docker and environment variables
+  ([`5a81580`](https://github.com/ChristianPRO1982/blind-up/commit/5a81580a06333557434fbd176338f6dc497f22df))
+
+
 ## v1.2.0 (2026-03-13)
 
 ### Features
